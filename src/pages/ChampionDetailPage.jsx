@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ArrowRight, Pencil, Sparkles } from "lucide-react";
 import { navigate } from "../hooks/useHashRoute.js";
 import { TIER_COLORS, ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
-import { imgPath } from "../utils/images.js";
+import { basePath } from "../utils/images.js";
+import SmartImage from "../components/SmartImage.jsx";
 import BuildList from "../components/BuildList.jsx";
 
 export default function ChampionDetailPage({ champion }) {
@@ -10,7 +11,7 @@ export default function ChampionDetailPage({ champion }) {
   const Icon = ROLE_ICONS[champion.role] || Sparkles;
   const accent = ROLE_COLORS[champion.role];
   const badgeDark = champion.tier === "Unranked" ? "#aab0d4" : "#04050c";
-  const portraitSrc = imgPath(`c:${champion.id}`);
+  const portraitPath = basePath(`c:${champion.id}`);
 
   return (
     <section className="page-section">
@@ -22,10 +23,7 @@ export default function ChampionDetailPage({ champion }) {
         <div className="detail-head" style={{ "--accent": accent }}>
           <div className="detail-icon">
             <Icon size={34} />
-            {portraitSrc && (
-              <img src={portraitSrc} alt="" className="chip-portrait" loading="lazy"
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            )}
+            {portraitPath && <SmartImage basePath={portraitPath} alt={champion.name} className="chip-portrait" />}
           </div>
           <div>
             <span className="chip-tag" style={{ position: "static", display: "inline-flex" }}>{champion.role}</span>

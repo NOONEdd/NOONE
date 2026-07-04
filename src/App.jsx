@@ -16,7 +16,7 @@ export default function App() {
   const route = useHashRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [overrides, updateOverride] = useCoachOverrides();
+  const [overrides, updateOverride, syncStatus] = useCoachOverrides();
 
   const champions = CHAMPIONS.map((c) => {
     const o = overrides.champions[c.id];
@@ -33,13 +33,13 @@ export default function App() {
 
   let content;
   if (route.page === "tierlist") {
-    content = <ChampionTierListPage champions={champions} editMode={editMode} setEditMode={setEditMode}
+    content = <ChampionTierListPage champions={champions} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus}
       onUpdate={(id, patch) => updateOverride("champions", id, patch)} />;
   } else if (route.page === "items") {
-    content = <ItemTierListPage items={items} editMode={editMode} setEditMode={setEditMode}
+    content = <ItemTierListPage items={items} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus}
       onUpdate={(id, patch) => updateOverride("items", id, patch)} />;
   } else if (route.page === "runes") {
-    content = <RuneTierListPage runes={runes} editMode={editMode} setEditMode={setEditMode}
+    content = <RuneTierListPage runes={runes} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus}
       onUpdate={(id, patch) => updateOverride("runes", id, patch)} />;
   } else if (route.page === "guides") {
     content = <GuidesPage champions={champions} />;

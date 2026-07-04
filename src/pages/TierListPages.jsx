@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ROLE_ICONS, ROLE_COLORS, ITEM_ICONS, ITEM_COLORS, ITEM_CATEGORIES, RUNE_ICONS, RUNE_COLORS, RUNE_PATHS } from "../data/constants.js";
 import { TierBoard, CoachToggle } from "../components/TierBoard.jsx";
 
-export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdate }) {
+export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdate, syncStatus }) {
   const entries = champions.map((c) => ({
     id: c.id, name: c.name, tag: c.role, tier: c.tier, note: c.note,
     icon: ROLE_ICONS[c.role], accent: ROLE_COLORS[c.role], clickable: true, _type: "c",
@@ -15,14 +15,14 @@ export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdat
           <h2>Support Champion Tier List</h2>
           <p>Coach-graded placements — toggle Coach Mode to adjust.</p>
         </div>
-        <CoachToggle editMode={editMode} setEditMode={setEditMode} />
+        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} />
         <TierBoard entries={entries} editMode={editMode} onUpdate={onUpdate} />
       </div>
     </section>
   );
 }
 
-export function ItemTierListPage({ items, editMode, setEditMode, onUpdate }) {
+export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncStatus }) {
   const [filter, setFilter] = useState("All");
   const filtered = filter === "All" ? items : items.filter((i) => i.category === filter);
   const entries = filtered.map((i) => ({
@@ -43,14 +43,14 @@ export function ItemTierListPage({ items, editMode, setEditMode, onUpdate }) {
             <button key={c} className={"filter-pill" + (filter === c ? " active" : "")} onClick={() => setFilter(c)}>{c}</button>
           ))}
         </div>
-        <CoachToggle editMode={editMode} setEditMode={setEditMode} />
+        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} />
         <TierBoard entries={entries} editMode={editMode} onUpdate={onUpdate} />
       </div>
     </section>
   );
 }
 
-export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate }) {
+export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncStatus }) {
   const [filter, setFilter] = useState("All");
   const filtered = filter === "All" ? runes : runes.filter((r) => r.path === filter);
   const entries = filtered.map((r) => ({
@@ -71,7 +71,7 @@ export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate }) {
             <button key={p} className={"filter-pill" + (filter === p ? " active" : "")} onClick={() => setFilter(p)}>{p}</button>
           ))}
         </div>
-        <CoachToggle editMode={editMode} setEditMode={setEditMode} />
+        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} />
         <TierBoard entries={entries} editMode={editMode} onUpdate={onUpdate} />
       </div>
     </section>

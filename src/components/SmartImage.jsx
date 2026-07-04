@@ -45,6 +45,14 @@ export default function SmartImage({ basePath, alt, className, onExhausted }) {
           setExtIndex((i) => i + 1);
         } else {
           setExhausted(true);
+          // Visible in the browser console (F12 → Console) — if you see a wall
+          // of these, it almost always means the /public/assets/... folder
+          // structure doesn't exactly match what's expected, or the deployed
+          // build predates these images being added. Check the exact failed
+          // path below against your actual repo structure.
+          console.warn(
+            `[SmartImage] No image found for "${basePath}" — tried: ${EXTENSIONS_TO_TRY.map((e) => `${basePath}.${e}`).join(", ")}`
+          );
           if (onExhausted) onExhausted();
         }
       }}

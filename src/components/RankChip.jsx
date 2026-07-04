@@ -1,10 +1,11 @@
 import { navigate } from "../hooks/useHashRoute.js";
 import { TIER_COLORS, TIER_SELECT } from "../data/constants.js";
-import { imgPath } from "../utils/images.js";
+import { basePath } from "../utils/images.js";
+import SmartImage from "./SmartImage.jsx";
 
 export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, accent, editMode, onUpdate, clickable, mini, _type }) {
   const badgeDark = tier === "Unranked" ? "#aab0d4" : "#04050c";
-  const src = _type ? imgPath(`${_type}:${id}`) : null;
+  const path = _type ? basePath(`${_type}:${id}`) : null;
 
   return (
     <div
@@ -18,15 +19,7 @@ export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, 
       <span className="chip-tag">{tag}</span>
       <div className="chip-icon-wrap">
         <Icon size={26} />
-        {src && (
-          <img
-            src={src}
-            alt=""
-            className="chip-portrait"
-            loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-          />
-        )}
+        {path && <SmartImage basePath={path} alt={name} className="chip-portrait" />}
       </div>
       <div className="chip-name">{name}</div>
       {info && <div className="chip-info">{info}</div>}

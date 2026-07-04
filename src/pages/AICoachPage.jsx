@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 
-// IMPORTANT: this calls /api/coach (a serverless function — see /api/coach.js)
+// IMPORTANT: this calls /api/coach (a Cloudflare Pages Function — see functions/api/coach.js)
 // instead of api.anthropic.com directly. Never call the Anthropic API directly
 // from browser code in a deployed app — that would require shipping your API
 // key to every visitor's browser, where anyone could read and misuse it.

@@ -1,5 +1,15 @@
+import { useState } from "react";
 import { Pencil, Swords } from "lucide-react";
-import { imgPath } from "../utils/images.js";
+import { basePath } from "../utils/images.js";
+import SmartImage from "./SmartImage.jsx";
+
+function BuildRowIcon({ path, name }) {
+  const [failed, setFailed] = useState(false);
+  if (!path || failed) {
+    return <div className="build-row-icon-placeholder"><Swords size={16} style={{ color: "var(--text-dimmer)" }} /></div>;
+  }
+  return <SmartImage basePath={path} alt={name} className="build-row-icon" onExhausted={() => setFailed(true)} />;
+}
 
 export default function BuildList({ entries, emptyText, _type }) {
   if (!entries || entries.length === 0) {
@@ -14,14 +24,10 @@ export default function BuildList({ entries, emptyText, _type }) {
     <div className="build-list">
       {entries.map((e, i) => {
         const id = e.id || e.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        const src = _type ? imgPath(`${_type}:${id}`) : null;
+        const path = _type ? basePath(`${_type}:${id}`) : null;
         return (
           <div className="build-row" key={i}>
-            {src ? (
-              <img src={src} alt={e.name} className="build-row-icon" onError={(ev) => { ev.currentTarget.style.display = "none"; }} />
-            ) : _type ? (
-              <div className="build-row-icon-placeholder"><Swords size={16} style={{ color: "var(--text-dimmer)" }} /></div>
-            ) : null}
+            {_type && <BuildRowIcon path={path} name={e.name} />}
             {e.tag && <span className="build-row-tag">{e.tag}</span>}
             <div className="build-row-body">
               <div className="build-row-name">{e.name}</div>
