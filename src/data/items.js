@@ -3,6 +3,7 @@
 // Mode / localStorage overrides) hold coaching judgment.
 
 export const ITEMS = [
+  { id: "relic-shield", name: "Relic Shield", category: "Support", info: "~125 Health. The classic support mission item — while near an ally, your basic attacks can consume a charge to execute a low-health minion, healing you and sharing bonus gold with your nearest ally. Regular minion gold is reduced to compensate. Earning enough gold through the quest upgrades it into a stronger version later in the game." },
   { id: "ardent-censer", name: "Ardent Censer", category: "Support", info: "60 AP, 250 Health, 10% CDR. Always gives +5% move speed. Healing or shielding an ally gives you both bonus attack speed and a few seconds of extra on-hit magic damage." },
   { id: "harmonic-echo", name: "Harmonic Echo", category: "Support", info: "80 AP, 300 Mana, 10% CDR. Moving and casting abilities builds a stacking meter — once full, your next heal or shield on an ally restores a burst of extra health to them and nearby allies." },
   { id: "redemption", name: "Redemption", category: "Support", info: "20 Ability Haste, 400 Health, 300 Mana. While you're near an ally, all nearby allies are passively healed every few seconds for an amount that scales off your bonus health." },

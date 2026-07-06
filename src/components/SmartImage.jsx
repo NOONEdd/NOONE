@@ -8,31 +8,39 @@ import { useState, useEffect } from "react";
 const EXTENSIONS_TO_TRY = ["webp", "jpg", "jpeg", "png", "avif"];
 
 /**
- * SmartImage tries every extension in EXTENSIONS_TO_TRY against the given
- * basePath until one actually loads, then sticks with it. If none load, it
- * renders nothing — so whatever fallback icon sits underneath it in the
- * DOM stays visible.
+ * SmartImage tries every (basePath × extension) combination in order until
+ * one actually loads, then sticks with it. If none load, it renders nothing
+ * — so whatever fallback icon sits underneath it in the DOM stays visible.
  *
- * This means: drop a new file in as lulu.webp, lulu.png, or lulu.jpg —
- * doesn't matter which — and it'll be found automatically. No code change
- * needed when you add images later, regardless of format.
+ * basePath accepts either a single string or an array of candidate base
+ * paths (use candidatePaths() from utils/images.js to get the array form,
+ * which also tries known aliases for a given id — different filename a
+ * source site might have used, common typos, etc). Passing an array means:
+ * try candidate 1 in every format, then candidate 2 in every format, and
+ * so on, before falling back to the icon.
  *
  * Usage:
  *   <SmartImage basePath="/assets/champions/lulu" alt="Lulu" className="chip-portrait" />
+ *   <SmartImage basePath={candidatePaths("i:eclipse")} alt="Eclipse" className="chip-portrait" />
  */
 export default function SmartImage({ basePath, alt, className, onExhausted }) {
-  const [extIndex, setExtIndex] = useState(0);
+  const candidates = Array.isArray(basePath) ? basePath.filter(Boolean) : basePath ? [basePath] : [];
+  const [attempt, setAttempt] = useState(0);
   const [exhausted, setExhausted] = useState(false);
+
+  const totalAttempts = candidates.length * EXTENSIONS_TO_TRY.length;
 
   // Reset the attempt chain whenever we're asked to load a different image
   useEffect(() => {
-    setExtIndex(0);
+    setAttempt(0);
     setExhausted(false);
-  }, [basePath]);
+  }, [Array.isArray(basePath) ? basePath.join("|") : basePath]);
 
-  if (!basePath || exhausted) return null;
+  if (candidates.length === 0 || exhausted) return null;
 
-  const src = `${basePath}.${EXTENSIONS_TO_TRY[extIndex]}`;
+  const candidateIndex = Math.floor(attempt / EXTENSIONS_TO_TRY.length);
+  const extIndex = attempt % EXTENSIONS_TO_TRY.length;
+  const src = `${candidates[candidateIndex]}.${EXTENSIONS_TO_TRY[extIndex]}`;
 
   return (
     <img
@@ -41,17 +49,16 @@ export default function SmartImage({ basePath, alt, className, onExhausted }) {
       className={className}
       loading="lazy"
       onError={() => {
-        if (extIndex < EXTENSIONS_TO_TRY.length - 1) {
-          setExtIndex((i) => i + 1);
+        if (attempt < totalAttempts - 1) {
+          setAttempt((a) => a + 1);
         } else {
           setExhausted(true);
           // Visible in the browser console (F12 → Console) — if you see a wall
           // of these, it almost always means the /public/assets/... folder
-          // structure doesn't exactly match what's expected, or the deployed
-          // build predates these images being added. Check the exact failed
-          // path below against your actual repo structure.
+          // structure doesn't exactly match what's expected, or the file uses
+          // a name not covered by the alias list in utils/images.js yet.
           console.warn(
-            `[SmartImage] No image found for "${basePath}" — tried: ${EXTENSIONS_TO_TRY.map((e) => `${basePath}.${e}`).join(", ")}`
+            `[SmartImage] No image found for any of: ${candidates.join(", ")} (tried all of ${EXTENSIONS_TO_TRY.join("/")})`
           );
           if (onExhausted) onExhausted();
         }

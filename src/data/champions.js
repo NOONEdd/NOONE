@@ -46,7 +46,7 @@ export const CHAMPIONS = [
   { id: "thresh", name: "Thresh", role: "Catcher", tier: "B", blurb: "Very strong late game into AD champions, with heavy CC and a bit of damage." },
   { id: "blitzcrank", name: "Blitzcrank", role: "Catcher", tier: "B", blurb: "Elite catcher if you land hooks — high mobility for chasing, high CC." },
   { id: "leona", name: "Leona", role: "Catcher", tier: "A", blurb: "High sustain and CC; one of the best engage supports, with moderate damage depending on build." },
-  { id: "pyke", name: "Pyke", role: "Catcher", tier: "A", blurb: "Hard to catch with high mobility; strong damage and execute potential on squishies, one of the best roamer-gankers." },
+  { id: "pyke", name: "Pyke", role: "Assassin Catcher", tier: "A", blurb: "Hard to catch with high mobility; strong damage and execute potential on squishies, one of the best roamer-gankers." },
   { id: "rakan", name: "Rakan", role: "Catcher", tier: "S", blurb: "Quick high-damage engages on squishies, with strong mobility and some save potential via Q and E." },
   // Warden
   { id: "braum", name: "Braum", role: "Warden", tier: "S", blurb: "Best-in-class disengage and damage-blocking, with high CC for catching enemies too." },
@@ -83,9 +83,9 @@ export const CHAMPIONS = [
       { tag: "Engage", name: "Don't hook just because you can", note: "Every hook should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing. Hook into a pushed lane, hook when your ADC is ready to trade, hook when you see an isolated target. The worst Nautilus games are the ones with 15 hooks and 0 kills." },
     ],
   },
-  { id: "alistar", name: "Alistar", role: "Warden", tier: "A", blurb: "Best-in-class tank for sustain and damage soak; elite playmaker for throwing enemies into your team to kill." },
-  { id: "rell", name: "Rell", role: "Warden", tier: "S", blurb: "Top-tier tank and engager with high CC — especially strong alongside one-shot AP carries like Orianna, Syndra, or Kennen." },
-  { id: "maokai", name: "Maokai", role: "Warden", tier: "A", blurb: "Excellent at catching enemies — one of the best engage ultimates in the game." },
+  { id: "alistar", name: "Alistar", role: "Catcher", tier: "A", blurb: "Best-in-class tank for sustain and damage soak; elite playmaker for throwing enemies into your team to kill." },
+  { id: "rell", name: "Rell", role: "Catcher", tier: "S", blurb: "Top-tier tank and engager with high CC — especially strong alongside one-shot AP carries like Orianna, Syndra, or Kennen." },
+  { id: "maokai", name: "Maokai", role: "Catcher", tier: "A", blurb: "Excellent at catching enemies — one of the best engage ultimates in the game." },
   // Mage Support
   { id: "zyra", name: "Zyra", role: "Mage Support", tier: "A", blurb: "Great answer to hook-heavy catchers; deals strong damage into tanks — pick her when the enemy has 3+ tanks." },
   { id: "nami", name: "Nami", role: "Mage Support", tier: "S", blurb: "High CC; trades movement speed to allies for slowing enemies — a top pick for healing plus CC." },
@@ -104,4 +104,5 @@ export const CHAMPIONS = [
   { id: "gragas", name: "Gragas", role: "Off-Meta Flex", tier: "C", blurb: "Elite playmaker via ult or Flash-E combo; hits tanks hard." },
   { id: "ornn", name: "Ornn", role: "Off-Meta Flex", tier: "A", blurb: "Strong engage and playmaking champion, good in teamfights, moderate damage into tanks." },
   { id: "poppy", name: "Poppy", role: "Off-Meta Flex", tier: "C", blurb: "One of the best picks into blink or dash-heavy enemies; her ultimate is great for catching someone and throwing them out of the fight." },
+  { id: "skarner", name: "Skarner", role: "Catcher", tier: "Unranked", blurb: "His charge (grabbing and dragging a champion into a wall) and ultimate (suppressing and dragging up to 3 enemies) are genuine catcher tools. Worth knowing: every current source describes him as primarily a jungler, not an established support — treat this as an experimental pick until there's real match data to back it, not a settled recommendation." },
 ];

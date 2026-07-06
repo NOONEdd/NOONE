@@ -175,7 +175,6 @@
     background:radial-gradient(circle,color-mix(in srgb,var(--accent) 30%,transparent),transparent 70%);
     display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;}
   .detail-name{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:700;margin-top:6px;}
-  .detail-blurb{color:var(--text-dim);margin-top:4px;}
   .detail-tier{margin-left:auto;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
     font-family:'Orbitron';font-weight:800;font-size:16px;}
   .tab-row{display:flex;gap:10px;margin-bottom:26px;flex-wrap:wrap;}
@@ -211,6 +210,57 @@
   .build-row-body{flex:1;}
   .build-row-name{font-weight:600;font-size:15px;}
   .build-row-note{font-size:13.5px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+
+  /* Standalone overview blurb — sits below the champion header, no tab needed */
+  .detail-blurb-standalone{color:var(--text-dim);font-size:15.5px;line-height:1.65;max-width:760px;margin:-10px 0 30px;}
+
+  /* BUILD BOARD — compact clickable grid + detail panel, desktop two-column / mobile bottom-sheet */
+  .build-board{display:grid;grid-template-columns:1fr;gap:24px;align-items:start;}
+  @media (min-width:900px){
+    .build-board{grid-template-columns:1fr 360px;}
+  }
+  .build-board-chips{display:flex;flex-direction:column;gap:26px;min-width:0;}
+  .chip-group-label{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dimmer);margin-bottom:14px;font-weight:600;}
+  .chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px;}
+  .build-chip{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 8px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(255,255,255,.02);text-align:center;
+    transition:border-color .2s var(--ease), background .2s var(--ease), transform .15s var(--ease);}
+  .build-chip:hover{border-color:rgba(255,255,255,.25);transform:translateY(-2px);}
+  .build-chip.active{border-color:var(--cyan);background:rgba(61,240,216,.08);box-shadow:0 0 0 1px rgba(61,240,216,.3);}
+  .build-chip-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.05);overflow:hidden;flex-shrink:0;}
+  .build-chip-img{width:100%;height:100%;object-fit:cover;}
+  .build-chip-name{font-size:12px;font-weight:600;line-height:1.3;word-break:break-word;}
+
+  /* Desktop sticky panel — hidden on mobile, where the bottom-sheet takes over */
+  .build-board-panel-desktop{display:none;}
+  @media (min-width:900px){
+    .build-board-panel-desktop{display:block;position:sticky;top:100px;align-self:start;}
+  }
+
+  /* Mobile bottom-sheet — hidden on desktop */
+  .build-sheet-backdrop{position:fixed;inset:0;z-index:300;background:rgba(2,3,10,.7);backdrop-filter:blur(4px);
+    display:flex;align-items:flex-end;}
+  @media (min-width:900px){.build-sheet-backdrop{display:none;}}
+  .build-sheet{width:100%;max-height:80vh;overflow-y:auto;background:var(--deep);border:1px solid var(--line);
+    border-bottom:none;border-radius:22px 22px 0 0;padding:8px 6px 24px;
+    animation:sheetUp .25s var(--ease);}
+  @keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+
+  .build-panel{border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.02);overflow:hidden;}
+  .build-panel-empty{padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;
+    text-align:center;color:var(--text-dim);font-size:14px;}
+  .build-panel-head{display:flex;align-items:flex-start;gap:14px;padding:20px 20px 16px;border-bottom:1px solid var(--line);position:relative;}
+  .build-panel-icon{width:44px;height:44px;border-radius:11px;flex-shrink:0;overflow:hidden;
+    background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;}
+  .build-panel-img{width:100%;height:100%;object-fit:cover;}
+  .build-panel-name{font-size:18px;font-weight:700;margin-top:6px;}
+  .build-panel-close{position:absolute;top:16px;right:16px;color:var(--text-dimmer);padding:4px;}
+  .build-panel-close:hover{color:var(--text);}
+  .build-panel-body{padding:18px 20px 22px;display:flex;flex-direction:column;gap:16px;}
+  .build-panel-block p{font-size:14px;line-height:1.65;color:var(--text-dim);}
+  .build-panel-label{display:block;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--cyan);font-weight:700;margin-bottom:5px;}
 
   /* CTA + FOOTER */
   .cta-banner{text-align:center;position:relative;overflow:hidden;padding:clamp(70px,10vw,120px) 0;}

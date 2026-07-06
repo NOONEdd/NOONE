@@ -52,3 +52,13 @@ export function IconSkull({ size = 24 }) {
     </svg>
   );
 }
+
+export function IconDagger({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v11" />
+      <path d="M8 5h8" />
+      <path d="M12 13l-2.5 7L12 22l2.5-2L12 13z" />
+    </svg>
+  );
+}
