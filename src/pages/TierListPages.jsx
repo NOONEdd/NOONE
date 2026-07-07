@@ -22,24 +22,30 @@ export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdat
   );
 }
 
-export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncStatus }) {
+/** Shared by ItemTierListPage and RuneTierListPage below — both were
+ *  previously near-identical copies of the same page shell (header,
+ *  category filter pills, Coach Toggle, TierBoard), differing only in
+ *  which field counts as the "category" and which icon/color maps apply.
+ *  Consolidated here so a future change to that shell only needs to
+ *  happen once. */
+function FilterableTierListPage({ title, subtitle, entries: rawEntries, categories, iconMap, colorMap, getTag, editMode, setEditMode, onUpdate, syncStatus, _type }) {
   const [filter, setFilter] = useState("All");
-  const filtered = filter === "All" ? items : items.filter((i) => i.category === filter);
-  const entries = filtered.map((i) => ({
-    id: i.id, name: i.name, tag: i.category, tier: i.tier, note: i.note, info: i.info,
-    icon: ITEM_ICONS[i.category], accent: ITEM_COLORS[i.category], clickable: false, _type: "i",
+  const filtered = filter === "All" ? rawEntries : rawEntries.filter((e) => getTag(e) === filter);
+  const entries = filtered.map((e) => ({
+    id: e.id, name: e.name, tag: getTag(e), tier: e.tier, note: e.note, info: e.info,
+    icon: iconMap[getTag(e)], accent: colorMap[getTag(e)], clickable: false, _type,
   }));
   return (
     <section className="page-section">
       <div className="wrap">
         <div className="section-head">
           <div className="eyebrow"><span className="dot" />Live Rankings</div>
-          <h2>Support Item Tier List</h2>
-          <p>Support, Defense, Boots, Enchant, Magic, and Physical items.</p>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
         </div>
         <div className="filter-pills">
           <button className={"filter-pill" + (filter === "All" ? " active" : "")} onClick={() => setFilter("All")}>All</button>
-          {ITEM_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button key={c} className={"filter-pill" + (filter === c ? " active" : "")} onClick={() => setFilter(c)}>{c}</button>
           ))}
         </div>
@@ -50,30 +56,40 @@ export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncS
   );
 }
 
-export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncStatus }) {
-  const [filter, setFilter] = useState("All");
-  const filtered = filter === "All" ? runes : runes.filter((r) => r.path === filter);
-  const entries = filtered.map((r) => ({
-    id: r.id, name: r.name, tag: r.path, tier: r.tier, note: r.note, info: r.info,
-    icon: RUNE_ICONS[r.path], accent: RUNE_COLORS[r.path], clickable: false, _type: "r",
-  }));
+export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncStatus }) {
   return (
-    <section className="page-section">
-      <div className="wrap">
-        <div className="section-head">
-          <div className="eyebrow"><span className="dot" />Live Rankings</div>
-          <h2>Support Rune Tier List</h2>
-          <p>Keystones and every minor rune path in Wild Rift.</p>
-        </div>
-        <div className="filter-pills">
-          <button className={"filter-pill" + (filter === "All" ? " active" : "")} onClick={() => setFilter("All")}>All</button>
-          {RUNE_PATHS.map((p) => (
-            <button key={p} className={"filter-pill" + (filter === p ? " active" : "")} onClick={() => setFilter(p)}>{p}</button>
-          ))}
-        </div>
-        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} />
-        <TierBoard entries={entries} editMode={editMode} onUpdate={onUpdate} />
-      </div>
-    </section>
+    <FilterableTierListPage
+      title="Support Item Tier List"
+      subtitle="Support, Defense, Boots, Enchant, Magic, and Physical items."
+      entries={items}
+      categories={ITEM_CATEGORIES}
+      iconMap={ITEM_ICONS}
+      colorMap={ITEM_COLORS}
+      getTag={(i) => i.category}
+      editMode={editMode}
+      setEditMode={setEditMode}
+      onUpdate={onUpdate}
+      syncStatus={syncStatus}
+      _type="i"
+    />
+  );
+}
+
+export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncStatus }) {
+  return (
+    <FilterableTierListPage
+      title="Support Rune Tier List"
+      subtitle="Keystones and every minor rune path in Wild Rift."
+      entries={runes}
+      categories={RUNE_PATHS}
+      iconMap={RUNE_ICONS}
+      colorMap={RUNE_COLORS}
+      getTag={(r) => r.path}
+      editMode={editMode}
+      setEditMode={setEditMode}
+      onUpdate={onUpdate}
+      syncStatus={syncStatus}
+      _type="r"
+    />
   );
 }

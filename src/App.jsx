@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useHashRoute } from "./hooks/useHashRoute.js";
 import { useCoachOverrides } from "./hooks/useCoachOverrides.js";
 import { CHAMPIONS } from "./data/champions.js";
@@ -18,18 +18,23 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [overrides, updateOverride, syncStatus] = useCoachOverrides();
 
-  const champions = CHAMPIONS.map((c) => {
+  // Only recompute when the actual override data changes — not on every
+  // App render (menu open/close, route changes, editMode toggling, etc.
+  // all used to force a full re-map of all 34/71/50 entries for no reason).
+  const champions = useMemo(() => CHAMPIONS.map((c) => {
     const o = overrides.champions[c.id];
     return { ...c, tier: o?.tier || c.tier || "Unranked", note: o?.note || c.blurb, items: c.items || [], runes: c.runes || [], matchups: c.matchups || [] };
-  });
-  const items = ITEMS.map((i) => {
+  }), [overrides.champions]);
+
+  const items = useMemo(() => ITEMS.map((i) => {
     const o = overrides.items[i.id];
     return { ...i, tier: o?.tier || "Unranked", note: o?.note || "" };
-  });
-  const runes = RUNES.map((r) => {
+  }), [overrides.items]);
+
+  const runes = useMemo(() => RUNES.map((r) => {
     const o = overrides.runes[r.id];
     return { ...r, tier: o?.tier || "Unranked", note: o?.note || "" };
-  });
+  }), [overrides.runes]);
 
   let content;
   if (route.page === "tierlist") {

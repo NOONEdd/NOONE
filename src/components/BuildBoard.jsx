@@ -20,16 +20,16 @@ function ChipGroup({ label, entries, _type, activeKey, onSelect }) {
   if (!entries || entries.length === 0) return null;
 
   const chips = [];
-  entries.forEach((e, i) => {
+  entries.forEach((e) => {
     const spellNames = e.tag === "Summoner Spells" ? splitSpellNames(e.name) : null;
     if (spellNames) {
       spellNames.forEach((n) => {
-        const key = `spell:${i}:${n}`;
+        const key = `spell:${slugify(n)}`;
         chips.push({ key, name: n, tag: e.tag, note: e.note, paths: candidatePaths(`s:${slugify(n)}`) });
       });
     } else {
       const id = e.id || slugify(e.name);
-      chips.push({ key: `${_type}:${i}:${id}`, ...e, paths: _type ? candidatePaths(`${_type}:${id}`) : [] });
+      chips.push({ key: `${_type}:${id}`, ...e, paths: _type ? candidatePaths(`${_type}:${id}`) : [] });
     }
   });
 

@@ -1,68 +1,104 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-/**
- * Order matters: put whatever format you use most often first, since it
- * means fewer failed attempts before the real image loads. webp is first
- * here since that's what most of your sourced images have been.
- */
 const EXTENSIONS_TO_TRY = ["webp", "jpg", "jpeg", "png", "avif"];
 
+/** Module-level, persists for the life of the page. Once we know which
+ *  exact URL works for a given candidate list, every SmartImage anywhere
+ *  on the site asking for that same image reuses the answer instantly
+ *  instead of re-probing from scratch — this is what makes the same item
+ *  icon appearing on a tier list AND a champion's build page free after
+ *  the first time. Value is the resolved URL, or null if confirmed missing. */
+const resolutionCache = new Map();
+
+function probeImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+async function resolveSrc(candidates) {
+  for (const base of candidates) {
+    for (const ext of EXTENSIONS_TO_TRY) {
+      const url = `${base}.${ext}`;
+      if (await probeImage(url)) return url;
+    }
+  }
+  return null;
+}
+
 /**
- * SmartImage tries every (basePath × extension) combination in order until
- * one actually loads, then sticks with it. If none load, it renders nothing
- * — so whatever fallback icon sits underneath it in the DOM stays visible.
- *
- * basePath accepts either a single string or an array of candidate base
- * paths (use candidatePaths() from utils/images.js to get the array form,
- * which also tries known aliases for a given id — different filename a
- * source site might have used, common typos, etc). Passing an array means:
- * try candidate 1 in every format, then candidate 2 in every format, and
- * so on, before falling back to the icon.
- *
  * Usage:
  *   <SmartImage basePath="/assets/champions/lulu" alt="Lulu" className="chip-portrait" />
  *   <SmartImage basePath={candidatePaths("i:eclipse")} alt="Eclipse" className="chip-portrait" />
+ *
+ * Renders nothing until the correct URL is confirmed to actually exist (or
+ * confirmed not to) — so the fallback icon underneath never gets covered
+ * by a flash of a broken-image state, and the visible <img> only ever gets
+ * exactly one, already-known-good src.
  */
 export default function SmartImage({ basePath, alt, className, onExhausted }) {
   const candidates = Array.isArray(basePath) ? basePath.filter(Boolean) : basePath ? [basePath] : [];
-  const [attempt, setAttempt] = useState(0);
-  const [exhausted, setExhausted] = useState(false);
+  const cacheKey = candidates.join("|");
+  const containerRef = useRef(null);
 
-  const totalAttempts = candidates.length * EXTENSIONS_TO_TRY.length;
+  const [src, setSrc] = useState(() => (resolutionCache.has(cacheKey) ? resolutionCache.get(cacheKey) : undefined));
+  const [inView, setInView] = useState(() => resolutionCache.has(cacheKey));
 
-  // Reset the attempt chain whenever we're asked to load a different image
+  // Don't even start probing until this is actually near the viewport —
+  // keeps a 70-item tier list from firing 70 sets of probes on mount.
+  // Already-cached images skip this entirely since there's nothing to wait for.
   useEffect(() => {
-    setAttempt(0);
-    setExhausted(false);
-  }, [Array.isArray(basePath) ? basePath.join("|") : basePath]);
-
-  if (candidates.length === 0 || exhausted) return null;
-
-  const candidateIndex = Math.floor(attempt / EXTENSIONS_TO_TRY.length);
-  const extIndex = attempt % EXTENSIONS_TO_TRY.length;
-  const src = `${candidates[candidateIndex]}.${EXTENSIONS_TO_TRY[extIndex]}`;
-
-  return (
-    <img
-      src={src}
-      alt={alt || ""}
-      className={className}
-      loading="lazy"
-      onError={() => {
-        if (attempt < totalAttempts - 1) {
-          setAttempt((a) => a + 1);
-        } else {
-          setExhausted(true);
-          // Visible in the browser console (F12 → Console) — if you see a wall
-          // of these, it almost always means the /public/assets/... folder
-          // structure doesn't exactly match what's expected, or the file uses
-          // a name not covered by the alias list in utils/images.js yet.
-          console.warn(
-            `[SmartImage] No image found for any of: ${candidates.join(", ")} (tried all of ${EXTENSIONS_TO_TRY.join("/")})`
-          );
-          if (onExhausted) onExhausted();
+    if (inView || candidates.length === 0) return;
+    const node = containerRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setInView(true);
+          observer.disconnect();
         }
-      }}
-    />
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [cacheKey, inView]);
+
+  useEffect(() => {
+    if (!inView || candidates.length === 0) return;
+    if (resolutionCache.has(cacheKey)) {
+      setSrc(resolutionCache.get(cacheKey));
+      return;
+    }
+    let cancelled = false;
+    resolveSrc(candidates).then((result) => {
+      resolutionCache.set(cacheKey, result);
+      if (cancelled) return;
+      setSrc(result);
+      if (result === null) {
+        // Visible in the browser console (F12 → Console) — if you see a wall
+        // of these, it almost always means the /public/assets/... folder
+        // structure doesn't exactly match what's expected, or the file uses
+        // a name not covered by the alias list in utils/images.js yet.
+        console.warn(`[SmartImage] No image found for any of: ${candidates.join(", ")} (tried all of ${EXTENSIONS_TO_TRY.join("/")})`);
+        if (onExhausted) onExhausted();
+      }
+    });
+    return () => { cancelled = true; };
+  }, [inView, cacheKey]);
+
+  if (candidates.length === 0) return null;
+
+  // The wrapper only exists to give the IntersectionObserver something to
+  // watch before an image is resolved; display:contents means it has zero
+  // effect on layout, so it's safe inside flex/grid parents that expect
+  // the <img> to behave like a direct child.
+  return (
+    <span ref={containerRef} style={{ display: "contents" }}>
+      {src && <img src={src} alt={alt || ""} className={className} />}
+    </span>
   );
 }
