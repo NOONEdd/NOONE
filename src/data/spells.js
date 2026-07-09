@@ -12,14 +12,14 @@ export const SPELLS = [
 
 const SPELL_NAMES = new Set(SPELLS.map((s) => s.name.toLowerCase()));
 
-/** Given a build-row name like "Flash + Ignite" or "Flash + Ignite (swap
- *  for Heal)", returns ["Flash", "Ignite"] if every piece is a recognized
- *  spell name once any trailing "(...)" annotation is stripped, otherwise
- *  returns null so the caller can fall back to plain text. */
+/** Given a build-row name like "Flash + Ignite", "Ignite (swap for
+ *  Heal)", or just "Heal", returns the recognized spell name(s) as an
+ *  array once any trailing "(...)" annotation is stripped -- one entry
+ *  for a single spell, two for a "+" combo -- or null if any piece isn't
+ *  a recognized spell name, so the caller can fall back to plain text. */
 export function splitSpellNames(name) {
   const cleaned = name.replace(/\s*\([^)]*\)\s*$/, "").trim();
   const parts = cleaned.split(/\s*\+\s*/).map((p) => p.trim());
-  if (parts.length < 2) return null;
-  const allRecognized = parts.every((p) => SPELL_NAMES.has(p.toLowerCase()));
+  const allRecognized = parts.length > 0 && parts.every((p) => SPELL_NAMES.has(p.toLowerCase()));
   return allRecognized ? parts : null;
 }

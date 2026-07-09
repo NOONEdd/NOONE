@@ -25,7 +25,7 @@ export const CHAMPIONS = [
       { tag: "Inspiration", name: "Transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-      { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
+      { tag: "Spell Swap", name: "Flash + Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
     matchups: [
       { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
@@ -63,7 +63,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", name: "Yordle Trap (Boot Enchant)", note: "After you displace an enemy with your hook or ult, their armor and magic resist drop and you earn bonus gold on their death. Punishes every successful engage." },
       { tag: "Boots vs AD", name: "Plated Steelcaps", note: "Take these when the enemy has multiple AD damage dealers or a strong auto-attack-reliant ADC." },
       { tag: "Boots vs AP", name: "Mercury's Treads", note: "Take these when the enemy has multiple AP damage sources or heavy CC that interrupts your engages." },
-      { tag: "Enchant", name: " Stoneplate Enchant", note: "Default enchant — when you dive into the enemy team to hook, this shield keeps you alive long enough for your team to follow up." },
+      { tag: "Enchant", name: "Gargoyle Stoneplate", note: "Default enchant — when you dive into the enemy team to hook, this shield keeps you alive long enough for your team to follow up." },
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for Nautilus — every hook, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
