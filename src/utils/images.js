@@ -32,6 +32,34 @@ export function slugify(name) {
     .replace(/^-+|-+$/g, "");
 }
 
+/** Coach notes often write entries like "Perseverance (swap for Revitalize)"
+ *  or "Locket (instead of Veil)" — the parenthetical is guidance for the
+ *  reader, not part of the actual item/rune name. Strip it before trying
+ *  to resolve an id from the name, or it poisons the match. */
+export function stripAnnotation(name) {
+  return name.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
+/** Resolves a hand-written name (e.g. "Locket" or "Ionian Boots of
+ *  Lucidity") to the real id used in the canonical items/runes list, so
+ *  build entries don't need an explicit `id` field to display correctly.
+ *  Tries, in order: exact match, then substring match in either
+ *  direction (covers shorthand like "Locket" matching "Locket of the
+ *  Iron Solari"). Falls back to a plain slugify of the cleaned name if
+ *  nothing in the list matches, so behavior never gets worse than before. */
+export function findCanonicalId(rawName, canonicalList) {
+  const cleaned = stripAnnotation(rawName);
+  const normalized = cleaned.toLowerCase();
+  const exact = canonicalList.find((c) => c.name.toLowerCase() === normalized);
+  if (exact) return exact.id;
+  const partial = canonicalList.find((c) => {
+    const cName = c.name.toLowerCase();
+    return cName.includes(normalized) || normalized.includes(cName);
+  });
+  if (partial) return partial.id;
+  return slugify(cleaned);
+}
+
 // Known alternate names/filenames for specific ids — covers cases where the
 // wiki's own filename differs from the display name used on this site, or
 // where a manually-downloaded file is likely to carry a different stem.

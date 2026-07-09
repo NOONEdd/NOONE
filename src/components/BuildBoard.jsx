@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Pencil, Swords } from "lucide-react";
-import { candidatePaths, slugify } from "../utils/images.js";
+import { candidatePaths, slugify, findCanonicalId } from "../utils/images.js";
 import { splitSpellNames } from "../data/spells.js";
+import { ITEMS } from "../data/items.js";
+import { RUNES } from "../data/runes.js";
 import SmartImage from "./SmartImage.jsx";
 import BuildPanel from "./BuildPanel.jsx";
+
+const CANONICAL_BY_TYPE = { i: ITEMS, r: RUNES };
 
 function ChipIcon({ paths, size = 22 }) {
   const [failed, setFailed] = useState(false);
@@ -28,7 +32,13 @@ function ChipGroup({ label, entries, _type, activeKey, onSelect }) {
         chips.push({ key, name: n, tag: e.tag, note: e.note, paths: candidatePaths(`s:${slugify(n)}`) });
       });
     } else {
-      const id = e.id || slugify(e.name);
+      // Prefer an explicit id if the data provides one; otherwise resolve
+      // the written name against the real items/runes list rather than
+      // guessing a slug from the full text (which breaks the moment a
+      // name includes something like "(swap for X)" or uses a shorthand
+      // that differs from the item's canonical full name).
+      const canonicalList = CANONICAL_BY_TYPE[_type];
+      const id = e.id || (canonicalList ? findCanonicalId(e.name, canonicalList) : slugify(e.name));
       chips.push({ key: `${_type}:${id}`, ...e, paths: _type ? candidatePaths(`${_type}:${id}`) : [] });
     }
   });

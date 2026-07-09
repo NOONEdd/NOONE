@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Pencil, Swords } from "lucide-react";
-import { candidatePaths, slugify } from "../utils/images.js";
+import { candidatePaths, slugify, findCanonicalId } from "../utils/images.js";
 import { splitSpellNames } from "../data/spells.js";
+import { CHAMPIONS } from "../data/champions.js";
 import SmartImage from "./SmartImage.jsx";
+
+const CANONICAL_BY_TYPE = { c: CHAMPIONS };
 
 function BuildRowIcon({ paths, name }) {
   const [failed, setFailed] = useState(false);
@@ -36,12 +39,13 @@ export default function BuildList({ entries, emptyText, _type }) {
   }
   return (
     <div className="build-list">
-      {entries.map((e, i) => {
+      {entries.map((e) => {
         const spellNames = e.tag === "Summoner Spells" ? splitSpellNames(e.name) : null;
-        const id = e.id || slugify(e.name);
+        const canonicalList = CANONICAL_BY_TYPE[_type];
+        const id = e.id || (canonicalList ? findCanonicalId(e.name, canonicalList) : slugify(e.name));
         const paths = _type ? candidatePaths(`${_type}:${id}`) : [];
         return (
-          <div className="build-row" key={i}>
+          <div className="build-row" key={`${_type || "x"}:${id}`}>
             {spellNames ? (
               <SpellChips names={spellNames} />
             ) : (
