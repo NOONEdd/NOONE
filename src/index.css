@@ -143,6 +143,27 @@
   .chip-name{font-size:14.5px;font-weight:600;line-height:1.25;}
   .chip-info{font-size:11px;color:var(--text-dimmer);margin-top:6px;line-height:1.4;font-style:italic;}
   .chip-note{font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.4;}
+
+  /* Mobile: compact the grids so 3 chips fit per row instead of 1-2, and
+     hide the always-visible description text on mini chips (tier list
+     rows) since that's what was making each card tall enough to force
+     single-column, endless-scroll behavior. Tapping a mini chip now
+     reveals the same info via TierBoard's bottom-sheet instead. Desktop
+     is untouched -- this block only applies under 700px. */
+  @media (max-width:700px){
+    .roster-grid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;}
+    .roster-grid .rank-chip{min-height:150px;padding:12px 8px 14px;}
+    .roster-grid .chip-icon-wrap{width:44px;height:44px;margin:16px 0 8px;}
+    .roster-grid .chip-name{font-size:12.5px;}
+    .roster-grid .chip-note{display:none;}
+    .rank-chip.mini{width:auto;}
+    .tier-champs{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));}
+    .rank-chip.mini .chip-icon-wrap{width:38px;height:38px;margin:10px 0 6px;}
+    .rank-chip.mini .chip-name{font-size:11.5px;}
+    .rank-chip.mini .chip-info,
+    .rank-chip.mini .chip-note{display:none;}
+  }
+
   .edit-fields{display:flex;flex-direction:column;gap:7px;margin-top:10px;width:100%;}
   .edit-fields select, .edit-fields input{
     width:100%;background:rgba(255,255,255,.07);border:1px solid var(--line);
