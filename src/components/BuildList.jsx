@@ -40,7 +40,7 @@ export default function BuildList({ entries, emptyText, _type }) {
   return (
     <div className="build-list">
       {entries.map((e) => {
-        const spellNames = e.tag === "Summoner Spells" ? splitSpellNames(e.name) : null;
+        const spellNames = /spell/i.test(e.tag || "") ? splitSpellNames(e.name) : null;
         const canonicalList = CANONICAL_BY_TYPE[_type];
         const id = e.id || (canonicalList ? findCanonicalId(e.name, canonicalList) : slugify(e.name));
         const paths = _type ? candidatePaths(`${_type}:${id}`) : [];

@@ -25,7 +25,7 @@ function ChipGroup({ label, entries, _type, activeKey, onSelect }) {
 
   const chips = [];
   entries.forEach((e) => {
-    const spellNames = e.tag === "Summoner Spells" ? splitSpellNames(e.name) : null;
+    const spellNames = /spell/i.test(e.tag || "") ? splitSpellNames(e.name) : null;
     if (spellNames) {
       spellNames.forEach((n) => {
         const key = `spell:${slugify(n)}`;
