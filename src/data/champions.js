@@ -63,7 +63,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", name: "Yordle Trap (Boot Enchant)", note: "After you displace an enemy with your hook or ult, their armor and magic resist drop and you earn bonus gold on their death. Punishes every successful engage." },
       { tag: "Boots vs AD", name: "Plated Steelcaps", note: "Take these when the enemy has multiple AD damage dealers or a strong auto-attack-reliant ADC." },
       { tag: "Boots vs AP", name: "Mercury's Treads", note: "Take these when the enemy has multiple AP damage sources or heavy CC that interrupts your engages." },
-      { tag: "Enchant", name: "Gargoyle Stoneplate", note: "Default enchant — when you dive into the enemy team to hook, this shield keeps you alive long enough for your team to follow up." },
+      { tag: "Enchant", name: "Stoneplate Enchant", note: "Default enchant — when you dive into the enemy team to hook, this shield keeps you alive long enough for your team to follow up." },
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for Nautilus — every hook, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
