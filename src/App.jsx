@@ -16,7 +16,7 @@ export default function App() {
   const route = useHashRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [overrides, updateOverride, syncStatus] = useCoachOverrides();
+  const [overrides, updateOverride, syncStatus, auth] = useCoachOverrides();
 
   // Only recompute when the actual override data changes — not on every
   // App render (menu open/close, route changes, editMode toggling, etc.
@@ -38,13 +38,13 @@ export default function App() {
 
   let content;
   if (route.page === "tierlist") {
-    content = <ChampionTierListPage champions={champions} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus}
+    content = <ChampionTierListPage champions={champions} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth}
       onUpdate={(id, patch) => updateOverride("champions", id, patch)} />;
   } else if (route.page === "items") {
-    content = <ItemTierListPage items={items} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus}
+    content = <ItemTierListPage items={items} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth}
       onUpdate={(id, patch) => updateOverride("items", id, patch)} />;
   } else if (route.page === "runes") {
-    content = <RuneTierListPage runes={runes} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus}
+    content = <RuneTierListPage runes={runes} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth}
       onUpdate={(id, patch) => updateOverride("runes", id, patch)} />;
   } else if (route.page === "guides") {
     content = <GuidesPage champions={champions} />;

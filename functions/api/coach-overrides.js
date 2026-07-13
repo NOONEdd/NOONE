@@ -9,10 +9,22 @@
 //      KV namespace bindings → Add binding
 //        Variable name:  COACH_KV        (must match exactly, used below)
 //        KV namespace:   the one you just created
-//   3. Redeploy (or trigger a new deployment) so the binding takes effect
+//   3. Workers & Pages → your Pages project → Settings → Environment
+//      variables → Add variable
+//        Variable name:  COACH_PASSWORD  (must match exactly, used below)
+//        Value:          whatever password only you should know
+//        Mark it as a Secret so it's never shown/logged in plain text.
+//   4. Redeploy (or trigger a new deployment) so both bindings take effect
 //
-// Until that binding exists, this endpoint will return a clear error
-// instead of crashing, and the site automatically falls back to
+// Anyone can still READ the tier list (that's the whole point of a public
+// site), but WRITES now require this password — checked here, server-side,
+// which is the actual security boundary. The client-side password prompt
+// (see CoachToggle in src/components/Layout.jsx) is just the UX layer on
+// top; even if someone bypassed it entirely and called this endpoint
+// directly, a write without the correct password is rejected right here.
+//
+// Until COACH_KV/COACH_PASSWORD are set up, this endpoint returns a clear
+// error instead of crashing, and the site automatically falls back to
 // browser-local storage (see src/hooks/useCoachOverrides.js) so Coach Mode
 // still works locally in the meantime.
 
@@ -43,6 +55,11 @@ export async function onRequestPost(context) {
     return json({ error: "COACH_KV binding not set up yet — see comments in functions/api/coach-overrides.js" }, 500);
   }
 
+  const correctPassword = context.env.COACH_PASSWORD;
+  if (!correctPassword) {
+    return json({ error: "COACH_PASSWORD not set yet — add it as an environment variable in the Cloudflare dashboard (Settings → Environment variables), mark it as a Secret, then redeploy." }, 500);
+  }
+
   let body;
   try {
     body = await context.request.json();
@@ -50,7 +67,10 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { overrides } = body || {};
+  const { overrides, password } = body || {};
+  if (password !== correctPassword) {
+    return json({ error: "Incorrect password" }, 401);
+  }
   if (!overrides || typeof overrides !== "object") {
     return json({ error: "Missing overrides object" }, 400);
   }

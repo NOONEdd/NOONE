@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ROLE_ICONS, ROLE_COLORS, ITEM_ICONS, ITEM_COLORS, ITEM_CATEGORIES, RUNE_ICONS, RUNE_COLORS, RUNE_PATHS } from "../data/constants.js";
 import { TierBoard, CoachToggle } from "../components/TierBoard.jsx";
 
-export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdate, syncStatus }) {
+export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdate, syncStatus, auth }) {
   const entries = champions.map((c) => ({
     id: c.id, name: c.name, tag: c.role, tier: c.tier, note: c.note,
     icon: ROLE_ICONS[c.role], accent: ROLE_COLORS[c.role], clickable: true, _type: "c",
@@ -15,7 +15,7 @@ export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdat
           <h2>Support Champion Tier List</h2>
           <p>Coach-graded placements — toggle Coach Mode to adjust.</p>
         </div>
-        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} />
+        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth} />
         <TierBoard entries={entries} editMode={editMode} onUpdate={onUpdate} />
       </div>
     </section>
@@ -28,7 +28,7 @@ export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdat
  *  which field counts as the "category" and which icon/color maps apply.
  *  Consolidated here so a future change to that shell only needs to
  *  happen once. */
-function FilterableTierListPage({ title, subtitle, entries: rawEntries, categories, iconMap, colorMap, getTag, editMode, setEditMode, onUpdate, syncStatus, _type }) {
+function FilterableTierListPage({ title, subtitle, entries: rawEntries, categories, iconMap, colorMap, getTag, editMode, setEditMode, onUpdate, syncStatus, auth, _type }) {
   const [filter, setFilter] = useState("All");
   const filtered = filter === "All" ? rawEntries : rawEntries.filter((e) => getTag(e) === filter);
   const entries = filtered.map((e) => ({
@@ -49,14 +49,14 @@ function FilterableTierListPage({ title, subtitle, entries: rawEntries, categori
             <button key={c} className={"filter-pill" + (filter === c ? " active" : "")} onClick={() => setFilter(c)}>{c}</button>
           ))}
         </div>
-        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} />
+        <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth} />
         <TierBoard entries={entries} editMode={editMode} onUpdate={onUpdate} />
       </div>
     </section>
   );
 }
 
-export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncStatus }) {
+export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncStatus, auth }) {
   return (
     <FilterableTierListPage
       title="Support Item Tier List"
@@ -70,12 +70,13 @@ export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncS
       setEditMode={setEditMode}
       onUpdate={onUpdate}
       syncStatus={syncStatus}
+      auth={auth}
       _type="i"
     />
   );
 }
 
-export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncStatus }) {
+export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncStatus, auth }) {
   return (
     <FilterableTierListPage
       title="Support Rune Tier List"
@@ -89,6 +90,7 @@ export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncS
       setEditMode={setEditMode}
       onUpdate={onUpdate}
       syncStatus={syncStatus}
+      auth={auth}
       _type="r"
     />
   );

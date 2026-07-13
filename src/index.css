@@ -175,6 +175,13 @@
 
   /* TIER BOARD */
   .edit-toggle-row{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+
+  .coach-password-prompt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;
+    padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.02);}
+  .coach-password-prompt input{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;color:var(--text);font-family:'Rajdhani';font-size:14px;min-width:180px;}
+  .coach-password-prompt input::placeholder{color:var(--text-dimmer);}
+  .coach-password-error{font-size:12.5px;color:#ff6b6b;width:100%;}
   .save-note{font-size:12.5px;color:var(--cyan);}
   .storage-note{font-size:12px;color:var(--text-dimmer);margin-bottom:24px;}
   .filter-pills{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:30px;}
