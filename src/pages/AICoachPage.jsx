@@ -75,7 +75,7 @@ export default function AICoachPage() {
             {loading ? "..." : "Ask"}
           </button>
         </div>
-        <p className="coach-disclaimer">An AI feature of Vanguard Academy — not a substitute for 1-on-1 coaching.</p>
+        <p className="coach-disclaimer">An AI feature of Nyx NOONEdd Academy — not a substitute for 1-on-1 coaching.</p>
       </div>
     </section>
   );

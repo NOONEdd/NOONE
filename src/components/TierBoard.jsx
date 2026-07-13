@@ -20,7 +20,7 @@ export function TierBoard({ entries, editMode, onUpdate }) {
               {list.length === 0 && <span className="tier-empty">— empty —</span>}
               {list.map((e) => (
                 <RankChip key={e.id} {...e} editMode={editMode} onUpdate={(patch) => onUpdate(e.id, patch)}
-                  onTapForDetail={setActive} mini />
+                  onTapForDetail={setActive} hideTierBadge mini />
               ))}
             </div>
           </div>

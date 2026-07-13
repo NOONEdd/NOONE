@@ -12,7 +12,7 @@ export default function CoachingPage() {
 
         <div className="placeholder-box" style={{ marginBottom: 28 }}>
           <Pencil size={16} />
-          <p>This is where my story goes — why Support, what was missing from every guide I'd read, and the philosophy behind Vanguard Academy. Writing that properly soon. For now, here's the track record.</p>
+          <p>This is where my story goes — why Support, what was missing from every guide I'd read, and the philosophy behind Nyx NOONEdd Academy. Writing that properly soon. For now, here's the track record.</p>
         </div>
 
         <div className="overview-text">

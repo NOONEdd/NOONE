@@ -30,7 +30,7 @@ export default function HomePage({ champions }) {
           </h1>
           <p className="lead">
             Champion tiers, item builds, and rune pages are all here — but that's not the point.
-            Vanguard Academy exists to teach the decisions behind them: when to engage, when to roam,
+            Nyx NOONEdd Academy exists to teach the decisions behind them: when to engage, when to roam,
             when to hold vision, and why. You'll leave understanding the call, not just copying it.
           </p>
           <div className="hero-cta-row">

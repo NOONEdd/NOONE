@@ -3,7 +3,7 @@ import { TIER_COLORS, TIER_SELECT } from "../data/constants.js";
 import { candidatePaths } from "../utils/images.js";
 import SmartImage from "./SmartImage.jsx";
 
-export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, accent, editMode, onUpdate, clickable, mini, _type, onTapForDetail }) {
+export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, accent, editMode, onUpdate, clickable, mini, _type, onTapForDetail, hideTierBadge }) {
   const badgeDark = tier === "Unranked" ? "#aab0d4" : "#04050c";
   const paths = _type ? candidatePaths(`${_type}:${id}`) : [];
 
@@ -19,9 +19,11 @@ export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, 
       style={{ "--accent": accent }}
       onClick={editMode ? undefined : handleClick}
     >
-      <span className="tier-badge" style={{ background: TIER_COLORS[tier], color: badgeDark }}>
-        {tier === "Unranked" ? "—" : tier}
-      </span>
+      {!hideTierBadge && (
+        <span className="tier-badge" style={{ background: TIER_COLORS[tier], color: badgeDark }}>
+          {tier === "Unranked" ? "—" : tier}
+        </span>
+      )}
       <span className="chip-tag">{tag}</span>
       <div className="chip-icon-wrap">
         <Icon size={26} />
