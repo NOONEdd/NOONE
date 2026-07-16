@@ -14,8 +14,8 @@ export const CHAMPIONS = [
       { tag: "Situational", name: "Amaranth's Twinguard", note: "When the enemy has too much CC. Gives armor, magic resist, and tenacity — pair with Perseverance rune for maximum CC resistance in that game." },
       { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
       { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields, more W uses, more E rotations per fight." },
-      { tag: "Enchant", name: "Veil Enchant", note: "Default enchant. Cast on an ally to protect them from a single crucial enemy ability — this cannot be used on yourself, so always have a priority target in mind before you need it." },
-      { tag: "Enchant", name: "Locket (instead of Veil)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
+      { tag: "Enchant", name: "Mikeal's Blessing", note: "Default enchant. Cast on an ally to protect them from a single crucial enemy ability — this cannot be used on yourself, so always have a priority target in mind before you need it." },
+      { tag: "Enchant", name: "Locket (instead of Mikeal's Blessing)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
       { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
