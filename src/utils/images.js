@@ -87,6 +87,18 @@ const ALIASES = {
   "i:searing-crown": ["80px-searing_crown_wr_item"],
   "i:spectres-cowl": ["80px-spectre_s_cowl_wr_item", "spectres_cowl"],
   "i:tear-of-the-goddess": ["80px-tear_of_the_goddess_wr_item", "tear_of_the_goddess"],
+  "i:stormsurge": ["storm_surge", "stormsurge"],
+  "i:mikeal's-blessing": ["mikeal's-blessing", "mikeal's-blessing"],
+  "i:banshee's-veil": ["banshee's-veil", "banshees-veil"],
+  "i:cryptobloom": ["cryptobloom"],
+  "i:bloodletter's-curse": ["bloodletter's-curse", "bloodletters-curse"],
+  "i:blackfire-torch": ["blackfire-torch", "blackfiretorch"],
+  "i:armored-advance": ["armored-advance", "armoredadvance"],
+  "i:armor-crusher-boots": ["armor-crusher-boots", "armorcrusherboots"],
+  "i:crimson-lucidity": ["crimson-lucidity", "crimsonlucidity"],
+  "i:void-staff": ["void-staff", "voidstaff"],
+  "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
+  "i:spellslinger-shoes": ["spellslinger-shoes", "spellslingershoes"]
 };
 
 /** Given a lowercase-hyphenated stem, generates the handful of capitalization
