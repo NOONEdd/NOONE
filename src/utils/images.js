@@ -98,7 +98,7 @@ const ALIASES = {
   "i:crimson-lucidity": ["crimson-lucidity", "crimsonlucidity"],
   "i:void-staff": ["void-staff", "voidstaff"],
   "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
-  "i:spellslinger-shoes": ["spellslinger-shoes", "spellslingershoes"]
+  "i:spellslinger's-shoes": ["spellslinger's-shoes", "spellslinger's-shoes"],
 };
 
 /** Given a lowercase-hyphenated stem, generates the handful of capitalization
