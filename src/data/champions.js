@@ -9,7 +9,6 @@ export const CHAMPIONS = [
       { tag: "Core", name: "Ardent Censer", note: "When your ADC needs attack speed (Jinx, Vayne, Kog'Maw). The earlier you finish this, the sooner they spike in power. A core pick most games." },
       { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
       { tag: "Core", name: "Harmonic Echo", note: "Your E only shields one ally at a time; Harmonic Echo's passive lets you heal multiple teammates. Buy this when you need to support the whole team, not just your ADC." },
-      { tag: "Situational", name: "Redemption", note: "Same role as Harmonic Echo — supports more teammates at once. Choose between Redemption and Harmonic Echo depending on which you need first in that game." },
       { tag: "Situational", name: "Banshee's Veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
       { tag: "Situational", name: "Amaranth's Twinguard", note: "When the enemy has too much CC. Gives armor, magic resist, and tenacity — pair with Perseverance rune for maximum CC resistance in that game." },
       { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
