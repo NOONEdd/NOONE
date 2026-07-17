@@ -78,8 +78,12 @@ const currentBuild = builds[selectedBuild];
         )}
 
         {tab === "matchups" && (
-          <BuildList champion={champion} />
-        )}
+  <BuildList
+    entries={champion.matchups}
+    _type="c"
+    emptyText={`No matchup notes yet for ${champion.name}.`}
+  />
+)}
       </div>
     </section>
   );

@@ -278,8 +278,8 @@ export const CHAMPIONS = [
       { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
       { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
       { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
-    ]
-  },
+    ],},
+
   // Catcher
   { id: "thresh", name: "Thresh", role: "Catcher", tier: "S", blurb: "Very strong late game into AD champions, with heavy CC and a bit of damage." },
   { id: "blitzcrank", name: "Blitzcrank", role: "Catcher", tier: "B", blurb: "Elite catcher if you land hooks — high mobility for chasing, high CC." },
