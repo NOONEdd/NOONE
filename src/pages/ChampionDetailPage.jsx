@@ -45,7 +45,32 @@ export default function ChampionDetailPage({ champion }) {
             </button>
           ))}
         </div>
+    const [buildIndex,setBuildIndex]=useState(0);
 
+    const build=champion.builds[buildIndex];
+<select
+value={buildIndex}
+onChange={(e)=>setBuildIndex(Number(e.target.value))}
+>
+
+{champion.builds.map((b,i)=>
+
+<option key={i} value={i}>
+
+{b.name}
+
+</option>
+
+)}
+
+</select>
+<BuildBoard
+
+items={build.items}
+
+runes={build.runes}
+
+/>  
         {tab === "build" && (
           <BuildBoard items={champion.items} runes={champion.runes} emptyText={`No build notes yet for ${champion.name}.`} />
         )}
