@@ -321,3 +321,35 @@
     transition:opacity .3s var(--ease), transform .3s var(--ease), visibility .3s;}
   #toTop.show{opacity:1;visibility:visible;transform:translateY(0);}
   #toTop:hover{border-color:var(--cyan);}
+/* Build Selector */
+
+.build-select {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.build-select button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cfd3ff;
+  padding: 10px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.build-select button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.build-select button.active {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.4);
+}
