@@ -14,7 +14,15 @@ export default function ChampionDetailPage({ champion }) {
   const accent = ROLE_COLORS[champion.role];
   const badgeDark = champion.tier === "Unranked" ? "#aab0d4" : "#04050c";
   const portraitPaths = candidatePaths(`c:${champion.id}`);
+  const builds = champion.builds || [
+  {
+    name: "Default",
+    items: champion.items,
+    runes: champion.runes
+  }
+];
 
+const currentBuild = builds[selectedBuild];
   return (
     <section className="page-section">
       <div className="wrap">
@@ -46,26 +54,31 @@ export default function ChampionDetailPage({ champion }) {
             </button>
           ))}
         </div>
-<div className="build-select">
-  {champion.builds?.map((build, index) => (
-    <button
-      key={build.name}
-      className={selectedBuild === index ? "active" : ""}
-      onClick={() => setSelectedBuild(index)}
-    >
-      {build.name}
-    </button>
-  ))}
-</div>
+
         {tab === "build" && (
-         <BuildBoard
-  items={champion.items}
-  runes={champion.runes}
-  emptyText={`No build notes yet for ${champion.name}.`}
-/>
+          <>
+            <div className="build-select">
+              {builds.map((build, index) => (
+                <button
+                  key={build.name}
+                  className={selectedBuild === index ? "active" : ""}
+                  onClick={() => setSelectedBuild(index)}
+                >
+                  {build.name}
+                </button>
+              ))}
+            </div>
+
+            <BuildBoard
+              items={currentBuild.items}
+              runes={currentBuild.runes}
+              emptyText={`No build notes yet for ${champion.name}.`}
+            />
+          </>
         )}
+
         {tab === "matchups" && (
-          <BuildList entries={champion.matchups} _type="c" emptyText={`No matchup notes yet for ${champion.name}.`} />
+          <BuildList champion={champion} />
         )}
       </div>
     </section>
