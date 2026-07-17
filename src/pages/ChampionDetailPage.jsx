@@ -13,7 +13,8 @@ export default function ChampionDetailPage({ champion }) {
   const accent = ROLE_COLORS[champion.role];
   const badgeDark = champion.tier === "Unranked" ? "#aab0d4" : "#04050c";
   const portraitPaths = candidatePaths(`c:${champion.id}`);
-
+  const [buildIndex, setBuildIndex] = useState(0);
+  const build = champion.builds[buildIndex];
   return (
     <section className="page-section">
       <div className="wrap">
@@ -37,7 +38,29 @@ export default function ChampionDetailPage({ champion }) {
 
         {/* Always visible — short enough that hiding it behind a tab just costs an extra click for no reason */}
         {champion.note && <p className="detail-blurb-standalone">{champion.note}</p>}
+<select
+value={buildIndex}
+onChange={(e)=>setBuildIndex(Number(e.target.value))}
+>
 
+{champion.builds.map((b,i)=>
+
+<option key={i} value={i}>
+
+{b.name}
+
+</option>
+
+)}
+
+</select> 
+<BuildBoard 
+
+items={build.items}
+
+runes={build.runes}
+
+/>
         <div className="tab-row">
           {["build", "matchups"].map((t) => (
             <button key={t} className={"tab-btn" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
