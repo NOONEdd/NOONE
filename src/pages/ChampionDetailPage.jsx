@@ -9,6 +9,7 @@ import BuildBoard from "../components/BuildBoard.jsx";
 
 export default function ChampionDetailPage({ champion }) {
   const [tab, setTab] = useState("build");
+  const [selectedBuild, setSelectedBuild] = useState(0);
   const Icon = ROLE_ICONS[champion.role] || Sparkles;
   const accent = ROLE_COLORS[champion.role];
   const badgeDark = champion.tier === "Unranked" ? "#aab0d4" : "#04050c";
@@ -45,9 +46,23 @@ export default function ChampionDetailPage({ champion }) {
             </button>
           ))}
         </div>
-
+<div className="build-select">
+  {champion.builds?.map((build, index) => (
+    <button
+      key={build.name}
+      className={selectedBuild === index ? "active" : ""}
+      onClick={() => setSelectedBuild(index)}
+    >
+      {build.name}
+    </button>
+  ))}
+</div>
         {tab === "build" && (
-          <BuildBoard items={champion.items} runes={champion.runes} emptyText={`No build notes yet for ${champion.name}.`} />
+         <BuildBoard
+  items={champion.builds[selectedBuild].items}
+  runes={champion.builds[selectedBuild].runes}
+  emptyText={`No build notes yet for ${champion.name}.`}
+/>
         )}
         {tab === "matchups" && (
           <BuildList entries={champion.matchups} _type="c" emptyText={`No matchup notes yet for ${champion.name}.`} />
