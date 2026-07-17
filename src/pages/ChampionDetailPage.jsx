@@ -59,8 +59,8 @@ export default function ChampionDetailPage({ champion }) {
 </div>
         {tab === "build" && (
          <BuildBoard
-  items={champion.builds[selectedBuild].items}
-  runes={champion.builds[selectedBuild].runes}
+  items={champion.items}
+  runes={champion.runes}
   emptyText={`No build notes yet for ${champion.name}.`}
 />
         )}
