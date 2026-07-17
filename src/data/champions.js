@@ -4,51 +4,32 @@
 export const CHAMPIONS = [
   // Enchanter
   { id: "lulu", name: "Lulu", role: "Enchanter", tier: "S", blurb: "Top-tier enchanter for peel and saves, especially for ADCs who need attack speed. Her W can buff an ally or polymorph an enemy — the decision between those two uses is what separates good Lulu players from great ones.",
-   builds: [
+    builds: [
   {
     name: "Standard Enchanter",
     items: [
+
       { tag: "Always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
       { tag: "Core", name: "Ardent Censer", note: "When your ADC needs attack speed (Jinx, Vayne, Kog'Maw). The earlier you finish this, the sooner they spike in power. A core pick most games." },
-      { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights." },
-      { tag: "Core", name: "Harmonic Echo", note: "When you need team-wide healing instead of only protecting one ally." },
-      { tag: "Situational", name: "Banshee's Veil", note: "When enemies can instantly burst you." },
-      { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots for more shields and abilities." },
-      { tag: "Enchant", name: "Mikeal's Blessing", note: "Default enchant for saving allies from CC." }
+      { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
+      { tag: "Core", name: "Harmonic Echo", note: "Your E only shields one ally at a time; Harmonic Echo's passive lets you heal multiple teammates. Buy this when you need to support the whole team, not just your ADC." },
+      { tag: "Situational", name: "Banshee's Veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "Situational", name: "Amaranth's Twinguard", note: "When the enemy has too much CC. Gives armor, magic resist, and tenacity — pair with Perseverance rune for maximum CC resistance in that game." },
+      { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
+      { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields, more W uses, more E rotations per fight." },
+      { tag: "Enchant", name: "Mikeal's Blessing", note: "Default enchant. Cast on an ally to protect them from a single crucial enemy ability — this cannot be used on yourself, so always have a priority target in mind before you need it." },
+      { tag: "Enchant", name: "Locket (instead of Mikeal's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
-
     runes: [
-      { tag: "Keystone", name: "Summon Aery", note: "Default rune for shields and poke." },
-      { tag: "Resolve", name: "Font of Life", note: "Team sustain through CC." },
-      { tag: "Resolve", name: "Bone Plating", note: "Against burst damage." },
-      { tag: "Resolve", name: "Revitalize", note: "Amplifies shields and heals." }
-    ]
-  },
-  {
-    name:"Anti Assassin",
-
-    items:[
-      {
-        tag:"Core",
-        name:"Banshee's Veil",
-        note:"Against Zed, Kha'Zix, Fizz"
-      },
-      {
-        tag:"Situational",
-        name:"Amaranth's Twinguard",
-        note:"Against heavy CC"
-      }
+      { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Resolve", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target. Works every time your E or Q hits." },
+      { tag: "Resolve", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "Resolve", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
+      { tag: "Inspiration", name: "Transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
+      { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
-
-    runes:[
-      {
-        tag:"Resolve",
-        name:"Perseverance",
-        note:"More tenacity against CC"
-      }
-    ]
-  }
-],
     matchups: [
       { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
       { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
@@ -56,6 +37,7 @@ export const CHAMPIONS = [
       { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Lulu's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you." },
       { tag: "Decision", name: "The W question: buff or polymorph?", note: "Most players only use W as a speed buff for an ally. But it can also be cast on an enemy to polymorph them — removing them from the fight for 1-2 seconds. Before you cast, ask: is slowing their carry more valuable right now, or is silencing their threat? The answer changes every fight." },
     ],
+  }],
   },
   { id: "janna", name: "Janna", role: "Enchanter", tier: "B", blurb: "One of the best disengage supports — strong with AD carries who want the buff, solid healing and shielding.",
     items: [
@@ -128,6 +110,9 @@ export const CHAMPIONS = [
     ],
   },
   { id: "seraphine", name: "Seraphine", role: "Enchanter", tier: "B", blurb: "Good poke damage; a teamfight powerhouse thanks to her ult and combo damage, moderate as a pure enchanter.",
+    builds: [
+  {
+    name: "Standard Enchanter",
     items: [
       { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
       { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
@@ -149,9 +134,113 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
     ],
   },
-  { id: "karma", name: "Karma", role: "Enchanter", tier: "A", blurb: "High mobility for catching or escaping, strong poke damage, moderate CC." },
-  { id: "yuumi", name: "Yuumi", role: "Enchanter", tier: "A", blurb: "Enchanter built around one carry — boosts their movement speed, damage, healing, and shielding." },
-  { id: "sona", name: "Sona", role: "Enchanter", tier: "B", blurb: "Strong mid-to-late game buff support, moderate CC." },
+  {
+    name: "Full Damage Poke",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "luden's echo", note: "When you want to poke and burst enemies down. The passive gives you extra damage on your Q and E, letting you harass and kill squishy targets." },
+      { tag: "core", name: "horizon focus", note: "When you want to poke and burst enemies down. The passive gives reveals enemies hit by your long-range abilities with extra damage, letting you follow up with your team." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "infinity orb", note: "When you want to maximize your damage output. The passive gives you extra attack speed and critical strike chance, letting you deal more damage in a shorter time." },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "first strike", note: "to deal more damage and gain gold. The passive gives you extra damage and gold when you hit an enemy champion first." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage when you pair enemies with your CC. The passive gives you extra damage when you hit an enemy champion that is impaired by your CC." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+    ],
+  }
+],
+  },
+  { id: "karma", name: "Karma", role: "Enchanter", tier: "A", blurb: "High mobility for catching or escaping, strong poke damage, moderate CC.",
+    builds: [
+  {
+    name: "Standard Enchanter",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+      { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
+      { tag: "Core", name: "Harmonic Echo", note: "Your E only shields one ally at a time; Harmonic Echo's passive lets you heal multiple teammates. Buy this when you need to support the whole team, not just your ADC." },
+      { tag: "Situational", name: "Ardent Censer", note: "When your ADC needs attack speed (Jinx, Vayne, Kog'Maw). The earlier you finish this, the sooner they spike in power. A core pick most games." },
+      { tag: "Situational", name: "Banshee's Veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "Situational", name: "Oceanid's Trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
+      { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields, more W uses, more E rotations per fight." },
+    ],
+    runes: [
+      { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Resolve", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target. Works every time your E or Q hits." },
+      { tag: "Resolve", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "Resolve", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
+      { tag: "Inspiration", name: "Transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
+      { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
+    ],
+  },
+  {
+    name: "Full Damage Poke",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "blackfire torch", note: "When you want to poke and burst enemies down. The passive gives you extra damage on your Q, letting you harass and kill squishy targets." },
+      { tag: "core", name: "cryptobloom", note: "When you want to poke and burst enemies down and to give your allies more sustainbility by healing them each time you take down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "first strike", note: "to deal more damage and gain gold. The passive gives you extra damage and gold when you hit an enemy champion first." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage when you pair enemies with your CC. The passive gives you extra damage when you hit an enemy champion that is impaired by your CC." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+    ],
+  }
+],},
+  { id: "yuumi", name: "Yuumi", role: "Enchanter", tier: "A", blurb: "Enchanter built around one carry — boosts their movement speed, damage, healing, and shielding.",
+      builds: [
+  {
+    name: "Standard Enchanter",
+    items: [
+
+      { tag: "Always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+      { tag: "Core", name: "Ardent Censer", note: "When your ADC needs attack speed (Jinx, Vayne, Kog'Maw). The earlier you finish this, the sooner they spike in power. A core pick most games." },
+      { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
+      { tag: "Core", name: "Harmonic Echo", note: "Your E only shields one ally at a time; Harmonic Echo's passive lets you heal multiple teammates. Buy this when you need to support the whole team, not just your ADC." },
+      { tag: "Situational", name: "Banshee's Veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "Situational", name: "Amaranth's Twinguard", note: "When the enemy has too much CC. Gives armor, magic resist, and tenacity — pair with Perseverance rune for maximum CC resistance in that game." },
+      { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
+      { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields, more W uses, more E rotations per fight." },
+      { tag: "Enchant", name: "Mikeal's Blessing", note: "Default enchant. Cast on an ally to protect them from a single crucial enemy ability — this cannot be used on yourself, so always have a priority target in mind before you need it." },
+      { tag: "Enchant", name: "Locket (instead of Mikeal's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
+    ],
+    runes: [
+      { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "inspiration", name: "mana flowband", note: "to increase your mana espcially in early game" },
+      { tag: "inspiration", name: "trancendence", note: "to gain more ability haste for lower cooldowns specifially in late game." },
+      { tag: "inspiration", name: "scorch", note: "to deal a bit damage with your Q or your Ultimate when you hit an enemy." },
+      { tag: "resolve", name: "revitalize", note: "amplifies the strenght of your shielding and healing." },
+      { tag: "Summoner Spells", name: "ignite + Heal", note: " Heal as an emergency lifeline in lane fights." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
+      { tag: "Spell Swap", name: "barrier (swap for ignite)", note: "against enemies who does not have any healing effect so you can go barrier and give your ally more shield if it was neccessary." },
+    ],
+    matchups: [
+      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Bard", note: "His Q can stun you or your ADC at any moment, and his ultimate can freeze your entire team at the worst possible time. Prioritize vision so you see him before he lands either of these." },
+      ],
+  }],
+  },
+      { id: "sona", name: "Sona", role: "Enchanter", tier: "B", blurb: "Strong mid-to-late game buff support, moderate CC." },
   // Catcher
   { id: "thresh", name: "Thresh", role: "Catcher", tier: "S", blurb: "Very strong late game into AD champions, with heavy CC and a bit of damage." },
   { id: "blitzcrank", name: "Blitzcrank", role: "Catcher", tier: "B", blurb: "Elite catcher if you land hooks — high mobility for chasing, high CC." },
@@ -214,5 +303,5 @@ export const CHAMPIONS = [
   { id: "gragas", name: "Gragas", role: "Off-Meta Flex", tier: "C", blurb: "Elite playmaker via ult or Flash-E combo; hits tanks hard." },
   { id: "ornn", name: "Ornn", role: "Off-Meta Flex", tier: "A", blurb: "Strong engage and playmaking champion, good in teamfights, moderate damage into tanks." },
   { id: "poppy", name: "Poppy", role: "Off-Meta Flex", tier: "C", blurb: "One of the best picks into blink or dash-heavy enemies; her ultimate is great for catching someone and throwing them out of the fight." },
-  { id: "skarner", name: "Skarner", role: "Catcher", tier: "Unranked", blurb: "His charge (grabbing and dragging a champion into a wall) and ultimate (suppressing and dragging up to 3 enemies) are genuine catcher tools. Worth knowing: every current source describes him as primarily a jungler, not an established support — treat this as an experimental pick until there's real match data to back it, not a settled recommendation." },
+  { id: "skarner", name: "Skarner", role: "Catcher", tier: "Unranked", blurb: "His charge (grabbing and dragging a champion into a wall) and ultimate (suppressing and dragging up to 3 enemies) are genuine catcher tools. Worth knowing: every current source describes him as primarily a jungler, not an established support — treat this as an experimental pick until there's real match data to back it, not a settled recommendation." }
 ];
