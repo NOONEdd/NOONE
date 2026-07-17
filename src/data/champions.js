@@ -154,6 +154,8 @@ export const CHAMPIONS = [
       { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
       { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: "summoner spells", name: "flash + ignite", note: "use your ignite on the enemy who has healing effect."},
+      { tag: "summoner spells", name: "barrier ( swap for ignite)", note: " to have more sustanibility and prevent being one shotted."},
     ],
   }
 ],
@@ -203,6 +205,7 @@ export const CHAMPIONS = [
       { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
       { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
     ],
   }
 ],},
@@ -240,7 +243,40 @@ export const CHAMPIONS = [
       ],
   }],
   },
-      { id: "sona", name: "Sona", role: "Enchanter", tier: "B", blurb: "Strong mid-to-late game buff support, moderate CC." },
+      { id: "sona", name: "Sona", role: "Enchanter", tier: "B", blurb: "Strong mid-to-late game buff support, moderate CC.",
+         builds: [
+  {
+    name: "Standard Enchanter",
+    items: [
+
+      { tag: "Always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+      { tag: "Core", name: "Ardent Censer", note: "When your ADC needs attack speed (Jinx, Vayne, Kog'Maw). The earlier you finish this, the sooner they spike in power. A core pick most games." },
+      { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
+      { tag: "Core", name: "Harmonic Echo", note: "Your E only shields one ally at a time; Harmonic Echo's passive lets you heal multiple teammates. Buy this when you need to support the whole team, not just your ADC." },
+      { tag: "Situational", name: "Banshee's Veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "Situational", name: "Amaranth's Twinguard", note: "When the enemy has too much CC. Gives armor, magic resist, and tenacity — pair with Perseverance rune for maximum CC resistance in that game." },
+      { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
+      { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields, more W uses, more E rotations per fight." },
+      { tag: "Enchant", name: "Mikeal's Blessing", note: "Default enchant. Cast on an ally to protect them from a single crucial enemy ability — this cannot be used on yourself, so always have a priority target in mind before you need it." },
+      { tag: "Enchant", name: "Locket (instead of Mikeal's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
+    ],
+    runes: [
+      { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Resolve", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target. Works every time your E or Q hits." },
+      { tag: "Resolve", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "Resolve", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
+      { tag: "Inspiration", name: "Transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
+      { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
+    ],
+    matchups: [
+      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Lulu's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ]
+  }],
   // Catcher
   { id: "thresh", name: "Thresh", role: "Catcher", tier: "S", blurb: "Very strong late game into AD champions, with heavy CC and a bit of damage." },
   { id: "blitzcrank", name: "Blitzcrank", role: "Catcher", tier: "B", blurb: "Elite catcher if you land hooks — high mobility for chasing, high CC." },
