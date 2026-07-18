@@ -148,8 +148,7 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-    ],},
-    
+     ],},
     {
        name: "Full Damage Poke",
     items: [
