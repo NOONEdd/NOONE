@@ -30,6 +30,7 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
+  },],
     matchups: [
       { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
       { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
@@ -37,7 +38,6 @@ export const CHAMPIONS = [
       { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Lulu's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you." },
       { tag: "Decision", name: "The W question: buff or polymorph?", note: "Most players only use W as a speed buff for an ally. But it can also be cast on an enemy to polymorph them — removing them from the fight for 1-2 seconds. Before you cast, ask: is slowing their carry more valuable right now, or is silencing their threat? The answer changes every fight." },
     ],
-  }],
   },
   { id: "janna", name: "Janna", role: "Enchanter", tier: "B", blurb: "One of the best disengage supports — strong with AD carries who want the buff, solid healing and shielding.",
     items: [
@@ -61,7 +61,13 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
-  },
+  
+    matchups: [
+      { tag: "Strong With", name: "Jhin, draven", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ],},
   { id: "soraka", name: "Soraka", role: "Enchanter", tier: "B", blurb: "The best pure healer in the game — pick her when keeping the team alive matters most.",
     items: [
       { tag: "Always", name: "spectral sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
@@ -84,7 +90,12 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
     ],
-  },
+    matchups: [
+      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ],},
   { id: "milio", name: "Milio", role: "Enchanter", tier: "S", blurb: "Strong pick against heavy-CC enemies, great for carries who need range, with light disengage via Q.",
     items: [
       { tag: "Always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
@@ -108,7 +119,12 @@ export const CHAMPIONS = [
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
     ],
-  },
+    matchups: [
+      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ],},
   { id: "seraphine", name: "Seraphine", role: "Enchanter", tier: "B", blurb: "Good poke damage; a teamfight powerhouse thanks to her ult and combo damage, moderate as a pure enchanter.",
     builds: [
   {
@@ -133,7 +149,12 @@ export const CHAMPIONS = [
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
     ],
-  },
+    matchups: [
+      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ],},
   {
     name: "Full Damage Poke",
     items: [
@@ -184,7 +205,12 @@ export const CHAMPIONS = [
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
     ],
-  },
+    matchups: [
+      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
+      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ],},
   {
     name: "Full Damage Poke",
     items: [
@@ -214,33 +240,36 @@ export const CHAMPIONS = [
   {
     name: "Standard Enchanter",
     items: [
-
-      { tag: "Always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+   { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
       { tag: "Core", name: "Ardent Censer", note: "When your ADC needs attack speed (Jinx, Vayne, Kog'Maw). The earlier you finish this, the sooner they spike in power. A core pick most games." },
       { tag: "Core", name: "Staff of Flowing Water", note: "When your allies need ability haste — lets them use their abilities more often in fights. Strong with champions who have high-value cooldowns." },
       { tag: "Core", name: "Harmonic Echo", note: "Your E only shields one ally at a time; Harmonic Echo's passive lets you heal multiple teammates. Buy this when you need to support the whole team, not just your ADC." },
-      { tag: "core", name: " knight's vow", note: " essential to keep your carry allive and redirect the damage to your self a bit." },
+      { tag: "Situational", name: "Banshee's Veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "Situational", name: "Amaranth's Twinguard", note: "When the enemy has too much CC. Gives armor, magic resist, and tenacity — pair with Perseverance rune for maximum CC resistance in that game." },
+      { tag: "Situational", name: "Frozen Heart", note: "When the enemy ADC or fighters have too much attack speed. The aura slows their attack speed significantly, cutting their sustained damage output." },
       { tag: "Boots", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields, more W uses, more E rotations per fight." },
       { tag: "Enchant", name: "Mikeal's Blessing", note: "Default enchant. Cast on an ally to protect them from a single crucial enemy ability — this cannot be used on yourself, so always have a priority target in mind before you need it." },
       { tag: "Enchant", name: "Locket (instead of Mikeal's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
       { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
-      { tag: "inspiration", name: "mana flowband", note: "to increase your mana espcially in early game" },
-      { tag: "inspiration", name: "trancendence", note: "to gain more ability haste for lower cooldowns specifially in late game." },
-      { tag: "inspiration", name: "scorch", note: "to deal a bit damage with your Q or your Ultimate when you hit an enemy." },
-      { tag: "resolve", name: "revitalize", note: "amplifies the strenght of your shielding and healing." },
-      { tag: "Summoner Spells", name: "ignite + Heal", note: " Heal as an emergency lifeline in lane fights." },
-      { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-      { tag: "Spell Swap", name: "barrier (swap for ignite)", note: "against enemies who does not have any healing effect so you can go barrier and give your ally more shield if it was neccessary." },
+      { tag: "inspiration", name: "mana flowband", note: "to increase your mana espcially in early game." },
+      { tag: "inspiration", name: "transcendence", note: "to gain more ability haste for lower cooldowns specifially in late game.." },
+      { tag: "inspiration", name: "scorch", note: "to deal a bit damage with your Q or your Ultimate when you hit an enemy.." },
+      { tag: "resolve", name: "revitalize", note: "amplifies the strenght of your shielding and healing.." },
+      { tag: "Summoner Spells", name: "ignite + Heal", note: "Default setup. ignite to take down enemies faster and Heal as an emergency lifeline in lane fights." },
+      { tag: "Spell Swap", name: "barrier (swap for Heal)", note: "Against burst dmg enemies. bring barrier only when enemies don't have too much healing effect specially in your lane." },
     ],
+    
+   }
+ ],
     matchups: [
       { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
       { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Bard", note: "His Q can stun you or your ADC at any moment, and his ultimate can freeze your entire team at the worst possible time. Prioritize vision so you see him before he lands either of these." },
-      ],
-  }],
-  },
+      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
+      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
+    ],},
+     
       { id: "sona", name: "Sona", role: "Enchanter", tier: "B", blurb: "Strong mid-to-late game buff support, moderate CC.",
          builds: [
   {
@@ -717,17 +746,270 @@ export const CHAMPIONS = [
       { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
     ],},
 
-  { id: "bard", name: "Bard", role: "Mage Support", tier: "B", blurb: "One of the best playmaking and catching champions — his ultimate can swing a whole fight." },
-  { id: "zilean", name: "Zilean", role: "Mage Support", tier: "A", blurb: "Strong poke and ability-blocking; light on buffs besides movement speed, but his ult — an ally revive — is one of the best in the game." },
-     
+  { id: "bard", name: "Bard", role: "Mage Support", tier: "B", blurb: "One of the best playmaking and catching champions — his ultimate can swing a whole fight.",
+   build: [
+    {
+    name: "Full Damage Roamer",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "lich bane", note: " to deal more damage after using an ability." },
+      { tag: "core", name: "stormsurge", note: "to deal more damage against tanky and high HP champions." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "electrocute", note: "to deal more damage after 3 consecutive abilities or basic attacks." },
+      { tag: "domination", name: "empowered attack", note: " to deal extra damage each 8 seconds." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+    ],
+  }
+],},
+  { id: "zilean", name: "Zilean", role: "Mage Support", tier: "A", blurb: "Strong poke and ability-blocking; light on buffs besides movement speed, but his ult — an ally revive — is one of the best in the game.",
+      build: [
+    {
+    name: "Full Damage poker",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "blackfire torch", note: " to deal more damage after using an ability." },
+      { tag: "core", name: "cryptobloom", note: "to deal more damage to your enemies and heal them up after taking down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "arcane comet", note: "to deal more damage and slow down your enemies." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage after slowing down or stun your enemies ." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+    ],
+  }
+],},
   // Off-Meta Flex
-  { id: "mel", name: "Mel", role: "Off-Meta Flex", tier: "A", blurb: "Very strong early game; can block and reflect enemy abilities back at them, with high damage." },
-  { id: "taliyah", name: "Taliyah", role: "Off-Meta Flex", tier: "A", blurb: "One of the best playmaker and catcher supports, though her kit takes practice — high damage into squishies." },
+  { id: "mel", name: "Mel", role: "Off-Meta Flex", tier: "A", blurb: "Very strong early game; can block and reflect enemy abilities back at them, with high damage.",
+      build: [
+    {
+    name: "Full Damage poker",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "blackfire torch", note: " to deal more damage after using an ability." },
+      { tag: "core", name: "cryptobloom", note: "to deal more damage to your enemies and heal them up after taking down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "arcane comet", note: "to deal more damage and slow down your enemies." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage after slowing down or stun your enemies ." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+    ],
+  }
+],},
+  { id: "taliyah", name: "Taliyah", role: "Off-Meta Flex", tier: "A", blurb: "One of the best playmaker and catcher supports, though her kit takes practice — high damage into squishies.",
+      build: [
+    {
+    name: "Full Damage Roamer",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "blackfire torch", note: " to deal more damage after using an ability." },
+      { tag: "core", name: "cryptobloom", note: "to deal more damage to your enemies and heal them up after taking down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "arcane comet", note: "to deal more damage and slow down your enemies." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage after slowing down or stun your enemies ." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+    ],
+  }
+],},
   { id: "sett", name: "Sett", role: "Off-Meta Flex", tier: "B", blurb: "Strong tank and engager — ult their frontline to start fights. High damage if fed, since W can one-shot off HP, with moderate CC." },
-  { id: "norra", name: "Norra", role: "Off-Meta Flex", tier: "B", blurb: "Strong poke; W can pull the enemy frontline or tank out of the fight so you can pick off the rest." },
-  { id: "senna", name: "Senna", role: "Off-Meta Flex", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps." },
-  { id: "swain", name: "Swain", role: "Off-Meta Flex", tier: "C", blurb: "Good sustain tank for long teamfights, with moderate damage on a tank build." },
-  { id: "lux", name: "Lux", role: "Off-Meta Flex", tier: "B", blurb: "High poke damage into squishies — one of the best at one-shotting players." },
+  { id: "norra", name: "Norra", role: "Off-Meta Flex", tier: "B", blurb: "Strong poke; W can pull the enemy frontline or tank out of the fight so you can pick off the rest.",
+      build: [
+    {
+    name: "Full Damage poker",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "blackfire torch", note: " to deal more damage after using an ability." },
+      { tag: "core", name: "cryptobloom", note: "to deal more damage to your enemies and heal them up after taking down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "arcane comet", note: "to deal more damage and slow down your enemies." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage after slowing down or stun your enemies ." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+    ],
+  }
+],},
+  { id: "senna", name: "Senna", role: "Off-Meta Flex", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps.",
+       build: [
+    {
+    name: "Full Damage one shot late game",
+    items: [
+      {tag: "core", name: "Duskblade of Draktharr", note: " to slow down enemies and deal more damage to them." },
+      {tag: "core", name: "mortal reminder", note: " to deal more damage espically against tanks and to apply anti heal effect on healers and those who are getting healing buff." },
+      {tag: "core", name: "edge of night", note: " to prevnt being catched easily and block one of enemies cc oor crucial ability." },
+      {tag: "core", name: "serpent's fang", note: "essential against shield effects. you can reduce their shielding buff and take down your enemies quickly." },
+      {tag: "situational", name: "eclipse", note: "buy this item only against tanks and high HP champions and you can gain a shield effect on yourself after damaging an enemy." },
+      {tag: "situational", name: "divine sunderer", note: " to heal up after each attack that you deal and most importantly like eclipse, to deal more damage against high HP chapions." },
+      {tag: "sitatuinal", name: "the colloctor", note: " to deal extra damage and take down enemies quickly and to gain a bit of gold." },
+      {tag: "boots", name: " boots of dynamism", note: " to deal more damage." },
+    ],
+    runes:  [
+      {tag: " keystone", name: "fleet footwork", note: " to heal up a bit and gain movement speed after you deal a damage to an enemy if it was fully stacked." },
+      {tag: "domination", name: "Empowered Attack", note: " to deal extra damage each 8 seconds." },
+      {tag: "domination", name: "Chain Assault", note: " to deal extra damage after using abilities on enemy." },
+      {tag: "domination", name: "Zombie Ward", note: " one of the greatest runes for late games. especially for senna who needs her stacks ." },
+      {tag: "resolve", name: "Bone Plating", note: " to prevent from being one shotted of burst damages and combos." },
+      {tag: "Summoner Spells", name: " flash + ignite", note: " use your ignite on the enemy who has healing effect to take them down quickly." },
+
+    ],},
+    {
+      name: "supporting style with high damage",
+      items: [
+         { tag: "Always", name: "Spectral Sickle", note: "your mission item for almot every match.otherwise if you need more HandPlatter, you can bring Relic Shieled." },
+      { tag: "core", name: "Youmuu's Ghostblade", note: "for the ganker and roaming style only because of the movement speend that it gives and the higher attack speed to takedown your enemies quickly." },
+      { tag: "core", name: "Duskblade of Draktharr", note: " to slow down enemies when you catch them." },
+      { tag: "core", name: "edge of night", note: " for not being catched easily." },
+      { tag: "situational", name: "serpent's fang", note: " only when enemies have too much of shielding effect.buy this item to reduce their shield effecr." },
+      { tag: "situational", name: "mortal reminder", note: " to reduce enemies healing effect.although for their healing effect you should bring its tier 2 item, which is executioner's call." },
+      { tag: "situatinal", name: "Amaranth's Twinguard", note: " buy this defensive item only when you think enemies have too much damage and also you need a bit of tenacity." },
+      { tag: " boots", name: "boots of dynamism", note: " to deal more damage on your enemies." },
+    ],
+  runes: [
+      { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
+      { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
+      { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
+      { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
+      { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
+  ],}],
+    matchups: [
+      { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
+      { tag: " hard into", name: "nautilus, thresh, Rakan", note: " Rakan can catch you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
+    ], },
+    
+  { id: "swain", name: "Swain", role: "Off-Meta Flex", tier: "C", blurb: "Good sustain tank for long teamfights, with moderate damage on a tank build.",
+      build: [
+    {
+    name: "Full Damage one shot",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "malignance", note: " to deal more damage after using your ultimate and to shred and reduce enemies magic resist." },
+      { tag: "core", name: "cryptobloom", note: "to deal more damage to your enemies and heal them up after taking down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+      { tag: "enchant", name: "Stasis Enchant", note: " to stay alive a bit more seconds while your enemies are fighting with your enemy or to prevent from a oneshot combo or to seek help from your allies to arrive." },
+    
+    ],
+    runes: [
+      { tag: "keystone", name: "ice overlord", note: "to deal more damage and slow down your enemies." },
+      { tag: "inspiration", name: "Axiom Arcanist", note: " Your ultimate ability deals more damage and grants more healing/shielding, and getting a takedown shaves extra time off its cooldown — built for ultimate-centric playstyles. ." },
+      { tag: "inspiration", name: "Transcendence", note: " Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: "inspiration", name: "Nimbus Cloak", note: "Casting a summoner spell grants a burst of bonus move speed that decays over a few seconds — great with Flash or Ignite for engaging or repositioning right after casting.." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+  ],}],
+  name: "tank support",
+  items: [ 
+    {tag: "always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+    {tag: "core", name: " malignane", note: "to deal more damage after using your ultimate and to shred and reduce enemies magic resist." },
+    {tag: "core", name: " Rylai's Crystal Scepter", note: "Damaging abilities slow the target — turns any mage's poke into extra kiting power, especially strong on AOE/DOT-heavy kits." },
+    {tag: "core", name: "cryptobloom", note: "to deal more damage and heal up your allies after taking down an enemy." },
+    {tag: "situational", name: "randuin's omen", note: " against high critical damage dealers like lucian or draven or any other champions who deals AD critical damage." },
+    {tag: "situational", name: "hallow radiance", note: " to deal more damage and also burst enemies to take them down quickly." },
+    {tag: "situatuinal", name: "frozen heart", note: " against high attack speed champions to slow their basic attacks." },
+    {tag: "situational", name: "abyssal masl", note: " to reduce enemies magic resist and deal more AP damage to them." },
+    {tag: "situational", name: "Amaranth's Twinguard", note: " to gain more sustainbility and tenacity in team fights." },
+    {tag: "boots VS AP", name: "Mercury's Treads", note: " to be more tanky against AP damage dealers and gain a bit of tencaity." },
+    {tag: "boots VS AD", name: "Plated Steelcaps", note: " to be more tanky against AD damage dealers." },
+  ],
+  runes: [
+      {tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Rakan produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
+      { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
+      { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
+      { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your engage combo lands." },
+      { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
+
+  ],
+    matchups: [
+      { tag: "strong with", name: "amumu, ezreal,varus, orianna", note: " these champions can follow up with your cc and take down enemies or play for one shot combo on enemies." },
+      { tag: " hard into", name: "nautilus,brand,syndra", note: "   these champions can catch or kill you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
+    ], },
+
+    
+  { id: "lux", name: "Lux", role: "Off-Meta Flex", tier: "B", blurb: "High poke damage into squishies — one of the best at one-shotting players.",
+      build: [
+    {
+    name: "Full Damage one shot",
+    items: [
+      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives AP and rotates gold to your ADC. Never skip this." },
+      { tag: "core", name: "blackfire torch", note: " to deal more damage after using an ability." },
+      { tag: "core", name: "cryptobloom", note: "to deal more damage to your enemies and heal them up after taking down an enemy." },
+      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
+      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
+      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
+      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
+      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
+    ],
+    runes: [
+      { tag: "keystone", name: "arcane comet", note: "to deal more damage and slow down your enemies." },
+      { tag: "domination", name: "cheap shot", note: " to deal extra damage after slowing down or stun your enemies ." },
+      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
+      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
+      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
+      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
+      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
+    ],
+  }
+],},
   { id: "galio", name: "Galio", role: "Off-Meta Flex", tier: "S", blurb: "Excellent at both engaging and disengaging, with high CC — his ultimate is a huge fight-changer." },
   { id: "jarvan-iv", name: "Jarvan IV", role: "Off-Meta Flex", tier: "B", blurb: "Devastating into champions with no dash or blink to escape his ult; great for catching and deleting a single target in teamfights, plus attack speed from E." },
   { id: "gragas", name: "Gragas", role: "Off-Meta Flex", tier: "C", blurb: "Elite playmaker via ult or Flash-E combo; hits tanks hard." },
