@@ -952,8 +952,8 @@ export const CHAMPIONS = [
       { tag: "inspiration", name: "Nimbus Cloak", note: "Casting a summoner spell grants a burst of bonus move speed that decays over a few seconds — great with Flash or Ignite for engaging or repositioning right after casting.." },
       { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
-  ],}],
-  name: "tank support",
+  ],},
+ {  name: "tank support",
   items: [ 
     {tag: "always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
     {tag: "core", name: " malignane", note: "to deal more damage after using your ultimate and to shred and reduce enemies magic resist." },
@@ -981,7 +981,9 @@ export const CHAMPIONS = [
     matchups: [
       { tag: "strong with", name: "amumu, ezreal,varus, orianna", note: " these champions can follow up with your cc and take down enemies or play for one shot combo on enemies." },
       { tag: " hard into", name: "nautilus,brand,syndra", note: "   these champions can catch or kill you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
-    ], },
+     ],
+  }
+],},
 
     
   { id: "lux", name: "Lux", role: "Off-Meta Flex", tier: "B", blurb: "High poke damage into squishies — one of the best at one-shotting players.",
