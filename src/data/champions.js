@@ -1107,7 +1107,7 @@ export const CHAMPIONS = [
       {tag: "always", name: "Relic Shield", note:"Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
       {tag: "core", name: "warmog's armor", note: "to gain more HP for dealing more damage with your W and get HP regen out of combat and get back to fights quickly or to roam." },
       {tag: "core", name: "frozen heart", note: " to reduce enemies attack speed." },
-      {tag: "core", name: "iceborn guntlet", note: " to deal more damage after using your abilities and slow down your enemies." },
+      {tag: "core", name: "Iceborn Gauntlet", note: " to deal more damage after using your abilities and slow down your enemies." },
       {tag: "situational", name: "randuin's omen", note: "to reduce the critical damage taken." },
       {tag: "situational", name: "force of nature", note: " to be more tanky in fights against AP damage dealers." },
       {tag: "situational", name: "abyssal mask", note: " to reduce enemies magic resist when you have too much AP damage dealer in your team." },
