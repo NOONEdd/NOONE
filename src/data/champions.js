@@ -720,30 +720,8 @@ export const CHAMPIONS = [
     ],},
 
   { id: "bard", name: "Bard", role: "Mage Support", tier: "B", blurb: "One of the best playmaking and catching champions — his ultimate can swing a whole fight." },
-  { id: "zilean", name: "Zilean", role: "Mage Support", tier: "A", blurb: "Strong poke and ability-blocking; light on buffs besides movement speed, but his ult — an ally revive — is one of the best in the game.",
-      builds: [
-  { name: "Full Damage Poke",
-    items: [
-      { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
-      { tag: "core", name: "blackfire torch", note: "When you want to poke and burst enemies down. The passive gives you extra damage on your Q, letting you harass and kill squishy targets." },
-      { tag: "core", name: "cryptobloom", note: "When you want to poke and burst enemies down and to give your allies more sustainbility by healing them each time you take down an enemy." },
-      { tag: "core", name: "rabadon's deathcap", note: "to deal more damage. The passive gives you extra AP, letting you burst squishy targets down faster." },
-      { tag: "situational", name: "banshee's veil", note: "When the enemy can catch and one-shot you instantly. The passive gives you a brief survival window to react before you die." },
-      { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
-      { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
-      { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
-      { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
-    ],
-    runes: [
-      { tag: "keystone", name: "first strike", note: "to deal more damage and gain gold. The passive gives you extra damage and gold when you hit an enemy champion first." },
-      { tag: "domination", name: "cheap shot", note: " to deal extra damage when you pair enemies with your CC. The passive gives you extra damage when you hit an enemy champion that is impaired by your CC." },
-      { tag: "domination", name: "chain assault", note: " to deal more damage when you hit your abilites." },
-      { tag: "domination", name: "zombie ward", note: "gives vision and more AP. The passive gives you extra vision and AP when you kill an enemy ward." },
-      { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
-      { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
-      { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
-    ],
-  },
+  { id: "zilean", name: "Zilean", role: "Mage Support", tier: "A", blurb: "Strong poke and ability-blocking; light on buffs besides movement speed, but his ult — an ally revive — is one of the best in the game." },
+     
   // Off-Meta Flex
   { id: "mel", name: "Mel", role: "Off-Meta Flex", tier: "A", blurb: "Very strong early game; can block and reflect enemy abilities back at them, with high damage." },
   { id: "taliyah", name: "Taliyah", role: "Off-Meta Flex", tier: "A", blurb: "One of the best playmaker and catcher supports, though her kit takes practice — high damage into squishies." },
