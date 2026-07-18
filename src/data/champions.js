@@ -718,6 +718,7 @@ export const CHAMPIONS = [
       { tag: "Hard Into", name: "Catchers", note: "since you have no dashes, catchers can catch you and kill you easily.so take position carefully." },
       { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
     ],},
+
   { id: "bard", name: "Bard", role: "Mage Support", tier: "B", blurb: "One of the best playmaking and catching champions — his ultimate can swing a whole fight." },
   { id: "zilean", name: "Zilean", role: "Mage Support", tier: "A", blurb: "Strong poke and ability-blocking; light on buffs besides movement speed, but his ult — an ally revive — is one of the best in the game.",
       builds: [
@@ -742,7 +743,7 @@ export const CHAMPIONS = [
       { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
       { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
     ],
-  }
+  },
   // Off-Meta Flex
   { id: "mel", name: "Mel", role: "Off-Meta Flex", tier: "A", blurb: "Very strong early game; can block and reflect enemy abilities back at them, with high damage." },
   { id: "taliyah", name: "Taliyah", role: "Off-Meta Flex", tier: "A", blurb: "One of the best playmaker and catcher supports, though her kit takes practice — high damage into squishies." },
