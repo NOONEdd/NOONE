@@ -977,13 +977,11 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your engage combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
-  ],
+  ],}],
   matchups: [
       { tag: "strong with", name: "amumu, ezreal,varus, orianna", note: " these champions can follow up with your cc and take down enemies or play for one shot combo on enemies." },
       { tag: " hard into", name: "nautilus,brand,syndra", note: "   these champions can catch or kill you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
-     ],
-}
-],},
+     ], },
     
   { id: "lux", name: "Lux", role: "Off-Meta Flex", tier: "B", blurb: "High poke damage into squishies — one of the best at one-shotting players.",
       builds: [
