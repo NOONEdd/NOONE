@@ -952,11 +952,7 @@ export const CHAMPIONS = [
       { tag: "inspiration", name: "Nimbus Cloak", note: "Casting a summoner spell grants a burst of bonus move speed that decays over a few seconds — great with Flash or Ignite for engaging or repositioning right after casting.." },
       { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
-    ],
-matchups: [
-      { tag: "strong with", name: "amumu, ezreal,varus, orianna", note: " these champions can follow up with your cc and take down enemies or play for one shot combo on enemies." },
-      { tag: " hard into", name: "nautilus,brand,syndra", note: "   these champions can catch or kill you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
-     ],},
+    ],},
 {
       name: "tank support",
   items: [ 
@@ -965,7 +961,7 @@ matchups: [
     {tag: "core", name: " Rylai's Crystal Scepter", note: "Damaging abilities slow the target — turns any mage's poke into extra kiting power, especially strong on AOE/DOT-heavy kits." },
     {tag: "core", name: "cryptobloom", note: "to deal more damage and heal up your allies after taking down an enemy." },
     {tag: "situational", name: "randuin's omen", note: " against high critical damage dealers like lucian or draven or any other champions who deals AD critical damage." },
-    {tag: "situational", name: "hallow radiance", note: " to deal more damage and also burst enemies to take them down quickly." },
+    {tag: "situational", name: "hollow radiance", note: " to deal more damage and also burst enemies to take them down quickly." },
     {tag: "situatuinal", name: "frozen heart", note: " against high attack speed champions to slow their basic attacks." },
     {tag: "situational", name: "abyssal mask", note: " to reduce enemies magic resist and deal more AP damage to them." },
     {tag: "situational", name: "Amaranth's Twinguard", note: " to gain more sustainbility and tenacity in team fights." },
@@ -982,6 +978,10 @@ matchups: [
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
   ],
+  matchups: [
+      { tag: "strong with", name: "amumu, ezreal,varus, orianna", note: " these champions can follow up with your cc and take down enemies or play for one shot combo on enemies." },
+      { tag: " hard into", name: "nautilus,brand,syndra", note: "   these champions can catch or kill you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
+     ],
 }
 ],},
     
