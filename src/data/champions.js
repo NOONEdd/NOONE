@@ -747,7 +747,7 @@ export const CHAMPIONS = [
     ],},
 
   { id: "bard", name: "Bard", role: "Mage Support", tier: "B", blurb: "One of the best playmaking and catching champions — his ultimate can swing a whole fight.",
-   build: [
+   builds: [
     {
     name: "Full Damage Roamer",
     items: [
@@ -773,7 +773,7 @@ export const CHAMPIONS = [
   }
 ],},
   { id: "zilean", name: "Zilean", role: "Mage Support", tier: "A", blurb: "Strong poke and ability-blocking; light on buffs besides movement speed, but his ult — an ally revive — is one of the best in the game.",
-      build: [
+      builds: [
     {
     name: "Full Damage poker",
     items: [
@@ -800,7 +800,7 @@ export const CHAMPIONS = [
 ],},
   // Off-Meta Flex
   { id: "mel", name: "Mel", role: "Off-Meta Flex", tier: "A", blurb: "Very strong early game; can block and reflect enemy abilities back at them, with high damage.",
-      build: [
+      builds: [
     {
     name: "Full Damage poker",
     items: [
@@ -826,7 +826,7 @@ export const CHAMPIONS = [
   }
 ],},
   { id: "taliyah", name: "Taliyah", role: "Off-Meta Flex", tier: "A", blurb: "One of the best playmaker and catcher supports, though her kit takes practice — high damage into squishies.",
-      build: [
+      builds: [
     {
     name: "Full Damage Roamer",
     items: [
@@ -853,7 +853,7 @@ export const CHAMPIONS = [
 ],},
   { id: "sett", name: "Sett", role: "Off-Meta Flex", tier: "B", blurb: "Strong tank and engager — ult their frontline to start fights. High damage if fed, since W can one-shot off HP, with moderate CC." },
   { id: "norra", name: "Norra", role: "Off-Meta Flex", tier: "B", blurb: "Strong poke; W can pull the enemy frontline or tank out of the fight so you can pick off the rest.",
-      build: [
+      builds: [
     {
     name: "Full Damage poker",
     items: [
@@ -879,7 +879,7 @@ export const CHAMPIONS = [
   }
 ],},
   { id: "senna", name: "Senna", role: "Off-Meta Flex", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps.",
-       build: [
+       builds: [
     {
     name: "Full Damage one shot late game",
     items: [
@@ -929,7 +929,7 @@ export const CHAMPIONS = [
     ], },
     
   { id: "swain", name: "Swain", role: "Off-Meta Flex", tier: "C", blurb: "Good sustain tank for long teamfights, with moderate damage on a tank build.",
-      build: [
+      builds: [
     {
     name: "Full Damage one shot",
     items: [
@@ -953,6 +953,7 @@ export const CHAMPIONS = [
       { tag: "resolve", name: "bone plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: " summoner spells", name: "flash + ignite", note: "use your ignite on the enemy to apply grevious wounds effect to reduce their healing."}
   ],},
+
  {  name: "tank support",
   items: [ 
     {tag: "always", name: "Relic Shield", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
@@ -987,7 +988,7 @@ export const CHAMPIONS = [
 
     
   { id: "lux", name: "Lux", role: "Off-Meta Flex", tier: "B", blurb: "High poke damage into squishies — one of the best at one-shotting players.",
-      build: [
+      builds: [
     {
     name: "Full Damage one shot",
     items: [
