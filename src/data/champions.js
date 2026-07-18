@@ -851,7 +851,37 @@ export const CHAMPIONS = [
     ],
   }
 ],},
-  { id: "sett", name: "Sett", role: "Off-Meta Flex", tier: "B", blurb: "Strong tank and engager — ult their frontline to start fights. High damage if fed, since W can one-shot off HP, with moderate CC." },
+  { id: "sett", name: "Sett", role: "Off-Meta Flex", tier: "B", blurb: "Strong tank and engager — ult their frontline to start fights. High damage if fed, since W can one-shot off HP, with moderate CC.",
+     builds: [
+    {
+    name: "tanky support",
+    items: [
+      {tag: "always", name: "Relic Sheild", note:"Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
+      {tag: "core", name: "heartsteel", note: " to deal more damage and most importantly gain more HP to deal more true damage with your W." },
+      {tag: "core", name: "warmog's armor", note: "to gain more HP for dealing more damage with your W and get HP regen out of combat and get back to fights quickly or to roam." },
+      {tag: "core", name: "Overlord's Bloodmail", note: " to deal more damage based of your MAX HP and gain more attack damage when you miss your health." },
+      {tag: "situational", name: "randuin's omen", note: "to reduce the critical damage taken." },
+      {tag: "situational", name: "force of nature", note: " to be more tanky in fights against AP damage dealers." },
+      {tag: "situational", name: "abyssal mask", note: " to reduce enemies magic resist when you have too much AP damage dealer in your team." },
+      {tag: "situational", name: "thornmail", note: "only against healers to reduce their healing effect when they attack you." },
+      {tag: "situational", name: "unending despair", note: " to deal more damage based on your max health and also heal yourself up a bit." },
+    ],
+    runes: [
+      { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
+      { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
+      { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
+      { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
+      { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
+      { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
+    ],
+    },],
+  matchups: [
+{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
+{tag: "strong against tanks.", name: " nautilus,thresh,poppy,alistar"},
+   ],
+  },
   { id: "norra", name: "Norra", role: "Off-Meta Flex", tier: "B", blurb: "Strong poke; W can pull the enemy frontline or tank out of the fight so you can pick off the rest.",
       builds: [
     {
