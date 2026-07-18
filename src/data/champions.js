@@ -148,15 +148,10 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-    ],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
     ],},
-  {
-    name: "Full Damage Poke",
+    
+    {
+       name: "Full Damage Poke",
     items: [
       { tag: "Always", name: "Spectral Sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
       { tag: "core", name: "luden's echo", note: "When you want to poke and burst enemies down. The passive gives you extra damage on your Q and E, letting you harass and kill squishy targets." },
@@ -178,10 +173,13 @@ export const CHAMPIONS = [
       { tag: "summoner spells", name: "flash + ignite", note: "use your ignite on the enemy who has healing effect."},
       { tag: "summoner spells", name: "barrier ( swap for ignite)", note: " to have more sustainibility and prevent being one shotted."},
     ],
-  }
-],
-  },
-  { id: "karma", name: "Karma", role: "Enchanter", tier: "A", blurb: "High mobility for catching or escaping, strong poke damage, moderate CC.",
+     matchups: [
+      { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
+      { tag: " hard into", name: "nautilus, thresh, Rakan", note: " Rakan can catch you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
+  ], },
+    ],},
+ 
+    { id: "karma", name: "Karma", role: "Enchanter", tier: "A", blurb: "High mobility for catching or escaping, strong poke damage, moderate CC.",
     builds: [
   {
     name: "Standard Enchanter",
