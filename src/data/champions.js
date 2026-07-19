@@ -504,6 +504,7 @@ export const CHAMPIONS = [
       { tag: "Inspiration", name: "Transcendence", note: "gives you more ability haste so that you can use your abilities more often in mid-late game." },
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Transcendence)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
+      { tag: "Rune Swap", name: "Ingenious Hunter (swap for Zombie Ward)", note: "to increase your ability haste and lower your cooldown when you think your damage is enough." },
   ],}],
     matchups: [
       { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
