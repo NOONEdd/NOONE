@@ -454,7 +454,7 @@ export const CHAMPIONS = [
   { id: "rakan", name: "Rakan", role: "Catcher", tier: "S", blurb: "Quick high-damage engages on squishies, with strong mobility and some save potential via Q and E.",
         builds: [
   {
-    name: "Standard Catcher",
+   name: "Standard tank Catcher",
     items: [
       { tag: "Always", name: "Relic Shield", note: "Your mission item every game. HP and gold generation are both valuable on a tank support." },
       { tag: "Core", name: "Zeke's Convergence", note: "Makes your engage directly lethal — the aura slows enemies and adds damage near you after your ultimate. Your hook into Zeke's into ally follow-up is a reliable kill pattern." },
@@ -471,7 +471,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", name: "protobelt", note: "Default enchant — when you dive into the enemy team to engage, this shield keeps you alive long enough for your team to follow up." },
     ],
     runes: [
-      { tag: "Keystone", name: "Ice Overlord", note: "Built for Rakan — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
+         { tag: "Keystone", name: "Ice Overlord", note: "Built for Rakan — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
       { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Rakan produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
@@ -479,15 +479,37 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your engage combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
-    ],}],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Nautilus, Thresh, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Rakan's partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't engage just because you can", note: "Every engage should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing." },
+
+    ],},
+
+    {
+      name: "High AP Damage Engager",
+      items: [
+         { tag: "Always", name: "Spectral Sickle", note: "your mission item for almot every match since you are going full damage build." },
+      { tag: "core", name: "Lich Bane", note: "for the ganker and roaming style only because of the movement speend that it gives and the higher attack speed to takedown your enemies quickly." },
+      { tag: "core", name: "Cryptobloom", note: " to slow down enemies when you catch them." },
+      { tag: "core", name: "Malignance", note: " for not being catched easily." },
+      { tag: "situational", name: "Banshee's Veil", note: " only when enemies have too much of shielding effect.buy this item to reduce their shield effecr." },
+      { tag: "situational", name: "Oceanid's Trident", note: " to reduce enemies healing effect.although for their healing effect you should bring its tier 2 item, which is executioner's call." },
+      { tag: "situational", name: "Morellonomicon", note: " buy this defensive item only when you think enemies have too much damage and also you need a bit of tenacity." },
+      { tag: "situational", name: "void staff", note: " to deal more damage on enemies who has significant amount of magic resist." },
+      { tag: " boots", name: "boots of lucidity", note: " to deal more damage on your enemies." },
+      { tag: " Enchant", name: "Protobelt", note: " to be able engage much more better especially with you W." },
     ],
-  },
+  runes: [
+      { tag: "Keystone", name: "electrocute", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
+      { tag: "Domination", name: "Sudden Impact", note: "to deal more damage for each engage and dashes that you have like W." },
+      { tag: "Domination", name: "Chain Assault", note: "dealing moree damage after using consecutive abilities on enemy." },
+      { tag: "Domination", name: "Zombie Ward", note: "Makes you permanently to have more AP damage after killing or dewarding an enemy ward.really essential for late game." },
+      { tag: "Inspiration", name: "Transcendence", note: "gives you more ability haste so that you can use your abilities more often in mid-late game." },
+      { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
+      { tag: "Rune Swap", name: "Bone Plating (swap for Transcendence)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
+  ],}],
+    matchups: [
+      { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
+      { tag: " hard into", name: "nautilus, thresh, Janna", note: " Rakan can be catched easily especially with nautilus's his ult." },
+    ], },
+    
       // Warden
   { id: "braum", name: "Braum", role: "Warden", tier: "S", blurb: "Best-in-class disengage and damage-blocking, with high CC for catching enemies too.",
        builds: [
