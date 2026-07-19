@@ -497,7 +497,7 @@ export const CHAMPIONS = [
       { tag: " Enchant", name: "Protobelt", note: " to be able engage much more better especially with you W." },
     ],
   runes: [
-      { tag: "Keystone", name: "electrocute", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
+      { tag: "Keystone", name: "electrocute", note: "for dealing more damage after casting 3 consecutive abilites on enemy or 3 basic attacks." },
       { tag: "Domination", name: "Sudden Impact", note: "to deal more damage for each engage and dashes that you have like W." },
       { tag: "Domination", name: "Chain Assault", note: "dealing moree damage after using consecutive abilities on enemy." },
       { tag: "Domination", name: "Zombie Ward", note: "Makes you permanently to have more AP damage after killing or dewarding an enemy ward.really essential for late game." },
