@@ -2,11 +2,19 @@ import { X, Swords } from "lucide-react";
 import SmartImage from "./SmartImage.jsx";
 
 /** Renders the actual explanation content for whichever item/rune/spell is
- *  currently selected. Two shapes are supported on a single entry:
+ *  currently selected. An entry can carry any combination of:
+ *   - `info` -> the factual description from the Item/Rune catalog data,
+ *     always rendered first when present. This is the exact same text
+ *     RankChip shows under a card in landscape/desktop mode (its
+ *     `.chip-info`), so tapping a card on portrait mobile never loses that
+ *     description -- it's just relocated into this panel instead.
  *   - Structured: any of `why`, `when`, `replace`, `notes` present -> each
  *     renders as its own labeled block.
- *   - Plain: just a `note` string -> rendered as one block, no fabricated
- *     structure imposed on content that was only ever written as one note.
+ *   - Plain: just a `note` string -> rendered as one block. It only gets a
+ *     "Notes" label when it's accompanying an `info` block (so it reads as
+ *     a coach's add-on to the description above it); a lone `note` with no
+ *     `info` -- the champion build board's only shape -- still renders
+ *     exactly as before, no fabricated structure imposed on it.
  *  New champion content can use either shape; nothing needs migrating. */
 export default function BuildPanel({ entry, paths, onClose }) {
   if (!entry) {
@@ -40,6 +48,7 @@ export default function BuildPanel({ entry, paths, onClose }) {
       </div>
 
       <div className="build-panel-body">
+        {entry.info && <div className="build-panel-block"><p>{entry.info}</p></div>}
         {hasStructured ? (
           <>
             {entry.why && <div className="build-panel-block"><span className="build-panel-label">Why</span><p>{entry.why}</p></div>}
@@ -48,7 +57,12 @@ export default function BuildPanel({ entry, paths, onClose }) {
             {entry.notes && <div className="build-panel-block"><span className="build-panel-label">Notes</span><p>{entry.notes}</p></div>}
           </>
         ) : (
-          entry.note && <div className="build-panel-block"><p>{entry.note}</p></div>
+          entry.note && (
+            <div className="build-panel-block">
+              {entry.info && <span className="build-panel-label">Notes</span>}
+              <p>{entry.note}</p>
+            </div>
+          )
         )}
       </div>
     </div>
