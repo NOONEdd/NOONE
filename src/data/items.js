@@ -86,5 +86,5 @@ export const ITEMS = [
   { id: "armor-crusher-boots", name: "Armor Crusher Boots", category: "Boots", info: " Attack Damage 25, Armor Penetration 12, Armor Penetration Percentage 6%. Passive: Gain 20 out-of-combat Movement Speed." },
   { id: "crimson-lucidity", name: "Crimson Lucidity", category: "Boots", info: "75% Mana Regen, 25 Ability Haste. Passive: Gain 20% Summoner Spell Haste." },
   { id: "protobelt", name: "Protobelt", category: "Enchant", info: "Dash toward the target direction and unleash 7 magic bolts, dealing 100 + 10% Ability Power magic damage to enemies hit. (30s cooldown)If a champion or monster is hit by more than one missile, each additional missile only deals 10% damage." },
-  { id: "Lich-Bane", name: "Lich Bane", category: "Magic", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." }
+  { id: "LichBane", name: "LichBane", category: "Magic", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." }
 ];
