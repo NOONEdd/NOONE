@@ -245,6 +245,26 @@
   .build-row-name{font-weight:600;font-size:15px;}
   .build-row-note{font-size:13.5px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
 
+  /* DECISION TREES — per-champion scenario notes, Coach-Mode editable.
+     Each entry is one freeform textarea (no separate title field, so
+     writing one is just "start typing"); the first line renders as the
+     heading, everything after the first newline is the body and keeps
+     the coach's own line breaks (same pre-wrap convention as .coach-msg
+     above) rather than being reflowed into a single paragraph. */
+  .decision-tree-list{display:flex;flex-direction:column;gap:16px;}
+  .decision-tree-entry{padding:18px 20px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.02);}
+  .decision-tree-title{font-weight:700;font-size:15.5px;color:var(--text);}
+  .decision-tree-body{font-size:14px;line-height:1.65;color:var(--text-dim);white-space:pre-wrap;margin-top:6px;}
+  .decision-tree-edit-row{display:flex;flex-direction:column;gap:10px;}
+  .decision-tree-textarea{width:100%;min-height:160px;resize:vertical;background:rgba(255,255,255,.07);
+    border:1px solid var(--line);border-radius:10px;color:var(--text);font-family:'Rajdhani';
+    font-size:14px;line-height:1.6;padding:12px 14px;}
+  .decision-tree-textarea::placeholder{color:var(--text-dimmer);}
+  .decision-tree-actions{display:flex;justify-content:flex-end;}
+  .decision-tree-delete-btn{color:#ff6b6b;}
+  .decision-tree-delete-btn:hover{border-color:#ff6b6b;color:#ff6b6b;}
+  .decision-tree-add-btn{align-self:flex-start;}
+
   /* Standalone overview blurb — sits below the champion header, no tab needed */
   .detail-blurb-standalone{color:var(--text-dim);font-size:15.5px;line-height:1.65;max-width:760px;margin:-10px 0 30px;}
 

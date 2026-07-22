@@ -4,7 +4,7 @@ const STORAGE_KEY = "vanguard-coach-overrides";
 const PASSWORD_KEY = "vanguard-coach-password"; // sessionStorage -- cleared when the browser tab closes
 const API_URL = "/api/coach-overrides";
 const VERIFY_URL = "/api/verify-coach";
-const EMPTY = { champions: {}, items: {}, runes: {} };
+const EMPTY = { champions: {}, items: {}, runes: {}, decisionTrees: {} };
 
 function readLocal() {
   try {
@@ -56,9 +56,12 @@ function readStoredPassword() {
  * latest accumulated overrides, so even if ten edits land inside one
  * debounce window, the eventual single write still contains all of them.
  *
- * Returns [overrides, update, syncStatus, auth] where syncStatus is one of
- * "checking" | "syncing" | "synced" | "local-only", and auth is
- * { isAuthorized, verify(password), logout() }.
+ * Returns [overrides, update, syncStatus, auth, decisionTreeActions] where
+ * syncStatus is one of "checking" | "syncing" | "synced" | "local-only",
+ * auth is { isAuthorized, verify(password), logout() }, and
+ * decisionTreeActions is { add(championId), update(championId, entryId,
+ * content), remove(championId, entryId) } -- add() returns the new entry's
+ * id synchronously so the caller can focus it immediately.
  */
 const SYNC_DEBOUNCE_MS = 1200;
 
@@ -126,19 +129,65 @@ export function useCoachOverrides() {
     };
   }, []);
 
+  // Shared by every write path below: apply writeLocal + queue the
+  // debounced network sync. Kept in one place so update() and the three
+  // decision-tree functions can't drift out of sync with each other on
+  // how the KV-safety debounce actually works.
+  const queueSync = useCallback((next) => {
+    writeLocal(next);
+    pendingSyncRef.current = { overrides: next, password };
+    setSyncStatus("syncing");
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(flushSync, SYNC_DEBOUNCE_MS);
+  }, [password, flushSync]);
+
   const update = useCallback((kind, id, patch) => {
     setOverrides((prev) => {
       const next = { ...prev, [kind]: { ...prev[kind], [id]: { ...prev[kind][id], ...patch } } };
-      writeLocal(next);
-
-      pendingSyncRef.current = { overrides: next, password };
-      setSyncStatus("syncing");
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(flushSync, SYNC_DEBOUNCE_MS);
-
+      queueSync(next);
       return next;
     });
-  }, [password, flushSync]);
+  }, [queueSync]);
+
+  // Decision Trees are different in shape from the tier/note overrides
+  // above: those only ever *patch* an entry that already exists in the
+  // static data files (a champion/item/rune that already has a code-
+  // authored id). Decision trees have no code-authored baseline at all --
+  // they're entirely new entries the coach writes on the live site, so
+  // they need real add/remove, not just patch. Each is stored as one
+  // freeform `content` string per champion (see DecisionTreePanel.jsx for
+  // how that's split into a heading + body for display), and -- same as
+  // update() above -- every write here goes through queueSync, so writing
+  // several scenarios back-to-back still collapses into a single KV put
+  // once typing pauses.
+  const addDecisionTree = useCallback((championId) => {
+    const entryId = `dt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setOverrides((prev) => {
+      const existing = prev.decisionTrees[championId] || [];
+      const next = { ...prev, decisionTrees: { ...prev.decisionTrees, [championId]: [...existing, { id: entryId, content: "" }] } };
+      queueSync(next);
+      return next;
+    });
+    return entryId; // returned synchronously so the UI can auto-focus the new entry
+  }, [queueSync]);
+
+  const updateDecisionTree = useCallback((championId, entryId, content) => {
+    setOverrides((prev) => {
+      const existing = prev.decisionTrees[championId] || [];
+      const next = { ...prev, decisionTrees: { ...prev.decisionTrees, [championId]: existing.map((e) => (e.id === entryId ? { ...e, content } : e)) } };
+      queueSync(next);
+      return next;
+    });
+  }, [queueSync]);
+
+  const removeDecisionTree = useCallback((championId, entryId) => {
+    setOverrides((prev) => {
+      const existing = prev.decisionTrees[championId] || [];
+      const next = { ...prev, decisionTrees: { ...prev.decisionTrees, [championId]: existing.filter((e) => e.id !== entryId) } };
+      queueSync(next);
+      return next;
+    });
+  }, [queueSync]);
 
   const verify = useCallback(async (candidate) => {
     try {
@@ -165,6 +214,7 @@ export function useCoachOverrides() {
   }, []);
 
   const auth = { isAuthorized: Boolean(password), verify, logout };
+  const decisionTreeActions = { add: addDecisionTree, update: updateDecisionTree, remove: removeDecisionTree };
 
-  return [overrides, update, syncStatus, auth];
+  return [overrides, update, syncStatus, auth, decisionTreeActions];
 }

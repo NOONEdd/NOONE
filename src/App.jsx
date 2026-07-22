@@ -16,7 +16,7 @@ export default function App() {
   const route = useHashRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [overrides, updateOverride, syncStatus, auth] = useCoachOverrides();
+  const [overrides, updateOverride, syncStatus, auth, decisionTreeActions] = useCoachOverrides();
 
   // Only recompute when the actual override data changes — not on every
   // App render (menu open/close, route changes, editMode toggling, etc.
@@ -50,7 +50,19 @@ export default function App() {
     content = <GuidesPage champions={champions} />;
   } else if (route.page === "guide-detail") {
     const champ = champions.find((c) => c.id === route.id);
-    content = champ ? <ChampionDetailPage champion={champ} /> : <NotFoundPage />;
+    content = champ ? (
+      <ChampionDetailPage
+        champion={champ}
+        editMode={editMode}
+        setEditMode={setEditMode}
+        syncStatus={syncStatus}
+        auth={auth}
+        decisionTrees={overrides.decisionTrees[champ.id] || []}
+        onAddDecisionTree={() => decisionTreeActions.add(champ.id)}
+        onUpdateDecisionTree={(entryId, content) => decisionTreeActions.update(champ.id, entryId, content)}
+        onDeleteDecisionTree={(entryId) => decisionTreeActions.remove(champ.id, entryId)}
+      />
+    ) : <NotFoundPage />;
   } else if (route.page === "coaching") {
     content = <CoachingPage />;
   } else if (route.page === "ai-coach") {

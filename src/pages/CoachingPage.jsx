@@ -17,16 +17,16 @@ export default function CoachingPage() {
 
         <div className="overview-text">
           <p>
-            I'm Nyx "NOONEdd," and I've been playing the support role since Season 5 — competing in
-            tournaments along the way and picking up some strong results. In Season 8, I hit Rank 18 in
-            the support role (Rank 38 overall in EU). I coached a number of support players through
-            Season 19.
+            I'm Nyx "NOONEdd," and I've been playing the support role since Season 5, competing in
+            tournaments along the way. My best ranked finish came in Season 8, where I hit Rank 18 in
+            the support role (Rank 38 overall in EU). I've also coached a number of support players
+            through Season 19.
           </p>
           <p style={{ marginTop: 14 }}>
-            Across my time playing, I've held top-of-leaderboard spots on a wide range of champions —
-            top 1, 4, 5, 6, and 7 on picks like Rakan, Thresh, and Sett, and top 50–100 on Senna, Karma,
-            and most other supports I've played. I was most active in ranked from Season 7 through
-            Season 13; since then I've focused mainly on tournaments and scrims rather than solo queue.
+            Across the champions I've played, I've held top-of-leaderboard spots consistently: top 1, 4,
+            5, 6, and 7 on picks like Rakan, Thresh, and Sett, and top 50–100 on Senna, Karma, and most
+            others. I was most active in ranked from Season 7 through Season 13; since then I've focused
+            mainly on tournaments and scrims rather than solo queue.
           </p>
         </div>
 

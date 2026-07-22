@@ -6,8 +6,13 @@ import { candidatePaths } from "../utils/images.js";
 import SmartImage from "../components/SmartImage.jsx";
 import BuildList from "../components/BuildList.jsx";
 import BuildBoard from "../components/BuildBoard.jsx";
+import { CoachToggle } from "../components/TierBoard.jsx";
+import DecisionTreePanel from "../components/DecisionTreePanel.jsx";
 
-export default function ChampionDetailPage({ champion }) {
+export default function ChampionDetailPage({
+  champion, editMode, setEditMode, syncStatus, auth,
+  decisionTrees, onAddDecisionTree, onUpdateDecisionTree, onDeleteDecisionTree,
+}) {
   const [tab, setTab] = useState("build");
   const [selectedBuild, setSelectedBuild] = useState(0);
   const Icon = ROLE_ICONS[champion.role] || Sparkles;
@@ -48,9 +53,9 @@ const currentBuild = builds[selectedBuild];
         {champion.note && <p className="detail-blurb-standalone">{champion.note}</p>}
 
         <div className="tab-row">
-          {["build", "matchups"].map((t) => (
+          {["build", "matchups", "decisiontrees"].map((t) => (
             <button key={t} className={"tab-btn" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>
-              {t === "build" ? "Build" : "Matchups"}
+              {t === "build" ? "Build" : t === "matchups" ? "Matchups" : "Decision Trees"}
             </button>
           ))}
         </div>
@@ -84,6 +89,20 @@ const currentBuild = builds[selectedBuild];
     emptyText={`No matchup notes yet for ${champion.name}.`}
   />
 )}
+
+        {tab === "decisiontrees" && (
+          <>
+            <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth} />
+            <DecisionTreePanel
+              championName={champion.name}
+              entries={decisionTrees}
+              editMode={editMode}
+              onAdd={onAddDecisionTree}
+              onUpdate={onUpdateDecisionTree}
+              onDelete={onDeleteDecisionTree}
+            />
+          </>
+        )}
       </div>
     </section>
   );
