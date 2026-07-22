@@ -75,7 +75,17 @@ export async function onRequestPost(context) {
     return json({ error: "Missing overrides object" }, 400);
   }
 
-  await kv.put(KEY, JSON.stringify(overrides));
+  try {
+    await kv.put(KEY, JSON.stringify(overrides));
+  } catch (err) {
+    // Cloudflare's Workers KV free tier caps out at 1,000 put operations
+    // per day; past that, kv.put() itself rejects -- this is exactly the
+    // "Daily Workers KV put limit exceeded" email. The client (see
+    // src/hooks/useCoachOverrides.js) already falls back to localStorage
+    // on any non-ok response, so no edit is lost -- it just won't sync to
+    // other devices/visitors until the quota resets at 00:00 UTC.
+    return json({ error: "Cloudflare's daily free-tier KV write limit was reached. Your edit is saved in this browser and will sync once the limit resets (00:00 UTC)." }, 429);
+  }
   return json({ ok: true });
 }
 

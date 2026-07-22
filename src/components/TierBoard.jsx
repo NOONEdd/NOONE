@@ -51,6 +51,7 @@ export function CoachToggle({ editMode, setEditMode, syncStatus, auth }) {
 
   const statusText = {
     checking: "Checking sync status...",
+    syncing: "Saving...",
     synced: "Synced to the live site for everyone",
     "local-only": "Saved to this browser only — see README to enable real syncing",
   }[syncStatus] || "Saved to this browser only — see README to enable real syncing";

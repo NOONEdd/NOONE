@@ -99,7 +99,6 @@ const ALIASES = {
   "i:void-staff": ["void-staff", "voidstaff"],
   "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
   "i:spellslinger's-shoes": ["spellslinger's-shoes", "spellslinger's-shoes"],
-  "i:lich-bane": ["lichbane", "lich-bane"],
 };
 
 /** Given a lowercase-hyphenated stem, generates the handful of capitalization

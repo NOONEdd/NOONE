@@ -250,7 +250,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
-      { tag: "inspiration", name: "manaflow band", note: "to increase your mana espcially in early game." },
+      { tag: "inspiration", name: "mana flowband", note: "to increase your mana espcially in early game." },
       { tag: "inspiration", name: "transcendence", note: "to gain more ability haste for lower cooldowns specifially in late game.." },
       { tag: "inspiration", name: "scorch", note: "to deal a bit damage with your Q or your Ultimate when you hit an enemy.." },
       { tag: "resolve", name: "revitalize", note: "amplifies the strenght of your shielding and healing.." },
