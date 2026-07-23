@@ -715,6 +715,7 @@ export const CHAMPIONS = [
       { tag: "situational", name: "oceanid's trident", note: "when enemies have too much shield effect. The passive reduces their shield effectiveness, letting your team fight through their defensive abilities." },
       { tag: "situational", name: "Morellonomicon", note: "When the enemy has too much healing. The passive gives you Grievous Wounds, letting your team fight through their healing abilities." },
       { tag: "situational", name: "bloodletter's curse", note: "When you want to maximize your damage output. the passive shreds enemies magic resistance so you will be able to deal more damage" },
+      { tag: "situational", name: "Rylai's Crystal Scepter", note: " Damaging abilities slow the target — turns any mage's poke into extra kiting power, especially strong on AOE/DOT-heavy kits." },
       { tag: "boots", name: "boots of mana", note: "to deal more damage. the upgraded boots gives you more mana regen and extra damaage." },
     ],
     runes: [
