@@ -3,7 +3,7 @@
 // Mode / localStorage overrides) hold coaching judgment.
 
 export const ITEMS = [
-  { id: "ardent-censer", name: "Ardent Censer", category: "Support", info: "60 AP, 250 Health, 10% CDR. Always gives +5% move speed. Healing or shielding an ally gives you both bonus attack speed and a few seconds of extra on-hit magic damage." },
+  { id: "ardent-censer", name: "Ardent Censer", category: "Support", info: "60 AP, 250 Health, 10% CDR. Always gives +5% move speed. Healing or shielding an ally gives you both bonus attack speed and a few seconds of extra on-hit magic damag." },
   { id: "harmonic-echo", name: "Harmonic Echo", category: "Support", info: "80 AP, 300 Mana, 10% CDR. Moving and casting abilities builds a stacking meter — once full, your next heal or shield on an ally restores a burst of extra health to them and nearby allies." },
   { id: "redemption", name: "Redemption", category: "Enchant", info: "15 Ability Haste, 150 Health, 50 Ability Power, Base Mana Power 50%. Select a large area. After 2.5s, call down a beam of light that heals allied champions for 150-350 Health (scaling with ally level) and burns enemy champions for true damage equal to 10% of their max Health. (60s cooldown)\nThis item can be activated while dead." },
   { id: "zekes-convergence", name: "Zeke's Convergence", category: "Support", info: "10% CDR, 40 Armor, 40 Magic Resist, 150 Mana. Casting your ultimate creates a damaging, slowing zone around you and gives nearby allies a short burst of move speed. Exact numbers shift often — worth double-checking in-game." },
