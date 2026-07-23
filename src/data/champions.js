@@ -254,7 +254,7 @@ export const CHAMPIONS = [
       { tag: "inspiration", name: "scorch", note: "to deal a bit damage with your Q or your Ultimate when you hit an enemy.." },
       { tag: "resolve", name: "revitalize", note: "amplifies the strenght of your shielding and healing.." },
       { tag: "Summoner Spells", name: "ignite + Heal", note: "Default setup. ignite to take down enemies faster and Heal as an emergency lifeline in lane fights." },
-      { tag: "Spell Swap", name: "barrier (swap for Heal)", note: "Against burst dmg enemies. bring barrier only when enemies don't have too much healing effect specially in your lane." },
+      { tag: "Spell Swap", name: "exhaust (swap for Heal)", note: "to reduce one of the main carry of enemies damage and slow them down." },
     ],
     
    }
