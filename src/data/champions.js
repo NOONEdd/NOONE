@@ -968,7 +968,7 @@ export const CHAMPIONS = [
       { tag: "Resolve", name: "Nullifying Orb", note: "When you take magic damage that would drop you below a health threshold, gain a magic shield that absorbs the excess — a rune-based safety net specifically into heavy AP burst.." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
-      { tag: "Precision", name: "Brutal", note: "Gives you a small amount of  m damage to trade with your enemies and win them." },
+      { tag: "Precision", name: "Brutal", note: "Gives you a small amount of damage to trade with your enemies and win them." },
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
