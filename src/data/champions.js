@@ -326,7 +326,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for Nautilus — every hook, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since thresh produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -366,7 +366,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since blitzcrank produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -406,7 +406,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since leona produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -438,7 +438,7 @@ export const CHAMPIONS = [
     ],
   runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since pyke produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -607,7 +607,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for alistar — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Rakan produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since alistar produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -646,7 +646,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for maokai — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Rakan produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since rell produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -684,7 +684,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for maokai — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Rakan produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since maokai produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -889,7 +889,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since sett produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1021,7 +1021,7 @@ export const CHAMPIONS = [
   ],
   runes: [
       {tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every engage, every CC procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Rakan produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since swain produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1076,7 +1076,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since galio produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1106,7 +1106,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since jarvan iv produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1137,7 +1137,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since gragas produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1167,7 +1167,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since ornn produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1198,7 +1198,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since poppy produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
@@ -1228,7 +1228,7 @@ export const CHAMPIONS = [
     ],
     runes: [
       { tag: "Keystone", name: "Ice Overlord", note: "Built for catchers — every cc, every ult, every passive stun procs the damage and slow. Your entire kit triggers this constantly. Non-negotiable." },
-      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Nautilus produces CC almost constantly in a fight, this shield is nearly permanent." },
+      { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since skarner produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },
       { tag: "Inspiration", name: "Hextech Flashtraption", note: "Gives you a charged blink when Flash is on cooldown — lets you initiate even without Flash available, which is massive for a champion whose engage threatens the whole map." },
