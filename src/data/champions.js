@@ -531,7 +531,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", name: "Stoneplate Enchant", note: "Default enchant — when you dive into enemies or they catch you in fight and you want to survive a bit more with the given shield by this enchant." },
     ],
     runes: [
-      { tag: "Keystone", name: "Gaurdian", note: "Built for Braum — every time your ADC or any ally takes damage with you,both of you gain shield and Hp ." },
+      { tag: "Keystone", name: "Guardian", note: "Built for Braum — every time your ADC or any ally takes damage with you,both of you gain shield and Hp ." },
       { tag: "Resolve", name: "Courage of the Colossus", note: "Every time you immobilize an enemy (which is every engage), you get a shield. Since Braum produces CC almost constantly in a fight, this shield is nearly permanent." },
       { tag: "Resolve", name: "Second Wind", note: "Sustains you in lane against poke damage. Swap to Bone Plating when the enemy has a burst or one-shot combo instead." },
       { tag: "Resolve", name: "Overgrowth", note: "Makes you permanently tankier the longer the game goes on. Swap to Perseverance against tanks or heavy CC where tenacity matters more than raw HP." },

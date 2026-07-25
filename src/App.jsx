@@ -28,12 +28,12 @@ export default function App() {
 
   const items = useMemo(() => ITEMS.map((i) => {
     const o = overrides.items[i.id];
-    return { ...i, tier: o?.tier || "Unranked", note: o?.note || "" };
+    return { ...i, tier: o?.tier || i.tier || "Unranked", note: o?.note || "" };
   }), [overrides.items]);
 
   const runes = useMemo(() => RUNES.map((r) => {
     const o = overrides.runes[r.id];
-    return { ...r, tier: o?.tier || "Unranked", note: o?.note || "" };
+    return { ...r, tier: o?.tier || r.tier || "Unranked", note: o?.note || "" };
   }), [overrides.runes]);
 
   let content;

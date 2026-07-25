@@ -1,4 +1,5 @@
 import { Pencil } from "lucide-react";
+import { IconDiscord, IconTelegram } from "../components/icons.jsx";
 
 export default function CoachingPage() {
   return (
@@ -39,8 +40,14 @@ export default function CoachingPage() {
         </div>
 
         <div className="overview-text" style={{ marginTop: 32 }}>
-          <p><strong>Telegram:</strong> @NOONEdd67</p>
-          <p style={{ marginTop: 8 }}><strong>Discord:</strong> Nyx NOONE DD#3799</p>
+          <a className="contact-row" href="https://t.me/NOONEdd67" target="_blank" rel="noopener noreferrer">
+            <IconTelegram size={18} />
+            <span><strong>Telegram:</strong> @NOONEdd67</span>
+          </a>
+          <div className="contact-row" style={{ marginTop: 8 }}>
+            <IconDiscord size={18} />
+            <span><strong>Discord:</strong> Nyx NOONE DD#3799</span>
+          </div>
         </div>
       </div>
     </section>
