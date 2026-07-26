@@ -171,10 +171,11 @@
   }
 
   .edit-fields{display:flex;flex-direction:column;gap:7px;margin-top:10px;width:100%;}
-  .edit-fields select, .edit-fields input{
+  .edit-fields select, .edit-fields input, .edit-fields textarea{
     width:100%;background:rgba(255,255,255,.07);border:1px solid var(--line);
     color:var(--text);font-family:'Rajdhani';font-weight:600;font-size:11.5px;padding:6px 7px;border-radius:8px;}
-  .edit-fields input::placeholder{color:var(--text-dimmer);font-weight:500;}
+  .edit-fields input::placeholder, .edit-fields textarea::placeholder{color:var(--text-dimmer);font-weight:500;}
+  .edit-info-field{min-height:64px;resize:vertical;line-height:1.4;}
 
   /* TIER BOARD */
   .edit-toggle-row{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;}

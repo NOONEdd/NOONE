@@ -1,5 +1,8 @@
 // Rune data — real Wild Rift rune paths (Keystone, Precision, Domination,
 // Resolve, Inspiration). Wild Rift has no Sorcery path — do not add one.
+// 'info' can be edited two ways: directly here in code, or live via Coach
+// Mode -- the Coach Mode value, when present, always wins. That second
+// path is what makes a same-patch update possible: no code, no rebuild.
 // 'tier' is the baseline S/A/B/C/D/Unranked placement (same pattern as
 // champions.js) -- edit it directly here, or adjust it live via Coach
 // Mode, which stores an override on top that takes priority when present

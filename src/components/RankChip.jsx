@@ -30,18 +30,26 @@ export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, 
         {paths.length > 0 && <SmartImage basePath={paths} alt={name} className="chip-portrait" />}
       </div>
       <div className="chip-name">{name}</div>
-      {info && <div className="chip-info">{info}</div>}
+      {!editMode && info && <div className="chip-info">{info}</div>}
       {!editMode && note ? <div className="chip-note">{note}</div> : null}
       {editMode && (
         <div className="edit-fields" onClick={(e) => e.stopPropagation()}>
-          <select value={tier} onChange={(e) => onUpdate({ tier: e.target.value, note })}>
+          <select value={tier} onChange={(e) => onUpdate({ tier: e.target.value, note, info })}>
             {TIER_SELECT.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
+          {(_type === "i" || _type === "r") && (
+            <textarea
+              className="edit-info-field"
+              placeholder="Passive / stats — update this the moment a patch changes the numbers, no rebuild needed"
+              value={info || ""}
+              onChange={(e) => onUpdate({ tier, note, info: e.target.value })}
+            />
+          )}
           <input
             type="text"
             placeholder="Quick note..."
             value={note || ""}
-            onChange={(e) => onUpdate({ tier, note: e.target.value })}
+            onChange={(e) => onUpdate({ tier, note: e.target.value, info })}
           />
         </div>
       )}

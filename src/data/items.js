@@ -1,8 +1,14 @@
 // Item data — Wild Rift stats/passives verified against official sources.
-// The 'info' field is factual. 'tier' is the baseline S/A/B/C/D/Unranked
-// placement (same pattern as champions.js) -- edit it directly here, or
-// adjust it live via Coach Mode, which stores an override on top that
-// takes priority when present (see the tier fallback chain in App.jsx).
+// 'info' is the factual description; it can be edited two ways: directly
+// here in code, or live via Coach Mode (same password-gated editor as
+// tier/note) -- the Coach Mode value, when present, always wins over
+// what's written here. That second path exists specifically so a patch
+// changing an item's numbers doesn't require touching code or waiting on
+// a rebuild: open Coach Mode, retype the passive/stats, done in seconds.
+// 'tier' is the baseline S/A/B/C/D/Unranked placement (same pattern as
+// champions.js) -- edit it directly here, or adjust it live via Coach
+// Mode, which stores an override on top that takes priority when present
+// (see the tier fallback chain in App.jsx).
 // 'note' is coaching commentary, set only via Coach Mode.
 
 export const ITEMS = [
