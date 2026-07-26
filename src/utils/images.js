@@ -68,25 +68,25 @@ const ALIASES = {
   "i:relic-shield": ["relic_shield", "relicshield"],
   "i:essence-reaver": ["essence_reaver", "essencereaver"],
   "r:eyeball-collector": ["eyeball-collection", "eyeball_collection", "eyeballcollection"], // wiki files this rune as "Eyeball Collection"
-  "i:serylda-grudge": ["seryldas-grudge", "serylda_s_grudge", "seryldasgrudge", "seryldas_grudge"],
+  "i:serylda-grudge": ["seryldas-grudge", "serylda_s_grudge", "seryldasgrudge", "seryldas_grudge", "serylda's-grudge"],
   "r:summon-aery": ["aery"], // wiki files this rune as just "Aery"
   "i:eclipse": ["80px-eclipse_wr_item", "80px-Eclipse_WR_item"],
-  "i:lord-dominiks-regards": ["lord_dominc_s_regard", "lord-dominiks-regard", "lorddominiksregards", "lord_dominiks_regards"],
+  "i:lord-dominiks-regards": ["lord_dominc_s_regard", "lord-dominiks-regard", "lorddominiksregards", "lord_dominiks_regards", "lord dominc's regard"],
   "i:hollow-radiance": ["hallow-radiance", "hallow_radiance", "hallow radiance"], // common misspelling on the source file
   "i:heartsteel": ["80px-heartsteel_wr_item", "80px-Heartsteel_WR_item"],
-  "i:boots-of-dynamism": ["boots_of_dynamism", "bootsofdynamism"],
+  "i:boots-of-dynamism": ["boots_of_dynamism", "bootsofdynamism", "Boots of Dynamism"],
   "i:negatron-cloak": ["negatron_cloack", "negatroncloack", "negatron-cloack"], // common misspelling on the source file
   "r:hextech-flashtraption": ["hexflash", "hextechflash", "hextech-flash"], // wiki files this rune as just "Hexflash"
-  "i:overlords-bloodmail": ["overlord_s_bloodmail", "overlords_bloodmail"],
-  "i:wardens-mail": ["warden_s_mail", "wardens_mail"],
+  "i:overlords-bloodmail": ["overlord_s_bloodmail", "overlords_bloodmail", "overlord's-bloodmail"],
+  "i:wardens-mail": ["warden_s_mail", "wardens_mail", "warden's-mail"],
   "i:glacial-shroud": ["glacial_shroud"],
   "i:surging-scales": ["surging_scales"],
-  "i:executioners-calling": ["80px-executioner_s_calling_wr_item", "executioners_calling"],
+  "i:executioners-calling": ["80px-executioner_s_calling_wr_item", "executioners_calling", "executioner's-calling"],
   "i:forbidden-idol": ["80px-forbidden_idol_wr_item"],
   "i:oblivion-orb": ["80px-oblivion_orb_wr_item"],
   "i:searing-crown": ["80px-searing_crown_wr_item"],
-  "i:spectres-cowl": ["80px-spectre_s_cowl_wr_item", "spectres_cowl"],
-  "i:tear-of-the-goddess": ["80px-tear_of_the_goddess_wr_item", "tear_of_the_goddess"],
+  "i:spectres-cowl": ["80px-spectre_s_cowl_wr_item", "spectres_cowl", "spectre's-cowl"],
+  "i:tear-of-the-goddess": ["80px-tear_of_the_goddess_wr_item", "tear_of_the_goddess", "Tear_of_the_Goddess"],
   "i:stormsurge": ["storm_surge", "stormsurge"],
   "i:mikeal's-blessing": ["mikeal's-blessing", "mikeal's-blessing"],
   "i:banshee's-veil": ["banshee's-veil", "banshees-veil"],
@@ -99,22 +99,63 @@ const ALIASES = {
   "i:void-staff": ["void-staff", "voidstaff"],
   "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
   "i:spellslinger's-shoes": ["spellslinger's-shoes", "spellslinger's-shoes"],
+  // Added during the optimization pass below — every one of these is a
+  // real, currently-listed item whose actual downloaded image already
+  // existed on disk but could never be found: either an apostrophe was
+  // preserved in the filename (candidatePaths only ever generates ids
+  // with the apostrophe already stripped, since slugify() drops it), or
+  // a "minor word" (of/the) stayed lowercase in the filename where
+  // Title-Case generation capitalizes everything. Confirmed against the
+  // real filenames sitting in public/assets/items/ before adding, not
+  // guessed.
+  "i:amaranths-twinguard": ["amaranth's-twinguard"],
+  "i:boots-of-mana": ["Boots_of_Mana"],
+  "i:dead-mans-plate": ["dead-man's-plate"],
+  "i:duskblade-of-draktharr": ["Duskblade_of_Draktharr"],
+  "i:edge-of-night": ["Edge_of_Night"],
+  "i:force-of-nature": ["Force_of_Nature"],
+  "i:ionian-boots": ["Ionian_Boots_of_Lucidity"],
+  "i:liandrys-torment": ["liandry's-torment"],
+  "i:locket": ["Locket_Enchant"],
+  "i:ludens-echo": ["luden's-echo"],
+  "i:mercurys-treads": ["mercury's-treads"],
+  "i:oceanids-trident": ["oceanid's-trident"],
+  "i:rabadons-deathcap": ["rabadon's-deathcap"],
+  "i:randuins-omen": ["randuin's-omen"],
+  "i:rylais-crystal-scepter": ["rylai's-crystal-scepter"],
+  "i:serpents-fang": ["serpent's-fang"],
+  "i:staff-of-flowing-water": ["Staff_of_Flowing_Waters"],
+  "i:warmogs-armor": ["warmog's-armor"],
+  "i:winters-approach": ["winter's-approach"],
+  "i:zekes-convergence": ["zeke's-convergence"],
+  "i:knights-vow": ["knight's-vow"],
 };
 
-/** Given a lowercase-hyphenated stem, generates the handful of capitalization
+/** Turns a lowercase-hyphenated stem into the handful of capitalization
  *  patterns a person is most likely to have actually used when naming a
- *  file by hand — since Cloudflare's Linux-based hosting treats "eclipse"
- *  and "Eclipse" as two entirely different files, even though Windows
- *  (where these files are usually prepared) does not draw that
- *  distinction, so the mismatch is invisible until it's already deployed. */
+ *  file by hand — since Cloudflare's Linux-based hosting treats
+ *  "eclipse" and "Eclipse" as two entirely different files, even though
+ *  Windows (where these files are usually prepared) does not draw that
+ *  distinction, so the mismatch is invisible until it's already deployed.
+ *
+ *  Tries BOTH hyphen and underscore separators unconditionally, rather
+ *  than picking one based on which separator the id itself happens to
+ *  use — a canonical id is always hyphenated ("ardent-censer"), so
+ *  picking based on the input meant an underscore-named file
+ *  ("Ardent_Censer.webp", a very common manual-download convention)
+ *  could NEVER be found unless it happened to be hand-listed in ALIASES.
+ *  That gap was silently hiding real, already-downloaded images behind
+ *  the generic fallback icon. */
 function caseVariants(stem) {
   const words = stem.split(/[-_]/).filter(Boolean);
   if (words.length === 0) return [];
-  const sep = stem.includes("_") ? "_" : "-";
   const titleWords = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1));
   return [
     stem, // as-is
-    titleWords.join(sep), // Title_Case or Title-Case, matching whichever separator the stem used
+    titleWords.join("-"), // Title-Case
+    titleWords.join("_"), // Title_Case
+    words.join("_"), // lower_case_with_underscores
+    words.join(" "), // lower case with spaces
     titleWords.join(" "), // Title Case With Spaces
     titleWords.join(""), // PascalCaseNoSeparator
     words[0].charAt(0).toUpperCase() + words[0].slice(1) + words.slice(1).join(""), // just the first word capitalized

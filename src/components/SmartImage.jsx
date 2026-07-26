@@ -19,13 +19,21 @@ function probeImage(url) {
 }
 
 async function resolveSrc(candidates) {
+  const urls = [];
   for (const base of candidates) {
     for (const ext of EXTENSIONS_TO_TRY) {
-      const url = `${base}.${ext}`;
-      if (await probeImage(url)) return url;
+      urls.push(`${base}.${ext}`);
     }
   }
-  return null;
+  // Fire every candidate at once instead of awaiting each 404 in turn
+  // before trying the next -- this used to mean any image whose real
+  // filename wasn't the very first guess paid for several sequential
+  // round-trips before showing up, worst felt on mobile. Total wait time
+  // is now roughly the slowest single request, not the sum of all of
+  // them. .find() below still respects the original most-to-least-likely
+  // ordering when picking among whichever ones actually succeeded.
+  const results = await Promise.all(urls.map((url) => probeImage(url).then((ok) => (ok ? url : null))));
+  return results.find((url) => url !== null) || null;
 }
 
 /**

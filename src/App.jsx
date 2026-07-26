@@ -11,6 +11,7 @@ import { GuidesPage, NotFoundPage } from "./pages/GuidesPage.jsx";
 import ChampionDetailPage from "./pages/ChampionDetailPage.jsx";
 import CoachingPage from "./pages/CoachingPage.jsx";
 import AICoachPage from "./pages/AICoachPage.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 export default function App() {
   const route = useHashRoute();
@@ -75,7 +76,7 @@ export default function App() {
     <div className="app-root">
       <NavBar currentPage={route.page} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
       {menuOpen && <MobileMenu onNavigate={() => setMenuOpen(false)} />}
-      <main>{content}</main>
+      <main><ErrorBoundary resetKey={JSON.stringify(route)}>{content}</ErrorBoundary></main>
       <Footer />
       <BackToTop />
     </div>
