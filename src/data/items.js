@@ -93,5 +93,6 @@ export const ITEMS = [
   { id: "crimson-lucidity", name: "Crimson Lucidity", category: "Boots", tier: "Unranked", info: "75% Mana Regen, 25 Ability Haste. Passive: Gain 20% Summoner Spell Haste." },
   { id: "protobelt", name: "Protobelt", category: "Enchant", tier: "Unranked", info: "Dash toward the target direction and unleash 7 magic bolts, dealing 100 + 10% Ability Power magic damage to enemies hit. (30s cooldown)If a champion or monster is hit by more than one missile, each additional missile only deals 10% damage." },
   { id: "Lich-Bane", name: "LichBane", category: "Magic", tier: "Unranked", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." },
-  { id: "Shurelya's Battlesong", name: "Shurelya's Battlesong", category: "Enchant", tier: "Unranked", info: "grant nearby allies, 30% movement speed for 4 seconds." }
+  { id: "Shurelya's Battlesong", name: "Shurelya's Battlesong", category: "Enchant", tier: "Unranked", info: "grant nearby allies, 30% movement speed for 4 seconds." },
+  { id: "Horizon Focus", name: "Horizon Focus", category: "Magic", tier: "Unranked", info: "damaging an enemy from 600 units away, reveals them for a few seconds and your damage to them is increased by 10%." }
 ];
