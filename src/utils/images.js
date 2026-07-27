@@ -129,7 +129,7 @@ const ALIASES = {
   "i:winters-approach": ["winter's-approach"],
   "i:zekes-convergence": ["zeke's-convergence"],
   "i:knights-vow": ["knight's-vow"],
-   "i:Shurelya's-Battlesong": ["Shurelya's-Battlesong"],
+  "i:shurelya's-battlesong": ["shurelya's-battlesong"],
 };
 
 /** Turns a lowercase-hyphenated stem into the handful of capitalization
