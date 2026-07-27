@@ -24,7 +24,7 @@ export default function App() {
   // all used to force a full re-map of all 34/71/50 entries for no reason).
   const champions = useMemo(() => CHAMPIONS.map((c) => {
     const o = overrides.champions[c.id];
-    return { ...c, tier: o?.tier || c.tier || "Unranked", note: o?.note || c.blurb, items: c.items || [], runes: c.runes || [], matchups: c.matchups || [] };
+    return { ...c, tier: o?.tier || c.tier || "Unranked", note: o?.note || c.blurb, builds: o?.builds || c.builds, items: c.items || [], runes: c.runes || [], matchups: c.matchups || [] };
   }), [overrides.champions]);
 
   const items = useMemo(() => ITEMS.map((i) => {
@@ -62,6 +62,7 @@ export default function App() {
         onAddDecisionTree={() => decisionTreeActions.add(champ.id)}
         onUpdateDecisionTree={(entryId, content) => decisionTreeActions.update(champ.id, entryId, content)}
         onDeleteDecisionTree={(entryId) => decisionTreeActions.remove(champ.id, entryId)}
+        onUpdateChampionBuilds={(newBuilds) => updateOverride("champions", champ.id, { builds: newBuilds })}
       />
     ) : <NotFoundPage />;
   } else if (route.page === "coaching") {

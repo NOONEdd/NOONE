@@ -8,10 +8,12 @@ import BuildList from "../components/BuildList.jsx";
 import BuildBoard from "../components/BuildBoard.jsx";
 import { CoachToggle } from "../components/TierBoard.jsx";
 import DecisionTreePanel from "../components/DecisionTreePanel.jsx";
+import BuildEditor from "../components/BuildEditor.jsx";
 
 export default function ChampionDetailPage({
   champion, editMode, setEditMode, syncStatus, auth,
   decisionTrees, onAddDecisionTree, onUpdateDecisionTree, onDeleteDecisionTree,
+  onUpdateChampionBuilds,
 }) {
   const [tab, setTab] = useState("build");
   const [selectedBuild, setSelectedBuild] = useState(0);
@@ -62,10 +64,12 @@ const currentBuild = builds[selectedBuild];
 
         {tab === "build" && (
           <>
+            <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth} />
+
             <div className="build-select">
               {builds.map((build, index) => (
                 <button
-                  key={build.name}
+                  key={index}
                   className={selectedBuild === index ? "active" : ""}
                   onClick={() => setSelectedBuild(index)}
                 >
@@ -74,11 +78,20 @@ const currentBuild = builds[selectedBuild];
               ))}
             </div>
 
-            <BuildBoard
-              items={currentBuild.items}
-              runes={currentBuild.runes}
-              emptyText={`No build notes yet for ${champion.name}.`}
-            />
+            {editMode ? (
+              <BuildEditor
+                builds={builds}
+                selectedBuild={selectedBuild}
+                onSelectBuild={setSelectedBuild}
+                onChangeBuilds={onUpdateChampionBuilds}
+              />
+            ) : (
+              <BuildBoard
+                items={currentBuild.items}
+                runes={currentBuild.runes}
+                emptyText={`No build notes yet for ${champion.name}.`}
+              />
+            )}
           </>
         )}
 

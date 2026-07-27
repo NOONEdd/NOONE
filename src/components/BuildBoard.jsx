@@ -9,7 +9,7 @@ import BuildPanel from "./BuildPanel.jsx";
 
 const CANONICAL_BY_TYPE = { i: ITEMS, r: RUNES };
 
-function ChipIcon({ paths, size = 22 }) {
+export function ChipIcon({ paths, size = 22 }) {
   const [failed, setFailed] = useState(false);
   if (!paths || paths.length === 0 || failed) {
     return <Swords size={size} style={{ color: "var(--text-dimmer)" }} />;
