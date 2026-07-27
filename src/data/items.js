@@ -94,5 +94,5 @@ export const ITEMS = [
   { id: "protobelt", name: "Protobelt", category: "Enchant", tier: "Unranked", info: "Dash toward the target direction and unleash 7 magic bolts, dealing 100 + 10% Ability Power magic damage to enemies hit. (30s cooldown)If a champion or monster is hit by more than one missile, each additional missile only deals 10% damage." },
   { id: "Lich-Bane", name: "LichBane", category: "Magic", tier: "Unranked", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." },
   { id: "Shurelya's Battlesong", name: "Shurelya's Battlesong", category: "Enchant", tier: "Unranked", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." },
-  { id: "Horizon Focuse", name: "Horizon Focus", category: "Magic", tier: "Unranked", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." }
+  { id: "Horizon Focus", name: "Horizon Focus", category: "Magic", tier: "Unranked", info: "after using an ability, your next basic attack within 10 seconds, deals 75% base AD( +45% AP), bonus magic damage on-hit." }
 ];
