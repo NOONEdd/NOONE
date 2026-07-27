@@ -755,7 +755,7 @@ export const CHAMPIONS = [
       { tag: "Inspiration", name: "Transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-      { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
+      { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka,Yuumi,sona). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
     
    }
