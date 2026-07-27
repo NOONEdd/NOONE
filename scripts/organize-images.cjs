@@ -50,7 +50,7 @@ const ITEM_IDS = [
   "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer",
   "bandle-fantasy","black-cleaver","boots-of-dynamism","boots-of-mana","bramble-vest","cosmic-drive",
   "dawnshroud","dead-mans-plate","divine-sunderer","duskblade-of-draktharr","eclipse","edge-of-night",
-  "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart","galeforce",
+  "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart",
   "glacial-shroud","harmonic-echo","heartsteel","hollow-radiance","iceborn-gauntlet","imperial-mandate",
   "infinity-orb","ionian-boots","kaenic-rookern","knights-vow","liandrys-torment","locket",
   "lord-dominiks-regards","ludens-echo","malignance","mercurys-treads","morellonomicon","mortal-reminder",
