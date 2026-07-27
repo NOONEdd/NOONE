@@ -99,7 +99,6 @@ const ALIASES = {
   "i:void-staff": ["void-staff", "voidstaff"],
   "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
   "i:spellslinger's-shoes": ["spellslinger's-shoes", "spellslinger's-shoes"],
-  "i:Shurelya's-Battlesong": ["Shurelya's Battlesong", "Shurelya's-Battlesong"],
   // Added during the optimization pass below — every one of these is a
   // real, currently-listed item whose actual downloaded image already
   // existed on disk but could never be found: either an apostrophe was
@@ -130,6 +129,7 @@ const ALIASES = {
   "i:winters-approach": ["winter's-approach"],
   "i:zekes-convergence": ["zeke's-convergence"],
   "i:knights-vow": ["knight's-vow"],
+   "i:Shurelya's-Battlesong": ["Shurelya's-Battlesong"],
 };
 
 /** Turns a lowercase-hyphenated stem into the handful of capitalization
