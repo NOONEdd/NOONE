@@ -47,7 +47,7 @@ const CHAMPION_IDS = [
 ];
 
 const ITEM_IDS = [
-  "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer","awakened-soulstealer",
+  "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer",
   "bandle-fantasy","black-cleaver","boots-of-dynamism","boots-of-mana","bramble-vest","cosmic-drive",
   "dawnshroud","dead-mans-plate","divine-sunderer","duskblade-of-draktharr","eclipse","edge-of-night",
   "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart","galeforce",
@@ -59,7 +59,7 @@ const ITEM_IDS = [
   "searing-crown","serpents-fang","serylda-grudge","spectres-cowl","staff-of-flowing-water",
   "stasis-enchant","stoneplate-enchant","sunfire-aegis","surging-scales","tear-of-the-goddess",
   "the-collector","thornmail","unending-despair","veil-enchant","wardens-mail","warmogs-armor",
-  "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","Protobelt","LichBane","Shurelya's-Battlesong",
+  "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","Protobelt","LichBane",
 ];
 
 const RUNE_IDS = [
