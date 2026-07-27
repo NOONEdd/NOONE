@@ -99,7 +99,7 @@ const ALIASES = {
   "i:void-staff": ["void-staff", "voidstaff"],
   "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
   "i:spellslinger's-shoes": ["spellslinger's-shoes", "spellslinger's-shoes"],
-  "i:Shurelya's-Battlesong": ["Shurelya's-Battlesong", "Shurelya's-Battlesong"],
+  "i:Shurelya's-Battlesong": ["Shurelya's-Battlesong", "Shurelya'sBattlesong"],
   // Added during the optimization pass below — every one of these is a
   // real, currently-listed item whose actual downloaded image already
   // existed on disk but could never be found: either an apostrophe was
