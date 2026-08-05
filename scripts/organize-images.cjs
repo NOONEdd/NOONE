@@ -43,7 +43,7 @@ const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 const CHAMPION_IDS = [
   "alistar","bard","blitzcrank","braum","galio","gragas","janna","jarvan-iv","karma","leona",
   "lulu","lux","maokai","mel","milio","nami","nautilus","norra","ornn","poppy","pyke","rakan",
-  "rell","senna","seraphine","sett","sona","soraka","swain","taliyah","thresh","yuumi","zilean","zyra",
+  "rell","senna","seraphine","sett","sona","soraka","swain","taliyah","thresh","yuumi","zilean","zyra","Morgana",
 ];
 
 const ITEM_IDS = [
