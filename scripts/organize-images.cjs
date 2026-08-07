@@ -43,14 +43,14 @@ const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 const CHAMPION_IDS = [
   "alistar","bard","blitzcrank","braum","galio","gragas","janna","jarvan-iv","karma","leona",
   "lulu","lux","maokai","mel","milio","nami","nautilus","norra","ornn","poppy","pyke","rakan",
-  "rell","senna","seraphine","sett","sona","soraka","swain","taliyah","thresh","yuumi","zilean","zyra","Morgana",
+  "rell","senna","seraphine","sett","sona","soraka","swain","taliyah","thresh","yuumi","zilean","zyra",
 ];
 
 const ITEM_IDS = [
-  "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer",
+  "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer","awakened-soulstealer",
   "bandle-fantasy","black-cleaver","boots-of-dynamism","boots-of-mana","bramble-vest","cosmic-drive",
   "dawnshroud","dead-mans-plate","divine-sunderer","duskblade-of-draktharr","eclipse","edge-of-night",
-  "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart",,
+  "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart","galeforce",
   "glacial-shroud","harmonic-echo","heartsteel","hollow-radiance","iceborn-gauntlet","imperial-mandate",
   "infinity-orb","ionian-boots","kaenic-rookern","knights-vow","liandrys-torment","locket",
   "lord-dominiks-regards","ludens-echo","malignance","mercurys-treads","morellonomicon","mortal-reminder",
@@ -59,7 +59,7 @@ const ITEM_IDS = [
   "searing-crown","serpents-fang","serylda-grudge","spectres-cowl","staff-of-flowing-water",
   "stasis-enchant","stoneplate-enchant","sunfire-aegis","surging-scales","tear-of-the-goddess",
   "the-collector","thornmail","unending-despair","veil-enchant","wardens-mail","warmogs-armor",
-  "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","Protobelt","LichBane","horizon focus","Shurelya's Battlesong",
+  "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","Protobelt","LichBane",
 ];
 
 const RUNE_IDS = [

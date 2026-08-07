@@ -2,18 +2,25 @@
 // Keeps your Anthropic API key server-side. In the Cloudflare dashboard:
 // Workers & Pages → your project → Settings → Environment variables →
 // add ANTHROPIC_API_KEY (as a Secret, not plain text) → redeploy.
+//
+// Grounds every answer in your ACTUAL site data instead of just the
+// model's general Wild Rift knowledge: detects which champion(s) the
+// question is about, pulls ONLY that champion's data (tier, builds,
+// coaching notes, matchups -- including live Coach Mode edits, no
+// redeploy needed) from the exact same source files and KV store the
+// site itself uses, and hands the model a compact, focused prompt --
+// never the entire 30+ champion roster. See functions/_lib/ for the
+// individual pieces (detection, extraction, prompt assembly, rate
+// limiting) -- each one has a single, focused job.
 
-const SYSTEM_PROMPT = `You are the Vanguard Academy AI Support Coach for Wild Rift. You are not a generic assistant — you are a Socratic coach who teaches Support players HOW to think, not just what to do. Rules: never give a direct answer first. Walk the player through the relevant decision-making questions for their situation (for a roaming question: is the ADC safe, where is the enemy jungler, is there a wave worth sacrificing, what objective is coming up, can the roam actually swing the game). After listing the questions, briefly explain why each one matters. Only then give a clear, reasoned recommendation that ties back to those questions. Be concise — this is a mobile chat interface, not an essay. Stay focused on Support-role Wild Rift strategy: lane states, roaming, vision, objectives, drafting, tempo, win conditions. If a question is unrelated to Wild Rift or Support play, gently redirect back to the academy's focus. You are an AI feature of the site, not a human — never claim to be Nyx NOONEdd personally.`;
-
-// These three numbers exist for one reason: this endpoint calls the
-// Anthropic API using YOUR key, billed to YOUR account, and the client
-// controls the entire `messages` array in the request body. Without caps,
-// one visitor (or a bot doing it automatically) can rack up real cost by
-// looping this endpoint or sending an enormous fabricated conversation
-// history. None of this affects a normal coaching conversation.
-const MAX_MESSAGES = 40; // a real session rarely needs more before starting fresh is better anyway
-const MAX_TOTAL_CHARS = 12000; // bounds the worst-case cost of any single request, independent of rate limiting below
-const RATE_LIMIT_PER_HOUR = 20; // generous for genuine use, still bounds the damage from one IP looping the endpoint
+import { CHAMPIONS } from "../../src/data/champions.js";
+import { MODEL, MAX_TOKENS, MAX_MESSAGES, MAX_TOTAL_CHARS, PATCH_VERSION } from "../_lib/config.js";
+import { checkRateLimit } from "../_lib/rateLimiter.js";
+import { fetchOverrides } from "../_lib/kv.js";
+import { detectChampions } from "../_lib/detectChampion.js";
+import { extractChampionContext, extractEnemyContext } from "../_lib/extractChampionContext.js";
+import { buildSystemPrompt } from "../_lib/buildPrompt.js";
+import { logCoachRequest } from "../_lib/logger.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -22,35 +29,9 @@ function json(data, status = 200) {
   });
 }
 
-/** Best-effort per-IP rate limit using the SAME COACH_KV binding already
- *  configured for coach-overrides.js -- no new Cloudflare setup needed.
- *  Fixed hourly windows (not a sliding window) since KV doesn't support
- *  sorted-set-style windows well; a fixed window is a standard, accepted
- *  tradeoff for a limiter this lightweight. Each write carries its own
- *  expirationTtl so old buckets clean themselves up automatically rather
- *  than accumulating keys forever -- this does NOT reuse or compete with
- *  the "coach-overrides" key that the Coach Mode editor writes to, so it
- *  can never contribute to that separate KV-put quota.
- *  Fails OPEN (allows the request through) if COACH_KV isn't bound or a
- *  KV call errors -- the size caps above are a second, independent layer
- *  of defense, and a temporarily-unavailable KV store shouldn't take down
- *  the whole AI Coach feature over a rate-limit check. */
-async function checkRateLimit(kv, ip) {
-  if (!kv || !ip) return { limited: false };
-  const hourBucket = Math.floor(Date.now() / 3600000);
-  const key = `ratelimit:coach:${ip}:${hourBucket}`;
-  try {
-    const current = parseInt((await kv.get(key)) || "0", 10);
-    if (current >= RATE_LIMIT_PER_HOUR) return { limited: true };
-    await kv.put(key, String(current + 1), { expirationTtl: 3700 });
-    return { limited: false };
-  } catch {
-    return { limited: false }; // fail open -- see comment above
-  }
-}
-
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const startedAt = Date.now();
 
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -82,7 +63,22 @@ export async function onRequestPost(context) {
     return json({ error: "That message (or the conversation so far) is too long. Try breaking it into smaller questions." }, 400);
   }
 
+  // Ground the answer: detect which champion(s) the latest user message is
+  // about, then pull ONLY that champion's data -- never the whole roster.
+  const latestUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const question = typeof latestUserMessage?.content === "string" ? latestUserMessage.content : "";
+
+  const kvStartedAt = Date.now();
+  const overrides = await fetchOverrides(env.COACH_KV);
+  const kvMs = Date.now() - kvStartedAt;
+
+  const { championId, enemyId } = detectChampions(question, CHAMPIONS);
+  const championContext = championId ? extractChampionContext(championId, CHAMPIONS, overrides) : null;
+  const enemyContext = enemyId ? extractEnemyContext(enemyId, CHAMPIONS, championContext) : null;
+  const systemPrompt = buildSystemPrompt(championContext, enemyContext);
+
   try {
+    const aiStartedAt = Date.now();
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -91,12 +87,13 @@ export async function onRequestPost(context) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        system: SYSTEM_PROMPT,
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: systemPrompt,
         messages,
       }),
     });
+    const aiMs = Date.now() - aiStartedAt;
 
     if (!response.ok) {
       const errText = await response.text();
@@ -109,7 +106,9 @@ export async function onRequestPost(context) {
       .filter(Boolean)
       .join("\n");
 
-    return json({ reply });
+    logCoachRequest({ path: "/api/coach", championId, enemyId, kvMs, aiMs, totalMs: Date.now() - startedAt });
+
+    return json({ reply, patch: PATCH_VERSION, groundedIn: championId || null });
   } catch (err) {
     return json({ error: "Failed to reach Anthropic API" }, 500);
   }
