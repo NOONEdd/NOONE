@@ -37,7 +37,14 @@ This project is already live on Cloudflare Pages. For a fresh deploy from this c
 2. Add `ANTHROPIC_API_KEY` as a **Secret** (get a key at console.anthropic.com)
 3. Redeploy (env var changes need a new deployment to take effect)
 
-Without this, every other page works fine — only the AI Coach page shows an error when asked a question.
+Without this, every other page works fine — only the AI Coach page shows an error when asked a question, and it's a specific one ("AI Coach isn't fully set up yet") rather than a generic failure.
+
+**Provider setup (optional):** the AI Coach talks to whichever provider `functions/_lib/aiProvider.js` is told to use, via two plain (non-secret) environment variables:
+
+- `AI_PROVIDER` — defaults to `anthropic` if unset. This is currently the **only implemented** adapter (`functions/_lib/providers/anthropic.js`); setting this to anything else returns a clear "not set up" error rather than silently doing nothing.
+- `AI_MODEL` — defaults to `claude-sonnet-4-6` if unset.
+
+You don't need to set either of these right now — leaving them unset gives you exactly today's behavior. They exist so that adding a second provider later (OpenRouter, Qwen, etc.) is a matter of writing one new adapter file and flipping this variable, not rewriting the Coach. Whatever provider is active, its API key always goes in as its own Secret (e.g. `ANTHROPIC_API_KEY`) — never as `AI_PROVIDER`/`AI_MODEL`, which are just plain config.
 
 ### Enable real Coach Mode syncing (KV)
 
@@ -45,13 +52,14 @@ Right now, Coach Mode edits (tier/note changes) save to each visitor's browser o
 
 1. **Workers & Pages → KV → Create a namespace** — name it anything, e.g. `vanguard-coach-data`.
 2. **Workers & Pages → your project → Settings → Functions → KV namespace bindings → Add binding**
-   - Variable name: `COACH_KV` (must match exactly — this is what `functions/api/coach-overrides.js` looks for)
+   - Variable name: `COACH_KV` (must match exactly — this is what `functions/api/coach-overrides.js`, the rate limiter, the password lockout, and the AI Coach's grounding all look for)
    - KV namespace: the one you just created
+   - **Add this binding under BOTH the Production and Preview environment tabs.** Cloudflare Pages configures these separately — a binding added to only one will work when you preview a deploy but silently miss (or vice versa) once it's actually live, which looks exactly like "my Coach Mode edits keep reverting." If edits ever seem to not stick after a deploy, this is the first thing to check.
 3. Redeploy.
 
 Once this is set up, the small text under the Coach Mode toggle will say **"Synced to the live site for everyone"** instead of **"Saved to this browser only."** That's the confirmation it's working.
 
-**Heads up:** the write endpoint (`/api/coach-overrides`) currently has no authentication — anyone who found the URL and the right request shape could technically post data. Fine for now since the URL isn't published anywhere, but worth adding a simple check (e.g. a shared secret typed once to unlock Coach Mode, verified server-side) before treating this as fully public-safe long-term.
+**Auth status:** the write endpoint (`/api/coach-overrides`) requires the `COACH_PASSWORD` you set above — checked server-side, so a write can't succeed without it even if someone bypassed the on-page prompt entirely. Both `/api/coach-overrides` and `/api/verify-coach` also lock out an IP for 15 minutes after 5 wrong password attempts (`functions/_lib/passwordAttempts.js`), so the password itself can't be brute-forced by scripting repeated guesses.
 
 ## Adding real images
 
@@ -93,8 +101,20 @@ src/
   hooks/         routing, Coach Mode storage (real API + local fallback), hero parallax
   utils/         image base-path resolution
 functions/
-  api/coach.js             Cloudflare Pages Function — proxies the AI Coach to Anthropic
-  api/coach-overrides.js   Cloudflare Pages Function — Coach Mode read/write via KV
+  api/coach.js              Cloudflare Pages Function — AI Coach chat endpoint (grounds + calls the active AI provider)
+  api/coach-overrides.js    Cloudflare Pages Function — Coach Mode read/write via KV, password + lockout protected
+  api/verify-coach.js       Cloudflare Pages Function — Coach Mode password check (same lockout as above)
+  api/version.js            Cloudflare Pages Function — reports active AI provider/model + patch version
+  api/health.js             Cloudflare Pages Function — uptime check
+  _lib/config.js            all tunable numbers (limits, caps, defaults) in one place
+  _lib/aiProvider.js        provider-agnostic dispatcher — see "Provider setup" above
+  _lib/providers/anthropic.js   the actual Anthropic adapter (only implemented provider today)
+  _lib/detectChampion.js, detectItemsRunes.js   scan the question for champion/item/rune mentions
+  _lib/extractChampionContext.js, extractItemRuneContext.js   pull ONLY the relevant data + live overrides
+  _lib/buildPrompt.js       assembles the final system prompt from whatever was detected
+  _lib/rateLimiter.js, passwordAttempts.js   per-IP abuse protection, both backed by COACH_KV
+  _lib/kv.js                reads live Coach Mode overrides from COACH_KV
+  _lib/logger.js            structured request logging (Cloudflare real-time logs only, nothing user-visible)
 public/
   assets/        empty folders for your own champion/item/rune images
 scripts/

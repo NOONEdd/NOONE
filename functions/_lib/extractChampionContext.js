@@ -1,3 +1,5 @@
+import { MAX_DECISION_TREE_ENTRIES, MAX_DECISION_TREE_CHARS } from "./config.js";
+
 /** Given one championId, returns a compact object with ONLY that
  *  champion's relevant data -- never the whole 30+ champion roster. Merges
  *  in any live Coach Mode override the exact same way App.jsx does for
@@ -49,4 +51,18 @@ export function extractEnemyContext(enemyId, champions, primaryChampionContext) 
   ) || null;
 
   return { id: enemy.id, name: enemy.name, role: enemy.role, relevantMatchupNote };
+}
+
+/** Live Coach Mode decision-tree entries for this champion (see
+ *  src/components/DecisionTreePanel.jsx, src/hooks/useCoachOverrides.js).
+ *  These have no static baseline in champions.js -- they exist ONLY as
+ *  KV overrides, written freeform in Coach Mode. Capped in count and
+ *  per-entry length (functions/_lib/config.js) so one heavily-annotated
+ *  champion can't balloon the prompt for a question about them. */
+export function extractDecisionTrees(championId, overrides) {
+  const entries = overrides?.decisionTrees?.[championId] || [];
+  return entries
+    .slice(0, MAX_DECISION_TREE_ENTRIES)
+    .map((e) => (e.content || "").slice(0, MAX_DECISION_TREE_CHARS).trim())
+    .filter(Boolean);
 }

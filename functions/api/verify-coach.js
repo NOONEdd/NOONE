@@ -6,7 +6,12 @@
 // succeed even if this endpoint were somehow skipped entirely.
 //
 // Uses the same COACH_PASSWORD environment variable set up for
-// coach-overrides.js -- see the setup comment there.
+// coach-overrides.js -- see the setup comment there. Also shares that
+// endpoint's brute-force lockout (functions/_lib/passwordAttempts.js) --
+// both check the same password, so both need the same protection, or an
+// attacker would simply target whichever one lacked it.
+
+import { isPasswordLocked, recordFailedPasswordAttempt, resetPasswordAttempts } from "../_lib/passwordAttempts.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -24,6 +29,13 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "COACH_PASSWORD not set yet — add it in the Cloudflare dashboard (Settings → Environment variables) as a Secret, then redeploy." }, 500);
   }
 
+  const kv = context.env.COACH_KV;
+  const ip = context.request.headers.get("CF-Connecting-IP");
+
+  if (await isPasswordLocked(kv, ip)) {
+    return json({ ok: false, error: "Too many incorrect attempts. Try again in about 15 minutes." }, 429);
+  }
+
   let body;
   try {
     body = await context.request.json();
@@ -33,8 +45,11 @@ export async function onRequestPost(context) {
 
   const { password } = body || {};
   if (password === correctPassword) {
+    await resetPasswordAttempts(kv, ip);
     return json({ ok: true });
   }
+
+  await recordFailedPasswordAttempt(kv, ip);
   return json({ ok: false, error: "Incorrect password" }, 401);
 }
 

@@ -27,11 +27,25 @@ export default function AICoachPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: newMessages }),
       });
-      if (!response.ok) throw new Error("Request failed");
-      const data = await response.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply || "Didn't catch that — try asking again." }]);
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        // Non-JSON response (e.g. a network/edge error page) -- data stays null,
+        // handled by the fallback message below.
+      }
+      if (!response.ok) {
+        // functions/api/coach.js always sends a short, specific, SAFE `error`
+        // string for every failure case (rate limit, conversation too long,
+        // provider down, not configured yet, etc.) -- show it instead of a
+        // generic message so the person knows what actually happened. Only
+        // fall back to a generic message if the response had no parseable
+        // error body at all.
+        throw new Error((data && data.error) || "Couldn't reach the coach. Try again.");
+      }
+      setMessages((prev) => [...prev, { role: "assistant", content: (data && data.reply) || "Didn't catch that — try asking again." }]);
     } catch (e) {
-      setError("Couldn't reach the coach. Try again.");
+      setError(e.message || "Couldn't reach the coach. Try again.");
     } finally {
       setLoading(false);
     }

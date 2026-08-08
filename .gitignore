@@ -4,3 +4,7 @@ dist
 .env.local
 .DS_Store
 *.log
+
+# Cloudflare local-dev secrets (wrangler pages dev) -- never commit real keys/passwords
+.dev.vars
+.dev.vars.*

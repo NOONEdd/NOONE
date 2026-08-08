@@ -8,7 +8,11 @@ const KEY = "coach-overrides";
  *  still has the static baseline data (champions.js etc.) to work with
  *  instead of failing the whole request over a KV hiccup. */
 export async function fetchOverrides(kv) {
-  const empty = { champions: {}, items: {}, runes: {} };
+  // Matches src/hooks/useCoachOverrides.js's EMPTY constant exactly --
+  // previously missing decisionTrees here (harmless in practice, since
+  // every read of it uses optional chaining, but worth keeping the two
+  // shapes in sync).
+  const empty = { champions: {}, items: {}, runes: {}, decisionTrees: {} };
   if (!kv) return empty;
   try {
     const value = await kv.get(KEY);
