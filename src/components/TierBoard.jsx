@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Lock, Unlock } from "lucide-react";
 import { TIER_ORDER, TIER_COLORS } from "../data/constants.js";
+import { useCoachUIVisible } from "../hooks/useCoachUIVisible.js";
 import RankChip from "./RankChip.jsx";
 import BuildPanel from "./BuildPanel.jsx";
 
@@ -44,6 +45,7 @@ export function TierBoard({ entries, editMode, onUpdate }) {
 }
 
 export function CoachToggle({ editMode, setEditMode, syncStatus, auth }) {
+  const coachUIVisible = useCoachUIVisible();
   const [showPrompt, setShowPrompt] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [error, setError] = useState(null);
@@ -83,6 +85,13 @@ export function CoachToggle({ editMode, setEditMode, syncStatus, auth }) {
       setError(result.error);
     }
   }
+
+  // Hidden from the page by default -- see src/hooks/useCoachUIVisible.js.
+  // The `|| editMode` fallback means that if editing is somehow already
+  // active, the control that turns it back off (and the sync-status
+  // note) still renders -- edit mode should never end up silently stuck
+  // on with no visible way to switch it off.
+  if (!coachUIVisible && !editMode) return null;
 
   return (
     <>

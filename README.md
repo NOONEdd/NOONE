@@ -39,12 +39,29 @@ This project is already live on Cloudflare Pages. For a fresh deploy from this c
 
 Without this, every other page works fine — only the AI Coach page shows an error when asked a question, and it's a specific one ("AI Coach isn't fully set up yet") rather than a generic failure.
 
-**Provider setup (optional):** the AI Coach talks to whichever provider `functions/_lib/aiProvider.js` is told to use, via two plain (non-secret) environment variables:
+**Provider setup (optional):** the AI Coach talks to whichever provider `functions/_lib/aiProvider.js` is told to use. Two providers exist today:
 
-- `AI_PROVIDER` — defaults to `anthropic` if unset. This is currently the **only implemented** adapter (`functions/_lib/providers/anthropic.js`); setting this to anything else returns a clear "not set up" error rather than silently doing nothing.
-- `AI_MODEL` — defaults to `claude-sonnet-4-6` if unset.
+| Provider | `AI_PROVIDER` value | What it covers |
+|---|---|---|
+| Anthropic | `anthropic` (default) | Anthropic's own API — the only non-OpenAI-shaped adapter |
+| Generic OpenAI-compatible | `openai-compatible` | **Any** provider that exposes a standard `POST {base_url}` chat/completions endpoint — OpenAI itself, OpenRouter, Together, Groq, a self-hosted vLLM/Ollama/LM Studio server, etc. One adapter, any provider that speaks that shape — you are not limited to a specific 1–2 named services. |
 
-You don't need to set either of these right now — leaving them unset gives you exactly today's behavior. They exist so that adding a second provider later (OpenRouter, Qwen, etc.) is a matter of writing one new adapter file and flipping this variable, not rewriting the Coach. Whatever provider is active, its API key always goes in as its own Secret (e.g. `ANTHROPIC_API_KEY`) — never as `AI_PROVIDER`/`AI_MODEL`, which are just plain config.
+This is not a claim that literally every AI API works — only ones that either speak the OpenAI-compatible shape (covered generically) or have their own adapter file written for them (like Anthropic's does). A provider with a genuinely different API (its own auth style, request/response shape) needs its own `functions/_lib/providers/<name>.js` file — see the comment at the top of `aiProvider.js` for the exact contract.
+
+**To stay on Anthropic (default, no action needed):**
+- `ANTHROPIC_API_KEY` — Secret
+- Leave `AI_PROVIDER` / `AI_MODEL` unset (defaults to `anthropic` / `claude-sonnet-4-6`)
+
+**To switch to any OpenAI-compatible provider**, set these as plain (non-secret) Environment variables:
+- `AI_PROVIDER` = `openai-compatible`
+- `AI_BASE_URL` = that provider's chat/completions endpoint (e.g. `https://api.openai.com/v1/chat/completions`, or whatever your chosen provider's docs give you)
+- `AI_MODEL` = whatever that provider calls the model you want (e.g. `gpt-4o-mini`) — required, there's no default since `AI_BASE_URL` could point anywhere
+- `AI_TEMPERATURE` = optional; only sent to the provider if you set it
+
+...and as a **Secret**:
+- `AI_API_KEY` = that provider's key (kept as its own variable, separate from `ANTHROPIC_API_KEY`, so both can be configured at once and you can flip back by changing `AI_PROVIDER` alone)
+
+Redeploy after changing any of these. Switching back to Anthropic later is just setting `AI_PROVIDER` back to `anthropic` (or removing it) — no code changes either direction.
 
 ### Enable real Coach Mode syncing (KV)
 
@@ -60,6 +77,8 @@ Right now, Coach Mode edits (tier/note changes) save to each visitor's browser o
 Once this is set up, the small text under the Coach Mode toggle will say **"Synced to the live site for everyone"** instead of **"Saved to this browser only."** That's the confirmation it's working.
 
 **Auth status:** the write endpoint (`/api/coach-overrides`) requires the `COACH_PASSWORD` you set above — checked server-side, so a write can't succeed without it even if someone bypassed the on-page prompt entirely. Both `/api/coach-overrides` and `/api/verify-coach` also lock out an IP for 15 minutes after 5 wrong password attempts (`functions/_lib/passwordAttempts.js`), so the password itself can't be brute-forced by scripting repeated guesses.
+
+**Coach Mode toggle visibility:** the "Coach Mode" button (and the password prompt it opens) is hidden from the page by default — see `src/hooks/useCoachUIVisible.js`. Visit your site once with `?coach` added to the URL (e.g. `https://your-site.pages.dev/?coach`) and it stays visible on that browser from then on (remembered via localStorage), no need to add it again. This does not change the real security boundary, which is still entirely the server-side password check above — it only stops the button from being visible to normal visitors and crawlers in the first place.
 
 ## Adding real images
 
@@ -108,7 +127,8 @@ functions/
   api/health.js             Cloudflare Pages Function — uptime check
   _lib/config.js            all tunable numbers (limits, caps, defaults) in one place
   _lib/aiProvider.js        provider-agnostic dispatcher — see "Provider setup" above
-  _lib/providers/anthropic.js   the actual Anthropic adapter (only implemented provider today)
+  _lib/providers/anthropic.js        Anthropic adapter
+  _lib/providers/openaiCompatible.js generic adapter for any OpenAI-compatible provider
   _lib/detectChampion.js, detectItemsRunes.js   scan the question for champion/item/rune mentions
   _lib/extractChampionContext.js, extractItemRuneContext.js   pull ONLY the relevant data + live overrides
   _lib/buildPrompt.js       assembles the final system prompt from whatever was detected
