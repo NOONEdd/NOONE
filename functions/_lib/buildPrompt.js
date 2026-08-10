@@ -99,6 +99,7 @@ export function buildSystemPrompt({
       "",
       "--- Official Riot Wild Rift fallback (EXTERNAL source, not Academy-curated) ---",
       `Source: ${riotFallback.source}`,
+      "This is Riot's own latest published Wild Rift patch, discovered independently of Academy's current patch above -- they may be the same or different, and that's expected, not an error.",
       "Use this ONLY to fill in facts the Academy data above didn't cover. It never overrides Academy data above if the two disagree. Treat it as reference material to reason from, not text to quote at length.",
       riotFallback.content
     );

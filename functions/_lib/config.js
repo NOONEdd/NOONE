@@ -29,14 +29,15 @@ export const MAX_TOKENS = 1000;
 export const CONVERSATION_LOOKBACK_MESSAGES = 6;
 
 // Official Riot Wild Rift fallback (functions/_lib/riotFallback.js) --
-// only ever fetches a fixed, code-defined URL pattern on
-// wildrift.leagueoflegends.com, NEVER a user-supplied URL. Cached in KV
-// so the same patch's notes aren't re-fetched on every question that
-// needs them, with a hard timeout so a slow/unreachable Riot page can't
-// stall a response.
-export const RIOT_FALLBACK_CACHE_TTL_SECONDS = 24 * 60 * 60; // 24h
+// only ever fetches Riot's own patch-notes index and a page it directly
+// links to, NEVER a user-supplied URL. Two-tier cache: which patch is
+// "latest" is rechecked periodically (short TTL, so a newly published
+// patch is discovered within hours); a given patch's actual content is
+// cached far longer since it's immutable once published.
 export const RIOT_FALLBACK_TIMEOUT_MS = 5000;
 export const RIOT_FALLBACK_MAX_CHARS = 4000; // bounds prompt size the same way the other MAX_* caps do
+export const RIOT_LATEST_PATCH_META_TTL_SECONDS = 12 * 60 * 60; // 12h
+export const RIOT_FALLBACK_CONTENT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 // This endpoint calls the AI provider using YOUR key, billed to YOUR
 // account, and the client controls the entire `messages` array in the

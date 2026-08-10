@@ -13,7 +13,9 @@
 //   1. Rate limit + size caps (unchanged, always first)
 //   2. Effective KV overrides fetched once (fetchOverrides)
 //   3. Effective current patch resolved (resolveEffectivePatch) -- KV
-//      override if Coach Mode set one, static src/data/patch.js otherwise
+//      override if Coach Mode set one, static src/data/patch.js otherwise.
+//      This is Academy's patch and is UNRELATED to which Riot patch gets
+//      fetched below -- see riotFallback.js's header comment.
 //   4. Conversation-aware entity detection (detectChampionsInConversation,
 //      detectItemsAndRunesInConversation) -- checks the latest message
 //      first, falls back through a small recent window for follow-ups
@@ -22,10 +24,13 @@
 //      extractItemRuneContext -- both delegate the actual base+override
 //      merge to src/lib/effectiveData.js, the SAME resolver src/App.jsx
 //      uses for the website itself)
-//   6. Priority-3 fallback: if Academy grounding found NOTHING at all,
-//      try the official Riot Wild Rift patch notes (riotFallback.js) --
-//      cached, timeout-bounded, fixed URL pattern only, never blocks or
-//      fails the request if unavailable
+//   6. Priority-2 fallback: an entity being FOUND doesn't mean Academy's
+//      data about it is SUFFICIENT for this specific question (see
+//      academyCoverage.js's isAcademyDataSufficient -- deterministic
+//      keyword logic, not another LLM call). Only when insufficient,
+//      official Riot Wild Rift patch notes are fetched (riotFallback.js)
+//      -- its own independently-discovered latest patch, cached,
+//      timeout-bounded, never blocks or fails the request if unavailable
 //   7. Prompt assembly (buildSystemPrompt) -- pure formatting, no
 //      resolution logic of its own
 //   8. Provider-agnostic AI call (callAIProvider)
@@ -49,6 +54,7 @@ import { detectChampionsInConversation } from "../_lib/detectChampion.js";
 import { detectItemsAndRunesInConversation } from "../_lib/detectItemsRunes.js";
 import { extractChampionContext, extractEnemyContext, extractDecisionTrees } from "../_lib/extractChampionContext.js";
 import { extractItemContext, extractRuneContext } from "../_lib/extractItemRuneContext.js";
+import { isAcademyDataSufficient, buildAcademyGroundedText } from "../_lib/academyCoverage.js";
 import { getRiotPatchNotesFallback } from "../_lib/riotFallback.js";
 import { buildSystemPrompt } from "../_lib/buildPrompt.js";
 import { callAIProvider } from "../_lib/aiProvider.js";
@@ -109,18 +115,30 @@ export async function onRequestPost(context) {
   const itemContext = extractItemContext(itemIds, ITEMS, overrides);
   const runeContext = extractRuneContext(runeIds, RUNES, overrides);
 
-  // Priority 3: official Riot Wild Rift fallback, ONLY when Academy
-  // grounding above found nothing at all for this question. Never blocks
-  // or fails the request -- riotFallback.js always resolves, even on a
-  // Riot-side failure, to { found: false }.
+  // Priority 2: an entity being found does NOT mean Academy's data about
+  // it is sufficient for THIS question (e.g. "what's Redemption's
+  // cooldown" vs. "when should I buy Redemption" -- Academy might cover
+  // one and not the other). isAcademyDataSufficient() is deterministic
+  // keyword logic (functions/_lib/academyCoverage.js), not another model
+  // call. Riot fallback is only attempted when it returns false, and
+  // never blocks or fails the request either way -- riotFallback.js
+  // always resolves, even on failure, to { found: false }.
+  const latestUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const question = typeof latestUserMessage?.content === "string" ? latestUserMessage.content : "";
+
+  const academyGroundedText = buildAcademyGroundedText({ championContext, itemContext, runeContext, decisionTreeEntries });
+  const hasAnyGrounding = Boolean(championContext) || itemContext.length > 0 || runeContext.length > 0;
+  const academySufficient = isAcademyDataSufficient(question, hasAnyGrounding, academyGroundedText);
+
   let riotFallback = null;
   let riotFallbackWasCached = false;
-  const hasAcademyData = Boolean(championContext) || itemContext.length > 0 || runeContext.length > 0;
-  if (!hasAcademyData) {
-    const riotResult = await getRiotPatchNotesFallback(effectivePatch, env.COACH_KV);
+  let riotPatchUsed = null;
+  if (!academySufficient) {
+    const riotResult = await getRiotPatchNotesFallback(question, env.COACH_KV);
     if (riotResult.found) {
       riotFallback = { content: riotResult.content, source: riotResult.source };
       riotFallbackWasCached = riotResult.cached;
+      riotPatchUsed = riotResult.patchSlug;
     }
   }
 
@@ -138,8 +156,10 @@ export async function onRequestPost(context) {
     runesDetected: runeIds,
     decisionTreeEntries: decisionTreeEntries.length,
     effectivePatch,
+    academySufficient,
     riotFallbackUsed: Boolean(riotFallback),
     riotFallbackCached: riotFallbackWasCached,
+    riotPatchUsed,
     kvLatencyMs: kvMs,
   });
 

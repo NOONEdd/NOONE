@@ -115,7 +115,7 @@ Once KV is set up, edits are real: they save to the live site immediately and sh
 Priority order the AI Coach follows for any factual Wild Rift claim, strictly in this order:
 
 1. **Vanguard Academy effective data** — champions/items/runes/builds/matchups/decision trees, resolved from `src/data/*.js` (static baseline) merged with live Coach Mode KV overrides. This is the primary source for essentially everything the AI says about the game.
-2. **Official Riot Wild Rift patch notes** — used ONLY when step 1 found nothing at all for the question (no champion/item/rune detected). Fetched server-side from a fixed URL pattern on `wildrift.leagueoflegends.com` (never a user-supplied URL, never a third-party wiki), cached in KV for 24h, 5s timeout, always fails gracefully. See `functions/_lib/riotFallback.js`.
+2. **Official Riot Wild Rift patch notes** — used when Academy data isn't *sufficient* for the specific question, which is not the same as "an entity wasn't found." `functions/_lib/academyCoverage.js` makes this call deterministically (no extra AI call): Academy is treated as insufficient when nothing was grounded at all, when the question asks about a specific mechanical fact (e.g. "cooldown") the grounded text doesn't mention, or when the question is asking what *changed* — Academy only ever holds current data, never a diff against a previous patch. When Riot fallback does run, it discovers Riot's own latest published patch independently (from Riot's patch-notes index, not from Academy's patch) — Academy could say 7.2b while Riot's already on 7.3, and the fallback correctly uses 7.3. A patch explicitly named in the question (e.g. "what changed in 7.1d?") is looked up directly instead. Only `wildrift.leagueoflegends.com`, never a user-supplied URL or third-party site, cached in KV (~12h for "what's latest," ~7 days for a given patch's content since it's immutable once published), 5s timeout, always fails gracefully. See `functions/_lib/riotFallback.js`.
 3. **The model's own general knowledge** — last resort, and only for facts specifically about Wild Rift, never League PC.
 
 Academy data always wins if it conflicts with the Riot fallback — the fallback only fills gaps, never overrides.
@@ -150,7 +150,8 @@ functions/
   _lib/extractChampionContext.js, extractItemRuneContext.js   pull ONLY the relevant data + live overrides
   _lib/buildPrompt.js       assembles the final system prompt from whatever was detected
   _lib/rateLimiter.js, passwordAttempts.js   per-IP abuse protection, both backed by COACH_KV
-  _lib/riotFallback.js      official Riot Wild Rift patch-notes fallback — fixed URL, cached, timeout-bounded
+  _lib/riotFallback.js      official Riot Wild Rift patch-notes fallback — independent latest-patch discovery, cached, timeout-bounded
+  _lib/academyCoverage.js   deterministic "is Academy data actually sufficient for this question" logic (decides if Riot fallback runs)
   _lib/kv.js                reads live Coach Mode overrides from COACH_KV
   _lib/logger.js            structured request logging (Cloudflare real-time logs only, nothing user-visible)
 public/
