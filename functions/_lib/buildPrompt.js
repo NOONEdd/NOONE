@@ -17,7 +17,12 @@ DATA PRIORITY -- follow this order strictly:
 1. Vanguard Academy data below (if any is provided) is authoritative. Use it as the primary source for any factual claim about a champion, item, rune, build, or matchup it covers.
 2. If Academy data doesn't cover something and an "Official Riot Wild Rift fallback" section is provided below, you may use it for that specific missing fact -- but Academy data always wins if the two conflict; never let Riot fallback text override or "correct" Academy data.
 3. Only when neither covers a fact, and you're confident it's reliable and specifically about Wild Rift (not League PC), may you use your own general knowledge -- and even then, prefer saying the current data isn't available over guessing.
-Never invent item effects, stats, cooldowns, champion abilities, rune effects, patch changes, builds, or matchup facts. If the relevant current information genuinely isn't available from any of the three sources above, say so plainly rather than answering confidently anyway -- accuracy matters more than always having an answer.`;
+Never invent item effects, stats, cooldowns, champion abilities, rune effects, patch changes, builds, or matchup facts. If the relevant current information genuinely isn't available from any of the three sources above, say so plainly rather than answering confidently anyway -- accuracy matters more than always having an answer.
+
+FACTS vs. REASONING -- keep these separate. You may reason and give strategic advice freely (e.g. "check whether your ADC can hold the wave alone before you roam" is valid coaching with no ability data needed at all), but every concrete FACT you state -- a champion's role, an ability's effect, an item's stat, whether something changed -- must trace back to the Academy or Riot data above, not to your own assumption dressed up as fact:
+- A champion's role/tier above is authoritative -- every champion on this roster is some flavor of Support (Enchanter, Catcher, Warden, etc; the specific label above is the real one). If asked whether a champion plays a different position (ADC, jungle, etc), answer from the grounded role, not habit or PC association.
+- If asked what a specific ability (Q/W/E/R/passive/ultimate) does and that isn't stated in the data above, say plainly that the specific ability detail isn't in your grounded data -- do not describe, guess, or estimate its effect, even approximately. You can still reason strategically without it (wave state, cooldown *timing* concepts in general, positioning) -- just don't assert what the ability specifically does or its numbers.
+- If a question's premise assumes a mechanic, interaction, or term that isn't in the data above and isn't standard, widely-known Wild Rift terminology, don't validate or build an answer on top of that premise -- say you're not aware of that specific mechanic/term, then answer using whatever real, grounded facts are actually relevant instead. Never invent terminology to sound authoritative.`;
 
 /** Builds the final system prompt sent to the AI provider.
  *
@@ -31,6 +36,14 @@ Never invent item effects, stats, cooldowns, champion abilities, rune effects, p
  * found nothing for this question (see functions/api/coach.js), and is
  * always rendered as an explicitly separate, explicitly external section
  * so the model can never confuse it with curated Academy data.
+ *
+ * `isAbilityDetailQuestion`, from functions/_lib/academyCoverage.js's
+ * function of the same name, adds an explicit anti-hallucination
+ * reminder -- champions.js has no per-ability data at all, so a question
+ * about a specific ability's exact effect is a known, structural gap,
+ * not just an absence of luck in what got grounded. Rendered regardless
+ * of whether anything else was grounded (a champion outside Academy's
+ * tracked roster, asked about by ability, still needs the reminder).
  *
  * Grounding data is entirely optional and independent -- a question can
  * name a champion, items/runes, both, or neither, and only the sections
@@ -46,10 +59,11 @@ export function buildSystemPrompt({
   decisionTreeEntries = [],
   effectivePatch,
   riotFallback = null,
+  isAbilityDetailQuestion = false,
 } = {}) {
   const hasAcademyData = championContext || itemContext.length > 0 || runeContext.length > 0;
   const hasAnyData = hasAcademyData || riotFallback;
-  if (!hasAnyData) return BASE_INSTRUCTIONS;
+  if (!hasAnyData && !isAbilityDetailQuestion) return BASE_INSTRUCTIONS;
 
   const lines = [BASE_INSTRUCTIONS];
 
@@ -102,6 +116,13 @@ export function buildSystemPrompt({
       "This is Riot's own latest published Wild Rift patch, discovered independently of Academy's current patch above -- they may be the same or different, and that's expected, not an error.",
       "Use this ONLY to fill in facts the Academy data above didn't cover. It never overrides Academy data above if the two disagree. Treat it as reference material to reason from, not text to quote at length.",
       riotFallback.content
+    );
+  }
+
+  if (isAbilityDetailQuestion) {
+    lines.push(
+      "",
+      "Reminder: this question asks about a specific ability's exact effect or behavior (its Q/W/E/R/passive/ultimate). Unless that specific detail is explicitly stated somewhere above, you do NOT have grounded data confirming it -- do not invent, guess, or approximate it, even with hedging language. Say plainly that the specific ability detail isn't in your grounded data, then pivot to general Support strategic reasoning that doesn't depend on knowing it (e.g. wave state, positioning, timing concepts in general)."
     );
   }
 

@@ -54,7 +54,7 @@ import { detectChampionsInConversation } from "../_lib/detectChampion.js";
 import { detectItemsAndRunesInConversation } from "../_lib/detectItemsRunes.js";
 import { extractChampionContext, extractEnemyContext, extractDecisionTrees } from "../_lib/extractChampionContext.js";
 import { extractItemContext, extractRuneContext } from "../_lib/extractItemRuneContext.js";
-import { isAcademyDataSufficient, buildAcademyGroundedText } from "../_lib/academyCoverage.js";
+import { isAcademyDataSufficient, buildAcademyGroundedText, isAbilityDetailQuestion } from "../_lib/academyCoverage.js";
 import { getRiotPatchNotesFallback } from "../_lib/riotFallback.js";
 import { buildSystemPrompt } from "../_lib/buildPrompt.js";
 import { callAIProvider } from "../_lib/aiProvider.js";
@@ -129,6 +129,7 @@ export async function onRequestPost(context) {
   const academyGroundedText = buildAcademyGroundedText({ championContext, itemContext, runeContext, decisionTreeEntries });
   const hasAnyGrounding = Boolean(championContext) || itemContext.length > 0 || runeContext.length > 0;
   const academySufficient = isAcademyDataSufficient(question, hasAnyGrounding, academyGroundedText);
+  const isAbilityQuestion = isAbilityDetailQuestion(question);
 
   let riotFallback = null;
   let riotFallbackWasCached = false;
@@ -142,7 +143,7 @@ export async function onRequestPost(context) {
     }
   }
 
-  const systemPrompt = buildSystemPrompt({ championContext, enemyContext, itemContext, runeContext, decisionTreeEntries, effectivePatch, riotFallback });
+  const systemPrompt = buildSystemPrompt({ championContext, enemyContext, itemContext, runeContext, decisionTreeEntries, effectivePatch, riotFallback, isAbilityDetailQuestion: isAbilityQuestion });
 
   // Log grounding results now, independent of whether the AI call below
   // succeeds -- so a request that fails at the provider still tells you
@@ -157,6 +158,7 @@ export async function onRequestPost(context) {
     decisionTreeEntries: decisionTreeEntries.length,
     effectivePatch,
     academySufficient,
+    isAbilityQuestion,
     riotFallbackUsed: Boolean(riotFallback),
     riotFallbackCached: riotFallbackWasCached,
     riotPatchUsed,

@@ -39,6 +39,29 @@ const PATCH_CHANGE_KEYWORDS = [
 // an EXPLICIT historical patch request (see functions/_lib/riotFallback.js).
 const VERSION_TOKEN = /\b(\d+\.\d+[a-z]?)\b/i;
 
+// Patterns indicating the question asks about a SPECIFIC ability's
+// effect/behavior (its Q/W/E/R/passive/ultimate) rather than general
+// coaching advice. Academy's champion data (src/data/champions.js) has
+// no per-ability fields at all -- role/tier/builds/matchups/notes, never
+// "what does the W do" -- so a question in this category is ALWAYS
+// treated as needing more than Academy can provide, regardless of
+// whether any fact-keyword happens to appear in whatever WAS grounded.
+const ABILITY_DETAIL_PATTERNS = [
+  /\b(q|w|e|r)\s+(ability|skill|do|does|damage|deal|deals|clear|heal|shield|stun|slow|root|knockup|knock-up)/i,
+  /\b(passive|ultimate|ult)\b.{0,20}\b(do|does|deal|deals|effect)/i,
+  /\bwhat does\b.{0,30}\b(q|w|e|r|passive|ultimate|ult)\b/i,
+  /\bability effects?\b|\babilities? do\b/i,
+  /\bclear (a |the )?wave\b|\bwave.?clear\b/i,
+];
+
+/** True if the question asks about a specific ability's effect/behavior
+ *  -- see comment above for why this is always treated as an Academy
+ *  gap rather than checked against grounded-text keywords. */
+export function isAbilityDetailQuestion(question) {
+  const lower = (question || "").toLowerCase();
+  return ABILITY_DETAIL_PATTERNS.some((re) => re.test(lower));
+}
+
 function containsAny(text, keywords) {
   const lower = (text || "").toLowerCase();
   return keywords.some((k) => lower.includes(k));
@@ -84,12 +107,14 @@ export function hasSpecificFactGap(question, groundedText) {
  * note/builds/matchups, decision-tree entries).
  *
  * Order matters: a patch-change question is never answerable from
- * Academy regardless of grounding, checked first; then "found nothing
- * at all" (the original, simpler check); then the keyword-gap check
- * against what WAS found.
+ * Academy regardless of grounding, checked first; then an ability-detail
+ * question, which Academy structurally never covers at all; then "found
+ * nothing at all" (the original, simpler check); then the keyword-gap
+ * check against what WAS found.
  */
 export function isAcademyDataSufficient(question, hasAnyGrounding, groundedText) {
   if (isPatchChangeQuestion(question)) return false;
+  if (isAbilityDetailQuestion(question)) return false;
   if (!hasAnyGrounding) return false;
   if (hasSpecificFactGap(question, groundedText)) return false;
   return true;
