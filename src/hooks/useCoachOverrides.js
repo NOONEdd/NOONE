@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const STORAGE_KEY = "vanguard-coach-overrides";
-const PASSWORD_KEY = "vanguard-coach-password"; // sessionStorage -- cleared when the browser tab closes
 const API_URL = "/api/coach-overrides";
-const VERIFY_URL = "/api/verify-coach";
-const EMPTY = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null };
+const LOGIN_URL = "/api/admin/login";
+const LOGOUT_URL = "/api/admin/logout";
+const SESSION_URL = "/api/admin/session";
+const EMPTY = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null, verifiedPatch: null, patchStatus: null };
 
 function readLocal() {
   try {
@@ -23,14 +24,6 @@ function writeLocal(value) {
   }
 }
 
-function readStoredPassword() {
-  try {
-    return sessionStorage.getItem(PASSWORD_KEY) || null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Coach Mode persistence, in order of preference:
  *   1. Real backend (Cloudflare KV via /api/coach-overrides) -- synced across
@@ -41,10 +34,17 @@ function readStoredPassword() {
  *      local `npm run dev`, which doesn't run Cloudflare Functions -- use
  *      `npx wrangler pages dev` instead if you want the real API locally).
  *
- * Writes now require a password, checked server-side in
- * functions/api/coach-overrides.js -- this hook just carries that password
- * along with each request. See functions/api/coach-overrides.js for the
- * one-time COACH_PASSWORD setup.
+ * AUTH: writes require a valid admin session -- a signed, HttpOnly cookie
+ * set by POST /api/admin/login (functions/api/admin/login.js) after the
+ * correct COACH_PASSWORD is supplied at #/admin (src/pages/AdminPage.jsx).
+ * Unlike the old design, this hook never stores the password itself
+ * anywhere (no sessionStorage) and never re-sends it with every write --
+ * every fetch below uses `credentials: "same-origin"` so the browser
+ * attaches that cookie automatically, and the server (requireAdminSession()
+ * in functions/_lib/adminAuth.js) is what actually enforces the boundary.
+ * On mount, this hook asks the server whether a session cookie is already
+ * present and valid (GET /api/admin/session) -- the only way to know that,
+ * since page JS can never read an HttpOnly cookie directly.
  *
  * The network write is debounced (see SYNC_DEBOUNCE_MS below): local state
  * and localStorage update on every call so the UI never lags, but the
@@ -57,21 +57,23 @@ function readStoredPassword() {
  * debounce window, the eventual single write still contains all of them.
  *
  * Returns [overrides, update, syncStatus, auth, decisionTreeActions,
- * updatePatch] where syncStatus is one of "checking" | "syncing" |
- * "synced" | "local-only", auth is { isAuthorized, verify(password),
- * logout() }, decisionTreeActions is { add(championId), update(championId,
- * entryId, content), remove(championId, entryId) } -- add() returns the
- * new entry's id synchronously so the caller can focus it immediately --
- * and updatePatch(newPatch) sets the site-wide current-patch override.
+ * updatePatch, patchVerification] where syncStatus is one of "checking" |
+ * "syncing" | "synced" | "local-only", auth is { isAuthorized,
+ * verify(password), logout() }, decisionTreeActions is { add(championId),
+ * update(championId, entryId, content), remove(championId, entryId) } --
+ * add() returns the new entry's id synchronously so the caller can focus
+ * it immediately -- updatePatch(newPatch) sets the site-wide current-patch
+ * override, and patchVerification is { markVerified(patch), setUpdating(bool) }
+ * for the data-verification-status fields (see src/lib/effectiveData.js's
+ * resolvePatchDataStatus()).
  */
 const SYNC_DEBOUNCE_MS = 1200;
 
 export function useCoachOverrides() {
   const [overrides, setOverrides] = useState(() => readLocal() || EMPTY);
   const [syncStatus, setSyncStatus] = useState("checking");
-  const [password, setPassword] = useState(() => readStoredPassword());
-  const hasLoadedFromServer = useRef(false);
-  const pendingSyncRef = useRef(null); // latest { overrides, password } awaiting a debounced write
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const pendingSyncRef = useRef(null); // latest overrides object awaiting a debounced write
   const debounceTimerRef = useRef(null);
 
   useEffect(() => {
@@ -83,10 +85,24 @@ export function useCoachOverrides() {
         if (data.error) throw new Error(data.error);
         setOverrides(data.overrides || EMPTY);
         writeLocal(data.overrides || EMPTY);
-        hasLoadedFromServer.current = true;
         setSyncStatus("synced");
       } catch {
         setSyncStatus("local-only");
+      }
+    })();
+
+    // Independent of the overrides load above -- finds out whether this
+    // browser already has a valid admin session (e.g. logged in earlier
+    // today) so Coach Mode's on-page controls can appear without a fresh
+    // login. A failed/unreachable check just leaves isAuthorized false,
+    // same as "not logged in."
+    (async () => {
+      try {
+        const res = await fetch(SESSION_URL, { credentials: "same-origin" });
+        const data = await res.json();
+        setIsAuthorized(Boolean(data && data.authenticated));
+      } catch {
+        setIsAuthorized(false);
       }
     })();
   }, []);
@@ -98,8 +114,9 @@ export function useCoachOverrides() {
     pendingSyncRef.current = null;
     fetch(API_URL, {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ overrides: payload }),
     })
       .then((res) => res.json())
       .then((data) => setSyncStatus(data.ok ? "synced" : "local-only"))
@@ -111,10 +128,13 @@ export function useCoachOverrides() {
   // pending immediately via sendBeacon rather than losing that last edit --
   // a plain fetch can get cancelled mid-flight when the page is unloading,
   // sendBeacon is the browser-native way to deliver one last small POST.
+  // sendBeacon sends same-origin cookies automatically, same as fetch's
+  // credentials:"same-origin" above -- no extra config needed here for
+  // the admin session to ride along.
   useEffect(() => {
     function flushOnUnload() {
       if (!pendingSyncRef.current) return;
-      const body = JSON.stringify(pendingSyncRef.current);
+      const body = JSON.stringify({ overrides: pendingSyncRef.current });
       pendingSyncRef.current = null;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       navigator.sendBeacon?.(API_URL, new Blob([body], { type: "application/json" }));
@@ -131,16 +151,16 @@ export function useCoachOverrides() {
   }, []);
 
   // Shared by every write path below: apply writeLocal + queue the
-  // debounced network sync. Kept in one place so update() and the three
-  // decision-tree functions can't drift out of sync with each other on
-  // how the KV-safety debounce actually works.
+  // debounced network sync. Kept in one place so update() and the other
+  // write functions can't drift out of sync with each other on how the
+  // KV-safety debounce actually works.
   const queueSync = useCallback((next) => {
     writeLocal(next);
-    pendingSyncRef.current = { overrides: next, password };
+    pendingSyncRef.current = next;
     setSyncStatus("syncing");
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(flushSync, SYNC_DEBOUNCE_MS);
-  }, [password, flushSync]);
+  }, [flushSync]);
 
   const update = useCallback((kind, id, patch) => {
     setOverrides((prev) => {
@@ -194,7 +214,12 @@ export function useCoachOverrides() {
   // resolveEffectivePatch(), used by both this website and the AI Coach
   // backend). Passing an empty string clears the override, falling back
   // to the static STATIC_PATCH_VERSION in src/data/patch.js again. Same
-  // debounced-write path as update() above.
+  // debounced-write path as update() above. Deliberately does NOT touch
+  // verifiedPatch/patchStatus -- see resolvePatchDataStatus() in
+  // src/lib/effectiveData.js: verification is derived purely from
+  // whether verifiedPatch still matches the (possibly just-changed)
+  // patch value, so there's nothing extra to reset here for that
+  // guarantee to hold.
   const updatePatch = useCallback((newPatch) => {
     setOverrides((prev) => {
       const next = { ...prev, patch: newPatch };
@@ -203,17 +228,43 @@ export function useCoachOverrides() {
     });
   }, [queueSync]);
 
+  // Marks `patchValue` (the CURRENT effective patch, passed in by the
+  // caller -- see src/components/TierBoard.jsx's CoachToggle) as
+  // reviewed/verified, and clears any "updating" flag. Marking verified
+  // for a DIFFERENT patch later (or bumping the current patch again)
+  // naturally falls back out of "verified" on its own -- see
+  // resolvePatchDataStatus() -- nothing else needs to change for that.
+  const markPatchVerified = useCallback((patchValue) => {
+    setOverrides((prev) => {
+      const next = { ...prev, verifiedPatch: patchValue || null, patchStatus: null };
+      queueSync(next);
+      return next;
+    });
+  }, [queueSync]);
+
+  // Explicit "actively updating" flag -- see PatchStatus.jsx for how this
+  // reads on the public site. Toggling it off returns to "not yet
+  // reviewed" (patchStatus: null), not to "verified" -- verified can only
+  // ever be set via markPatchVerified above.
+  const setPatchUpdating = useCallback((isUpdating) => {
+    setOverrides((prev) => {
+      const next = { ...prev, patchStatus: isUpdating ? "updating" : null };
+      queueSync(next);
+      return next;
+    });
+  }, [queueSync]);
+
   const verify = useCallback(async (candidate) => {
     try {
-      const res = await fetch(VERIFY_URL, {
+      const res = await fetch(LOGIN_URL, {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: candidate }),
       });
       const data = await res.json();
       if (data.ok) {
-        setPassword(candidate);
-        try { sessionStorage.setItem(PASSWORD_KEY, candidate); } catch { /* ignore */ }
+        setIsAuthorized(true);
         return { ok: true };
       }
       return { ok: false, error: data.error || "Incorrect password" };
@@ -222,13 +273,19 @@ export function useCoachOverrides() {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setPassword(null);
-    try { sessionStorage.removeItem(PASSWORD_KEY); } catch { /* ignore */ }
+  const logout = useCallback(async () => {
+    try {
+      await fetch(LOGOUT_URL, { method: "POST", credentials: "same-origin" });
+    } catch {
+      // even if the request fails, drop the client-side flag -- worst
+      // case the (still-valid) cookie just sits unused until it expires
+    }
+    setIsAuthorized(false);
   }, []);
 
-  const auth = { isAuthorized: Boolean(password), verify, logout };
+  const auth = { isAuthorized, verify, logout };
   const decisionTreeActions = { add: addDecisionTree, update: updateDecisionTree, remove: removeDecisionTree };
+  const patchVerification = { markVerified: markPatchVerified, setUpdating: setPatchUpdating };
 
-  return [overrides, update, syncStatus, auth, decisionTreeActions, updatePatch];
+  return [overrides, update, syncStatus, auth, decisionTreeActions, updatePatch, patchVerification];
 }

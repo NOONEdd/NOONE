@@ -46,7 +46,7 @@ import { CHAMPIONS } from "../../src/data/champions.js";
 import { ITEMS } from "../../src/data/items.js";
 import { RUNES } from "../../src/data/runes.js";
 import { STATIC_PATCH_VERSION } from "../../src/data/patch.js";
-import { resolveEffectivePatch } from "../../src/lib/effectiveData.js";
+import { resolveEffectivePatch, resolvePatchDataStatus } from "../../src/lib/effectiveData.js";
 import { MAX_TOKENS, MAX_MESSAGES, MAX_TOTAL_CHARS, CONVERSATION_LOOKBACK_MESSAGES } from "../_lib/config.js";
 import { checkRateLimit } from "../_lib/rateLimiter.js";
 import { fetchOverrides } from "../_lib/kv.js";
@@ -101,6 +101,7 @@ export async function onRequestPost(context) {
   const kvMs = Date.now() - kvStartedAt;
 
   const effectivePatch = resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION);
+  const patchDataStatus = resolvePatchDataStatus(overrides, effectivePatch).status;
 
   // Conversation-aware grounding: checks the latest user message first,
   // falls back through a small bounded recent window for follow-ups that
@@ -143,7 +144,7 @@ export async function onRequestPost(context) {
     }
   }
 
-  const systemPrompt = buildSystemPrompt({ championContext, enemyContext, itemContext, runeContext, decisionTreeEntries, effectivePatch, riotFallback, isAbilityDetailQuestion: isAbilityQuestion });
+  const systemPrompt = buildSystemPrompt({ championContext, enemyContext, itemContext, runeContext, decisionTreeEntries, effectivePatch, patchDataStatus, riotFallback, isAbilityDetailQuestion: isAbilityQuestion });
 
   // Log grounding results now, independent of whether the AI call below
   // succeeds -- so a request that fails at the provider still tells you
@@ -177,7 +178,7 @@ export async function onRequestPost(context) {
 
   logCoachEvent({ stage: "success", championDetected: championId || null, aiLatencyMs: aiMs, totalMs });
 
-  return json({ reply: result.reply, patch: effectivePatch, groundedIn: championId || null });
+  return json({ reply: result.reply, patch: effectivePatch, patchDataStatus, groundedIn: championId || null });
 }
 
 // Reject any other HTTP method with a clean 405 instead of a silent 404

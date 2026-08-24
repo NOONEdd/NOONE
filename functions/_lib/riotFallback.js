@@ -38,6 +38,7 @@ import {
   RIOT_FALLBACK_MAX_CHARS,
   RIOT_LATEST_PATCH_META_TTL_SECONDS,
   RIOT_FALLBACK_CONTENT_TTL_SECONDS,
+  PATCH_INTEL_FALLBACK_MAX_CHARS,
 } from "./config.js";
 import { isPatchChangeQuestion, extractExplicitPatchMention } from "./academyCoverage.js";
 
@@ -90,8 +91,17 @@ async function fetchWithTimeout(url) {
  *  cached briefly so a newly published patch is picked up within
  *  RIOT_LATEST_PATCH_META_TTL_SECONDS rather than needing a code change
  *  or immediately re-checking on every single request. Returns null on
- *  any failure -- never throws. */
-async function discoverLatestPatchSlug(kv) {
+ *  any failure -- never throws.
+ *
+ *  Exported (unlike the other internal helpers in this file) because
+ *  functions/api/admin/patch-check.js -- Patch Intelligence's automatic
+ *  detection step -- needs exactly this same "what's the latest slug"
+ *  discovery to compare against the last patch it already generated a
+ *  report for. Reusing this function rather than writing a second index
+ *  scraper is what makes that comparison share the SAME cache and the
+ *  SAME "only Riot's own index, nothing else" safety rule as the AI
+ *  Coach's fallback -- one discovery mechanism, two callers. */
+export async function discoverLatestPatchSlug(kv) {
   if (kv) {
     try {
       const cached = await kv.get(LATEST_PATCH_META_CACHE_KEY);
@@ -171,8 +181,31 @@ function stripHtmlToText(html) {
     .trim();
 }
 
+function patchPageUrl(slug) {
+  return `${RIOT_BASE}/en-us/news/game-updates/wild-rift-patch-notes-${slug}/`;
+}
+
+/** One live fetch + HTML-to-text strip of a patch page, shared by both
+ *  cached-content functions below. No truncation, no caching -- those
+ *  differ between the two callers (a short prompt-injection snippet for
+ *  the AI Coach vs. the much larger text Patch Intelligence needs to
+ *  analyze), so each wraps this with its own cap and its own cache
+ *  entry rather than one trying to reuse the other's (already-truncated)
+ *  cached copy. Returns null on any failure -- never throws. */
+async function fetchPatchPageText(slug) {
+  const response = await fetchWithTimeout(patchPageUrl(slug));
+  if (!response || !response.ok) return null;
+  try {
+    const html = await response.text();
+    const text = stripHtmlToText(html);
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAndCachePatchContent(slug, kv) {
-  const url = `${RIOT_BASE}/en-us/news/game-updates/wild-rift-patch-notes-${slug}/`;
+  const url = patchPageUrl(slug);
   const cacheKey = `riot-fallback-content:${slug}`;
 
   if (kv) {
@@ -189,18 +222,9 @@ async function fetchAndCachePatchContent(slug, kv) {
     }
   }
 
-  const response = await fetchWithTimeout(url);
-  if (!response || !response.ok) return { found: false, content: null, source: null, cached: false };
-
-  let html;
-  try {
-    html = await response.text();
-  } catch {
-    return { found: false, content: null, source: null, cached: false };
-  }
-
-  const text = stripHtmlToText(html).slice(0, RIOT_FALLBACK_MAX_CHARS);
-  if (!text) return { found: false, content: null, source: null, cached: false };
+  const fullText = await fetchPatchPageText(slug);
+  if (!fullText) return { found: false, content: null, source: null, cached: false };
+  const text = fullText.slice(0, RIOT_FALLBACK_MAX_CHARS);
 
   if (kv) {
     try {
@@ -212,6 +236,78 @@ async function fetchAndCachePatchContent(slug, kv) {
   }
 
   return { found: true, content: text, source: url, cached: false };
+}
+
+/** Same idea as fetchAndCachePatchContent above, but for Patch
+ *  Intelligence: a MUCH larger cap (PATCH_INTEL_FALLBACK_MAX_CHARS, not
+ *  RIOT_FALLBACK_MAX_CHARS) and its OWN cache key, so generating a full
+ *  Support-impact analysis never gets short-changed by content that was
+ *  already truncated down to chat-answer size for a different caller,
+ *  and a visitor's chat question never pulls in the much larger blob
+ *  meant for the analyst prompt. Same immutable-once-published long TTL.
+ *  Returns { found, content, source } -- found:false on any failure,
+ *  never throws. Exported for functions/_lib/patchIntelligence.js. */
+export async function fetchAndCacheFullPatchContent(slug, kv) {
+  const url = patchPageUrl(slug);
+  const cacheKey = `riot-fallback-full-content:${slug}`;
+
+  if (kv) {
+    try {
+      const cached = await kv.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed.content === "string") {
+          return { found: true, content: parsed.content, source: url, cached: true };
+        }
+      }
+    } catch {
+      // fall through to a live fetch
+    }
+  }
+
+  const fullText = await fetchPatchPageText(slug);
+  if (!fullText) return { found: false, content: null, source: null, cached: false };
+  const text = fullText.slice(0, PATCH_INTEL_FALLBACK_MAX_CHARS);
+
+  if (kv) {
+    try {
+      await kv.put(cacheKey, JSON.stringify({ content: text }), { expirationTtl: RIOT_FALLBACK_CONTENT_TTL_SECONDS });
+    } catch {
+      // best-effort cache write
+    }
+  }
+
+  return { found: true, content: text, source: url, cached: false };
+}
+
+// Riot's Wild Rift patch-note pages consistently open with a heading
+// like "Patch Notes 7.3a" (sometimes "Wild Rift Patch Notes 7.3a") --
+// this looks for that near the START of the stripped text (title/H1
+// area, not "match anywhere," since a patch page can also mention OTHER
+// patch numbers in passing, e.g. "reverted in 7.2b"). Deliberately
+// narrow: this is used to get a clean, human-readable "7.3a"-style
+// display value for a report instead of Riot's sometimes-irregular URL
+// slug ("73a-") -- see extractPatchNumberFromContent below.
+const PATCH_NUMBER_NEAR_TITLE = /patch\s+notes\s+(\d+\.\d+[a-z]?)/i;
+
+/** Best-effort extraction of a clean "7.3a"-style patch number from a
+ *  patch page's stripped text. Only searches the first 500 characters
+ *  (the title/intro area) -- deliberately does NOT scan the whole page,
+ *  since later sections can mention older patch numbers in passing
+ *  ("reverted from 7.2b") that would be wrong to report as THIS patch's
+ *  number. Falls back to the raw discovered slug (with dashes turned
+ *  into dots as a light best-effort cleanup, e.g. "7-3a" -> "7.3a") if
+ *  no confident match is found -- callers that store the result also
+ *  record which path was used (see patchIntelligence.js's
+ *  `patchNumberSource`) rather than presenting a guess as equally
+ *  reliable as a real match, per the "never fabricate, flag
+ *  uncertainty" rule this whole feature follows. */
+export function extractPatchNumberFromContent(text, fallbackSlug) {
+  const titleArea = (text || "").slice(0, 500);
+  const match = PATCH_NUMBER_NEAR_TITLE.exec(titleArea);
+  if (match) return { patchNumber: match[1], source: "extracted" };
+  const cleaned = String(fallbackSlug || "").replace(/-+$/, "").replace(/-/g, ".");
+  return { patchNumber: cleaned || String(fallbackSlug || "unknown"), source: "slug_fallback" };
 }
 
 /**

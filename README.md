@@ -1,6 +1,6 @@
 # Vanguard Academy
 
-A Wild Rift Support coaching site — champion/item/rune tier lists, matchup guides, and a Socratic AI Support Coach. Built with React + Vite, deployed on Cloudflare Pages.
+A Wild Rift Support coaching site — champion/item/rune tier lists, matchup guides, a Socratic AI Support Coach, and Patch Intelligence (AI-assisted, coach-reviewed patch analysis). Built with React + Vite, deployed on Cloudflare Pages.
 
 Fan-made project, not affiliated with or endorsed by Riot Games.
 
@@ -20,7 +20,10 @@ npm run build
 npx wrangler pages dev dist
 ```
 
-This runs the full site including `/api/coach` and `/api/coach-overrides` locally, the same way they'll run once deployed.
+This runs the full site including `/api/coach`, `/api/coach-overrides`, and the admin/Patch Intelligence endpoints locally, the same way they'll run once deployed. Two things worth knowing for local testing specifically:
+
+- There's no `wrangler.toml` in this project (Cloudflare Pages bindings are configured entirely in the dashboard — see below), so a local KV namespace and env vars need to be passed as flags: `npx wrangler pages dev dist --kv=COACH_KV --binding COACH_PASSWORD=yourtestpassword`.
+- If your local network blocks outbound requests, you may see a one-time warning about Miniflare failing to fetch Cloudflare's `cf.json` metadata on startup. It's harmless (Miniflare falls back to a placeholder), but if it seems to hang, set `CLOUDFLARE_CF_FETCH_ENABLED=false` in the environment before running the command above to skip that fetch entirely.
 
 ## Deploying (Cloudflare Pages)
 
@@ -61,7 +64,7 @@ This is not a claim that literally every AI API works — only ones that either 
 ...and as a **Secret**:
 - `AI_API_KEY` = that provider's key (kept as its own variable, separate from `ANTHROPIC_API_KEY`, so both can be configured at once and you can flip back by changing `AI_PROVIDER` alone)
 
-Redeploy after changing any of these. Switching back to Anthropic later is just setting `AI_PROVIDER` back to `anthropic` (or removing it) — no code changes either direction.
+Redeploy after changing any of these. Switching back to Anthropic later is just setting `AI_PROVIDER` back to `anthropic` (or removing it) — no code changes either direction. **This same configuration also powers Patch Intelligence's analysis** (`functions/_lib/patchIntelligence.js` calls the identical `callAIProvider()` dispatcher) — there's no separate AI setup for it.
 
 ### Enable real Coach Mode syncing (KV)
 
@@ -76,9 +79,27 @@ Right now, Coach Mode edits (tier/note changes) save to each visitor's browser o
 
 Once this is set up, the small text under the Coach Mode toggle will say **"Synced to the live site for everyone"** instead of **"Saved to this browser only."** That's the confirmation it's working.
 
-**Auth status:** the write endpoint (`/api/coach-overrides`) requires the `COACH_PASSWORD` you set above — checked server-side, so a write can't succeed without it even if someone bypassed the on-page prompt entirely. Both `/api/coach-overrides` and `/api/verify-coach` also lock out an IP for 15 minutes after 5 wrong password attempts (`functions/_lib/passwordAttempts.js`), so the password itself can't be brute-forced by scripting repeated guesses.
+## Admin area & authentication
 
-**Coach Mode toggle visibility:** the "Coach Mode" button (and the password prompt it opens) is hidden from the page by default — see `src/hooks/useCoachUIVisible.js`. Visit your site once with `?coach` added to the URL (e.g. `https://your-site.pages.dev/?coach`) and it stays visible on that browser from then on (remembered via localStorage), no need to add it again. This does not change the real security boundary, which is still entirely the server-side password check above — it only stops the button from being visible to normal visitors and crawlers in the first place.
+Everything privileged — Coach Mode's on-page editing controls, and the Patch Intelligence review dashboard — is gated behind one private admin area at **`/#/admin`**. There is no other password prompt anywhere else in the site, and no hidden reveal mechanism (see "Safe Browsing cleanup" below for why that matters).
+
+1. Log in at `https://your-site.pages.dev/#/admin` with `COACH_PASSWORD`.
+2. A successful login sets a signed, `HttpOnly` session cookie (`functions/_lib/adminAuth.js`) — good for 12 hours. The password itself is never stored in the browser and never sent again for the rest of the session; every subsequent admin action (Coach Mode edits, Patch Intelligence review actions) is authorized by that cookie, checked server-side on every request.
+3. Once logged in, Coach Mode's editing controls appear automatically on the public tier list / champion pages — there's nothing further to unlock there.
+4. **5 wrong password attempts locks out that IP for 15 minutes** (`functions/_lib/passwordAttempts.js`, same mechanism as before, just applied to the new login endpoint).
+
+**Recommended extra secret — `ADMIN_SESSION_SECRET`:** if this isn't set, sessions are still signed securely (derived from `COACH_PASSWORD` server-side, never transmitted), so everything works out of the box with zero extra configuration. Setting a dedicated `ADMIN_SESSION_SECRET` (any long random string — a password generator's output is fine) is a small extra hardening step: it means a session's signing key isn't tied to the login password at all. Add it as a Secret, same as `COACH_PASSWORD`, and redeploy.
+
+### Safe Browsing cleanup
+
+This version removes the things most likely to have triggered the earlier Google Safe Browsing "Deceptive Pages" warning:
+- The `?coach`-URL-param reveal mechanism and its `localStorage` flag (`src/hooks/useCoachUIVisible.js`) — deleted entirely.
+- The on-page password prompt that used to live directly on public tier list pages (inside `CoachToggle`) — deleted; the only password field anywhere in the app now lives at `/#/admin`, clearly labeled "NOONEdd Academy — Admin," with no resemblance to a third-party login page.
+- The old `/api/verify-coach` endpoint and the dead legacy `/api/coach.js` (a leftover Vercel-format file that was never actually reachable on Cloudflare Pages, but was still sitting in the repo) — both deleted.
+- Sending the raw admin password on every Coach Mode save — replaced with the session-cookie system above, so the password now only ever travels over the wire once, at login.
+- Baseline security response headers (`public/_headers`): `X-Frame-Options: DENY` (the admin login page can't be framed by another site), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
+
+None of this can guarantee Google's classification changes or how quickly — that's Google's own review process — but it removes the concrete patterns (a discoverable hidden password form, a password re-sent on every request) most commonly associated with that warning.
 
 ## Adding real images
 
@@ -124,46 +145,79 @@ Academy data always wins if it conflicts with the Riot fallback — the fallback
 
 **Patch resolution** works the same way: `src/data/patch.js` holds `STATIC_PATCH_VERSION`, the shipped fallback. Coach Mode can set a live override (the "Current patch" field shown when Coach Mode is unlocked) stored in KV as `overrides.patch`. `resolveEffectivePatch()` in `effectiveData.js` prefers the KV value whenever one is set, falling back to the static constant otherwise — same function, same result, on the website footer, the AI's system prompt, and `/api/version`.
 
+**Patch data verification status** is a deliberately separate question from "what's the current patch." `resolvePatchDataStatus()` (same file) reports `verified` / `updating` / `not_reviewed`, derived from `overrides.verifiedPatch` (the patch an admin last explicitly marked verified) and `overrides.patchStatus`. It can only ever report `verified` when `verifiedPatch` exactly string-matches the current effective patch — so bumping the current patch, by itself, always and automatically drops back to a non-verified status, with no separate reset step required anywhere. The AI Coach's system prompt includes this status and is told to hedge on patch-specific numbers when it isn't `verified`, rather than presenting unreviewed data as freshly confirmed.
+
 **Conversation-aware grounding.** A follow-up question like "what if they have a heavy dive comp?" (naming no champion or item) still resolves against whatever was being discussed — `detectChampionsInConversation()` / `detectItemsAndRunesInConversation()` in `functions/_lib/detectChampion.js` / `detectItemsRunes.js` check the latest message first (so switching topics still works correctly), and only fall back through a small bounded window of recent messages (`CONVERSATION_LOOKBACK_MESSAGES` in `config.js`) if the latest message named nothing. This is a look-back over messages already in the request, not an extra data source — cost/size limits are unaffected.
 
 **Anti-hallucination guardrails.** Entity data existing isn't the same as the *specific fact asked about* existing — `champions.js` has no per-ability data at all (role/tier/builds/matchups/notes, never "what does the W do"), so a question about a specific ability's exact effect (`isAbilityDetailQuestion()` in `academyCoverage.js`) is always treated as an Academy gap and gets an explicit reminder in the system prompt not to invent the answer, even when nothing else was grounded (e.g. a champion outside this Support-focused roster, asked about by ability). Champion role is always presented from the grounded data ("Janna (Enchanter, ...)") with an explicit instruction to answer position questions from that field, not assumption. A separate instruction tells the model not to validate a question's premise if it assumes a mechanic or term that isn't in the grounded data or standard Wild Rift knowledge (e.g. a made-up item interaction) — correct the premise using the real grounded facts instead of inventing an explanation for a fictional one.
+
+## Patch Intelligence
+
+A coach-reviewed, Support-focused breakdown of what changed in each Wild Rift patch — not a copy of Riot's patch notes, and not something that touches your tier lists on its own.
+
+**Workflow:** official patch detected → AI analysis (Support-relevant changes only, cross-checked against your actual current roster/tiers) → stored as a private report → you review it at `/#/admin` (approve / reject / edit / publish) → publishing optionally marks the patch verified → only then does anything appear on the public `/#/patch-intelligence` page. The AI is explicitly instructed it's an analyst, not the final authority — nothing it produces is ever applied to champion/item/rune data automatically; recommended tier changes are suggestions you still apply the normal way, by hand, in Coach Mode.
+
+**Detecting a new patch:**
+- **Manual (no setup required):** click "Check for new patch now" on the admin dashboard, any time.
+- **Automatic:** Cloudflare Pages Functions can't run on a schedule by themselves (only standalone Workers support Cron Triggers) — this project has neither an existing Worker nor a wrangler.toml to add one to, so automatic checking needs ONE small piece of outside scheduling, in order of simplicity:
+  1. A free external scheduler (e.g. [cron-job.org](https://cron-job.org), or a scheduled GitHub Actions workflow) that does nothing but `POST https://your-site.pages.dev/api/admin/patch-check` with header `X-Patch-Check-Secret: <PATCH_CHECK_SECRET>` and body `{"trigger":"scheduled"}` on whatever interval you like (once or twice a day is plenty — Riot doesn't patch more often than that).
+  2. A tiny companion Cloudflare Worker with a Cron Trigger doing the same fetch, if you'd rather keep it entirely inside Cloudflare. This needs its own minimal `wrangler.toml` and a `[triggers] crons = [...]` entry — ask in a future session if you'd like this scaffolded out; it's a handful of lines but is a genuinely separate deployable Worker, not something addable to this Pages project's config alone.
+
+  Either way, set `PATCH_CHECK_SECRET` (any long random string) as a Secret so the endpoint can't be triggered by anyone else — this is separate from the admin session, specifically so a scheduler never needs to hold your login password.
+
+**Never fabricates:** if Riot's patch-notes page can't be reached, or a genuinely new patch's content can't be fetched, Patch Intelligence stores an honest "source unavailable" state (or, if you've set `NOTIFY_WEBHOOK_URL`, sends you a heads-up) instead of guessing at changes — it never invents a patch's contents.
+
+**Notifications:** set `NOTIFY_WEBHOOK_URL` (a Secret) to any URL that accepts a JSON POST, and Patch Intelligence sends a short summary there whenever a new patch is detected (or when detection fails on the scheduled path). This works natively with a **Discord** webhook URL or a **Slack** incoming webhook URL with zero further setup — paste either directly. For Telegram, ntfy.sh, or email, point it at a small relay (e.g. a Zapier/Make "catch webhook → forward" automation, or ntfy.sh's own webhook-compatible topic URL). No notification service is required — reports are always visible at `/#/admin` regardless of whether this is configured.
 
 ## Project structure
 
 ```
 src/
   data/          champions.js, items.js, runes.js, constants.js, patch.js (static patch fallback)
-  lib/           effectiveData.js — shared data-merge resolver, imported by BOTH the website and the AI Coach
-  components/    shared UI (RankChip, TierBoard, Layout, BuildList, SmartImage, icons)
-  pages/         one file (or group) per route
-  hooks/         routing, Coach Mode storage (real API + local fallback), hero parallax
+  lib/           effectiveData.js — shared data-merge resolver + patch/verification-status resolvers, imported by BOTH the website and the AI Coach
+  components/    shared UI (RankChip, TierBoard, Layout, BuildList, SmartImage, icons, PatchStatus)
+  pages/         one file (or group) per route, including AdminPage.jsx and PatchIntelligencePage.jsx
+  hooks/         routing, Coach Mode storage (real API + local fallback, now session-cookie-based), hero parallax
   utils/         image base-path resolution
 functions/
-  api/coach.js              Cloudflare Pages Function — AI Coach chat endpoint (grounds + calls the active AI provider)
-  api/coach-overrides.js    Cloudflare Pages Function — Coach Mode read/write via KV, password + lockout protected
-  api/verify-coach.js       Cloudflare Pages Function — Coach Mode password check (same lockout as above)
-  api/version.js            Cloudflare Pages Function — reports active AI provider/model + patch version
-  api/health.js             Cloudflare Pages Function — uptime check
-  _lib/config.js            all tunable numbers (limits, caps, defaults) in one place
-  _lib/aiProvider.js        provider-agnostic dispatcher — see "Provider setup" above
+  api/coach.js                Cloudflare Pages Function — AI Coach chat endpoint (grounds + calls the active AI provider)
+  api/coach-overrides.js      Cloudflare Pages Function — Coach Mode read/write via KV; GET public, POST admin-session protected
+  api/version.js              Cloudflare Pages Function — reports active AI provider/model + patch version + verification status
+  api/health.js               Cloudflare Pages Function — uptime check
+  api/patch-reports.js        Cloudflare Pages Function — PUBLIC read-only list of published Patch Intelligence reports
+  api/admin/login.js          Cloudflare Pages Function — password check, issues the signed session cookie
+  api/admin/logout.js         Cloudflare Pages Function — clears the session cookie
+  api/admin/session.js        Cloudflare Pages Function — reports whether the current cookie is a valid session
+  api/admin/patch-check.js    Cloudflare Pages Function — detects a new official patch, runs the AI analysis, stores the report
+  api/admin/patch-reports.js  Cloudflare Pages Function — admin report list/detail + approve/reject/edit/publish actions
+  _lib/config.js              all tunable numbers (limits, caps, defaults) in one place
+  _lib/aiProvider.js          provider-agnostic dispatcher — see "Provider setup" above; also used by Patch Intelligence
   _lib/providers/anthropic.js        Anthropic adapter
   _lib/providers/openaiCompatible.js generic adapter for any OpenAI-compatible provider
   _lib/detectChampion.js, detectItemsRunes.js   scan the question for champion/item/rune mentions
   _lib/extractChampionContext.js, extractItemRuneContext.js   pull ONLY the relevant data + live overrides
-  _lib/buildPrompt.js       assembles the final system prompt from whatever was detected
+  _lib/buildPrompt.js         assembles the final system prompt from whatever was detected, including patch verification status
   _lib/rateLimiter.js, passwordAttempts.js   per-IP abuse protection, both backed by COACH_KV
-  _lib/riotFallback.js      official Riot Wild Rift patch-notes fallback — independent latest-patch discovery, cached, timeout-bounded
-  _lib/academyCoverage.js   deterministic "is Academy data actually sufficient for this question" logic (decides if Riot fallback runs)
-  _lib/kv.js                reads live Coach Mode overrides from COACH_KV
-  _lib/logger.js            structured request logging (Cloudflare real-time logs only, nothing user-visible)
+  _lib/riotFallback.js        official Riot Wild Rift patch-notes fallback + full-content fetch for Patch Intelligence — independent latest-patch discovery, cached, timeout-bounded
+  _lib/academyCoverage.js     deterministic "is Academy data actually sufficient for this question" logic (decides if Riot fallback runs)
+  _lib/patchIntelligence.js   builds the Patch Intelligence analyst prompt, calls the AI provider, validates/normalizes the JSON result
+  _lib/patchReportsStore.js   KV storage for Patch Intelligence reports (index + individual report bodies)
+  _lib/notify.js              optional outbound webhook notification for new patch reports
+  _lib/adminAuth.js           signs/verifies the admin session cookie (Web Crypto HMAC-SHA256, no new dependency)
+  _lib/kv.js                  reads live Coach Mode overrides from COACH_KV
+  _lib/logger.js              structured request logging (Cloudflare real-time logs only, nothing user-visible)
 public/
   assets/        empty folders for your own champion/item/rune images
+  _headers       baseline security response headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy)
 scripts/
   organize-images.js   run locally to bulk-sort your own image files by filename
 ```
 
 ## What's built vs. what needs content
 
-- **Fully built:** site structure, routing, all tier lists, all 71 items and ~50 runes with real Wild Rift stats, Coach Mode (local + real sync once KV is set up), AI Coach (once you add your API key), auto-detecting image system.
+- **Fully built:** site structure, routing, all tier lists, all 71 items and ~50 runes with real Wild Rift stats, Coach Mode (local + real sync once KV is set up), AI Coach (once you add your API key), auto-detecting image system, private admin authentication, Patch Intelligence (detection, AI analysis, review workflow, public page).
 - **Needs your coaching input:** most champions only have a tier + one-line note. Full Items/Runes/Matchups tabs are written for Lulu and Nautilus as examples — the rest follow the same data shape in `src/data/champions.js`.
 - **Placeholder:** the About/story section on the Coaching page, and dedicated macro guide pages (roaming, vision, objectives) — the AI Coach covers this conversationally, but there's no written version yet.
+- **Needs a decision from you:** whether to set up automatic patch checking (external scheduler or a small companion Worker — see "Patch Intelligence" above) or just use the manual "Check for new patch now" button; whether to configure `NOTIFY_WEBHOOK_URL` for patch alerts.
+
+

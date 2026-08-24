@@ -1,7 +1,13 @@
-// Brute-force protection for the Coach Mode password, shared by
-// functions/api/verify-coach.js and functions/api/coach-overrides.js --
-// both check the same COACH_PASSWORD, so both need the same lockout, or
-// an attacker would just hit whichever endpoint isn't protected.
+// Brute-force protection for the admin login password, used by
+// functions/api/admin/login.js -- the only place COACH_PASSWORD is
+// ever checked now (see that file's comment: it replaced
+// functions/api/verify-coach.js, which used to share this same
+// protection). Every OTHER admin-mutation endpoint, including
+// functions/api/coach-overrides.js, no longer checks a password at
+// all -- they check the session cookie login produces instead (see
+// functions/_lib/adminAuth.js's requireAdminSession()), so a
+// brute-force attempt against them isn't possible the same way; the
+// password itself only has ONE checkpoint to protect, right here.
 //
 // Uses the same COACH_KV binding already configured for rateLimiter.js
 // and coach-overrides.js -- no new Cloudflare setup needed. Fixed
@@ -10,9 +16,9 @@
 // standard for a limiter this lightweight.
 //
 // Fails OPEN if COACH_KV isn't bound or a KV call errors -- an
-// unavailable KV store shouldn't turn into "nobody can ever unlock
-// Coach Mode," and the password check itself (functions/api/verify-coach.js,
-// functions/api/coach-overrides.js) remains the real security boundary
+// unavailable KV store shouldn't turn into "nobody can ever log in to
+// the admin area," and the password check itself
+// (functions/api/admin/login.js) remains the real security boundary
 // either way.
 
 import { MAX_PASSWORD_ATTEMPTS, PASSWORD_ATTEMPT_WINDOW_MS } from "./config.js";

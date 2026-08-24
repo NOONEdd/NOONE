@@ -1,7 +1,7 @@
 // Cloudflare Pages Function — GET/POST /api/coach-overrides
 // Real, cross-device persistence for Coach Mode edits (champion tiers,
-// item/rune tiers, decision trees, and their notes), backed by
-// Cloudflare KV.
+// item/rune tiers, decision trees, their notes, and the current-patch/
+// verification fields), backed by Cloudflare KV.
 //
 // SETUP (one-time, in the Cloudflare dashboard):
 //   1. Workers & Pages → KV → Create a namespace (call it whatever you like,
@@ -23,24 +23,26 @@
 //   4. Redeploy (or trigger a new deployment) so both bindings take effect
 //
 // Anyone can still READ the tier list (that's the whole point of a public
-// site), but WRITES require this password — checked here, server-side,
-// which is the actual security boundary — plus a brute-force lockout
-// (functions/_lib/passwordAttempts.js: 5 wrong attempts per IP locks that
-// IP out for 15 minutes, shared with /api/verify-coach). The client-side
-// password prompt (see CoachToggle in src/components/Layout.jsx) is just
-// the UX layer on top; even if someone bypassed it entirely and called
-// this endpoint directly, a write without the correct password is
-// rejected right here.
+// site) -- GET below stays fully unauthenticated. WRITES require a valid
+// admin session, established by logging in at #/admin (functions/api/admin/login.js)
+// -- checked here, server-side, via requireAdminSession(), which is the
+// actual security boundary. This replaced sending COACH_PASSWORD itself
+// in this endpoint's POST body on every write (the old design): a write
+// without a valid session cookie is rejected right here regardless of
+// what the client sends, exactly the same guarantee as before, just
+// without the password re-traveling the network on every keystroke.
 //
-// Until COACH_KV/COACH_PASSWORD are set up, this endpoint returns a clear
-// error instead of crashing, and the site automatically falls back to
-// browser-local storage (see src/hooks/useCoachOverrides.js) so Coach Mode
-// still works locally in the meantime.
+// Until COACH_KV is set up, this endpoint returns a clear error instead
+// of crashing, and the site automatically falls back to browser-local
+// storage (see src/hooks/useCoachOverrides.js) so Coach Mode still works
+// locally in the meantime.
 
-import { isPasswordLocked, recordFailedPasswordAttempt, resetPasswordAttempts } from "../_lib/passwordAttempts.js";
+import { requireAdminSession } from "../_lib/adminAuth.js";
 
 const KEY = "coach-overrides";
-const EMPTY_OVERRIDES = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null };
+// Kept in sync with functions/_lib/kv.js's `empty` -- see that file's
+// comment for what verifiedPatch/patchStatus are for.
+const EMPTY_OVERRIDES = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null, verifiedPatch: null, patchStatus: null };
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -67,14 +69,12 @@ export async function onRequestPost(context) {
     return json({ error: "COACH_KV binding not set up yet — see comments in functions/api/coach-overrides.js" }, 500);
   }
 
-  const correctPassword = context.env.COACH_PASSWORD;
-  if (!correctPassword) {
-    return json({ error: "COACH_PASSWORD not set yet — add it as an environment variable in the Cloudflare dashboard (Settings → Environment variables), mark it as a Secret, then redeploy." }, 500);
-  }
-
-  const ip = context.request.headers.get("CF-Connecting-IP");
-  if (await isPasswordLocked(kv, ip)) {
-    return json({ error: "Too many incorrect attempts. Try again in about 15 minutes." }, 429);
+  // The real security boundary: a direct POST to this endpoint with no
+  // valid session cookie is rejected here regardless of what's in the
+  // body -- there is no password field this handler will accept instead.
+  // Log in at #/admin (functions/api/admin/login.js) to get a session.
+  if (!(await requireAdminSession(context))) {
+    return json({ error: "Not authenticated — log in at /#/admin first." }, 401);
   }
 
   let body;
@@ -84,13 +84,7 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { overrides, password } = body || {};
-  if (password !== correctPassword) {
-    await recordFailedPasswordAttempt(kv, ip);
-    return json({ error: "Incorrect password" }, 401);
-  }
-  await resetPasswordAttempts(kv, ip);
-
+  const { overrides } = body || {};
   if (!overrides || typeof overrides !== "object") {
     return json({ error: "Missing overrides object" }, 400);
   }

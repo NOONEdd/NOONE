@@ -31,6 +31,14 @@ FACTS vs. REASONING -- keep these separate. You may reason and give strategic ad
  * src/lib/effectiveData.js's resolveEffectivePatch(), called by
  * functions/api/coach.js before this function is ever invoked).
  *
+ * `patchDataStatus`, from that same file's resolvePatchDataStatus(), is
+ * "verified" | "updating" | "not_reviewed" -- whether a human has
+ * actually confirmed Academy's data is correct for effectivePatch.
+ * Bumping the current patch does NOT imply the data was reviewed for
+ * it; this tells the model that distinction explicitly, so it hedges on
+ * patch-specific numbers instead of implying they've been freshly
+ * confirmed when they haven't (see the reminder appended below).
+ *
  * `riotFallback`, if provided, is `{ content, source }` from
  * functions/_lib/riotFallback.js -- ONLY passed in when Academy grounding
  * found nothing for this question (see functions/api/coach.js), and is
@@ -58,6 +66,7 @@ export function buildSystemPrompt({
   runeContext = [],
   decisionTreeEntries = [],
   effectivePatch,
+  patchDataStatus = "not_reviewed",
   riotFallback = null,
   isAbilityDetailQuestion = false,
 } = {}) {
@@ -68,7 +77,11 @@ export function buildSystemPrompt({
   const lines = [BASE_INSTRUCTIONS];
 
   if (hasAcademyData) {
-    lines.push("", `--- Vanguard Academy data for this question (current patch: ${effectivePatch}) ---`);
+    const statusLabel = { verified: "verified for this patch", updating: "update in progress for this patch", not_reviewed: "not yet reviewed for this patch" }[patchDataStatus] || "not yet reviewed for this patch";
+    lines.push("", `--- Vanguard Academy data for this question (current patch: ${effectivePatch}, data ${statusLabel}) ---`);
+    if (patchDataStatus !== "verified") {
+      lines.push(`Note: a coach has not yet confirmed this data is current for patch ${effectivePatch} (status: ${statusLabel}). Treat specific numbers/values below as likely still accurate but not freshly double-checked for this exact patch -- mention that patch-specific specifics are being updated if the player asks something that hinges on an exact recent number, rather than stating it with full confidence.`);
+    }
 
     if (championContext) {
       lines.push(`Champion: ${championContext.name} (${championContext.role}, tier ${championContext.tier})`);

@@ -467,4 +467,122 @@
 .picker-item:hover { background: rgba(255,255,255,.05); border-color: var(--line); color: var(--text); }
 .picker-item-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .picker-item-name { font-size: 11.5px; font-weight: 600; line-height: 1.3; }
+
+/* PATCH STATUS (src/components/PatchStatus.jsx) — used inline in the
+   Coach Mode patch editor and standalone on public pages. --psc is set
+   per-instance from PatchStatus.jsx (verified=cyan / updating=gold /
+   not_reviewed=text-dimmer) so this is one shared rule, not three. */
+.patch-status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--psc); border: 1px solid var(--psc); background: color-mix(in srgb, var(--psc) 12%, transparent);
+}
+.patch-status-banner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 14px 20px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.02);
+  margin-top: 22px;
+}
+.patch-status-banner-patch { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 15px; }
+.patch-status-banner-status {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700;
+  color: var(--psc);
+}
+.patch-verify-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ADMIN PAGE (src/pages/AdminPage.jsx) */
+.admin-login-form {
+  display: flex; flex-direction: column; gap: 12px; padding: 22px;
+  border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.02);
+}
+.admin-login-form input {
+  background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 14px; color: var(--text); font-family: 'Rajdhani'; font-size: 15px;
+}
+.admin-panel {
+  padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px;
+  background: rgba(255,255,255,.02); margin-bottom: 22px;
+}
+.admin-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.admin-panel-head h3 { font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 700; }
+.admin-panel .patch-editor-row { margin-bottom: 0; }
+
+/* PATCH INTELLIGENCE reports — shared by the admin review list
+   (src/pages/AdminPage.jsx) and the public page
+   (src/pages/PatchIntelligencePage.jsx); the admin version adds action
+   buttons and edit controls on top of this same base. */
+.patch-report-list { display: flex; flex-direction: column; gap: 12px; }
+.patch-report-card { border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.02); overflow: hidden; }
+.patch-report-header {
+  width: 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; color: var(--text); text-align: left;
+}
+.patch-report-header:hover { background: rgba(255,255,255,.03); }
+.patch-report-patch { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 14px; }
+.patch-report-date { font-size: 12px; color: var(--text-dimmer); margin-left: auto; }
+.patch-report-status {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-dim);
+}
+.patch-report-status.status-published { color: var(--cyan); border-color: var(--cyan); }
+.patch-report-status.status-pending_review { color: var(--gold); border-color: var(--gold); }
+.patch-report-status.status-approved { color: var(--blue); border-color: var(--blue); }
+.patch-report-status.status-rejected { color: var(--text-dimmer); border-color: var(--line); }
+.patch-report-status.status-source_unavailable,
+.patch-report-status.status-ai_error { color: #ff6b6b; border-color: #ff6b6b; }
+
+.patch-report-body { padding: 4px 18px 20px; border-top: 1px solid var(--line); }
+.patch-meta-analysis { color: var(--text-dim); line-height: 1.6; margin: 14px 0; }
+.patch-section-label {
+  font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dimmer); margin: 20px 0 10px;
+}
+.patch-entry-card {
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: rgba(255,255,255,.015); margin-bottom: 10px;
+}
+.patch-entry-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.patch-entry-name { font-weight: 700; font-size: 14px; }
+.patch-entry-type { font-size: 11.5px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .5px; }
+.patch-entry-line { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin-bottom: 5px; }
+.patch-entry-line b { color: var(--text); }
+.patch-entry-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.patch-entry-tier-action { font-size: 12.5px; font-weight: 700; color: var(--violet); }
+.patch-entry-reasoning-readonly { font-size: 11.5px; color: var(--text-dimmer); margin-top: 4px; }
+
+.severity-chip, .confidence-chip {
+  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px;
+}
+.severity-chip { color: var(--sc); border: 1px solid var(--sc); background: color-mix(in srgb, var(--sc) 12%, transparent); }
+.confidence-chip { color: var(--cc); border: 1px solid var(--cc); }
+
+.patch-entry-edit-row { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.patch-report-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.patch-publish-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-left: auto; }
+.patch-tier-rec-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.patch-tier-rec-list li { font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Self-contained input/select/textarea styling scoped to the admin +
+   patch-report containers -- deliberately NOT a global redefinition of
+   .edit-info-field (see RankChip.jsx, which nests that class inside
+   .edit-fields for its own background/border/padding); scoping it here
+   means this and Coach Mode's existing tier-chip editing can never
+   visually interfere with each other even though both use the class
+   name for the same "roomy notes textarea" look. */
+.admin-panel input[type="text"], .admin-panel select,
+.patch-report-card input[type="text"], .patch-report-card select, .patch-report-card textarea {
+  background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--text); font-family: 'Rajdhani'; font-weight: 600; font-size: 13px; padding: 8px 11px;
+}
+.patch-report-card textarea.edit-info-field { width: 100%; }
+.admin-panel input[type="text"]::placeholder, .patch-report-card input::placeholder, .patch-report-card textarea::placeholder { color: var(--text-dimmer); font-weight: 500; }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .patch-report-header { gap: 8px; }
+  .patch-report-date { margin-left: 0; width: 100%; }
+  .patch-publish-group { margin-left: 0; width: 100%; }
+}
 .picker-empty { grid-column: 1 / -1; color: var(--text-dimmer); font-size: 13.5px; text-align: center; padding: 20px; }

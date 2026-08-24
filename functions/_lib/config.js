@@ -61,9 +61,34 @@ export const MAX_RUNES_PER_REQUEST = 5;
 export const MAX_DECISION_TREE_ENTRIES = 6;
 export const MAX_DECISION_TREE_CHARS = 400;
 
-// Brute-force protection for the Coach Mode password, shared by
-// functions/api/verify-coach.js and functions/api/coach-overrides.js.
+// Brute-force protection for the admin password, shared by
+// functions/api/admin/login.js and functions/api/coach-overrides.js (the
+// latter only hits this on the legacy/defensive path -- see that file).
 // Separate from RATE_LIMIT_PER_HOUR above, which only applies to the AI
 // Coach chat endpoint, not the password check.
 export const MAX_PASSWORD_ATTEMPTS = 5;
 export const PASSWORD_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
+// ---------------------------------------------------------------------
+// Admin session (functions/_lib/adminAuth.js) -- replaces the old
+// "send the Coach Mode password on every write" pattern. A successful
+// POST /api/admin/login exchanges COACH_PASSWORD for a signed, HttpOnly
+// session cookie; every admin-mutation endpoint verifies that cookie
+// instead of re-checking a password. See adminAuth.js for the actual
+// signing logic (Web Crypto HMAC-SHA256, no new dependency).
+export const ADMIN_SESSION_TTL_SECONDS = 12 * 60 * 60; // 12h -- long enough for one real coaching/admin session, short enough that a stolen cookie doesn't stay valid indefinitely
+export const ADMIN_SESSION_COOKIE_NAME = "academy_admin_session";
+
+// ---------------------------------------------------------------------
+// Patch Intelligence (functions/_lib/patchIntelligence.js,
+// functions/_lib/riotFallback.js's full-content fetch, functions/api/admin/patch-check.js).
+// Deliberately separate from the AI-Coach-chat constants above -- a
+// structured Support-impact analysis covering every changed champion/
+// item/rune in a patch is a fundamentally bigger, rarer, admin-triggered
+// generation than a single chat reply, so it gets its own token budget
+// and its own (larger, separately cached) content cap rather than
+// borrowing MAX_TOKENS/RIOT_FALLBACK_MAX_CHARS and silently truncating a
+// real patch's worth of changes.
+export const PATCH_INTEL_MAX_TOKENS = 4096;
+export const PATCH_INTEL_FALLBACK_MAX_CHARS = 16000; // full patch notes text handed to the AI analyst, not the ~4000-char snippet used for a single chat answer
+export const PATCH_REPORTS_INDEX_LIMIT = 100; // caps patch-intel:reports so that one index key can't grow unbounded across years of patches

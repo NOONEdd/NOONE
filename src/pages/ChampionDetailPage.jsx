@@ -7,11 +7,12 @@ import SmartImage from "../components/SmartImage.jsx";
 import BuildList from "../components/BuildList.jsx";
 import BuildBoard from "../components/BuildBoard.jsx";
 import { CoachToggle } from "../components/TierBoard.jsx";
+import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import DecisionTreePanel from "../components/DecisionTreePanel.jsx";
 import BuildEditor from "../components/BuildEditor.jsx";
 
 export default function ChampionDetailPage({
-  champion, editMode, setEditMode, syncStatus, auth,
+  champion, editMode, setEditMode, syncStatus, auth, currentPatch, patchStatus,
   decisionTrees, onAddDecisionTree, onUpdateDecisionTree, onDeleteDecisionTree,
   onUpdateChampionBuilds,
 }) {
@@ -53,6 +54,12 @@ const currentBuild = builds[selectedBuild];
 
         {/* Always visible — short enough that hiding it behind a tab just costs an extra click for no reason */}
         {champion.note && <p className="detail-blurb-standalone">{champion.note}</p>}
+
+        {currentPatch && (
+          <p className="save-note" style={{ margin: "-8px 0 16px" }}>
+            Patch {currentPatch} <PatchStatusPill status={patchStatus} />
+          </p>
+        )}
 
         <div className="tab-row">
           {["build", "matchups", "decisiontrees"].map((t) => (

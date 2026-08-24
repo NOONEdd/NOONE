@@ -23,6 +23,9 @@ export const SUMMONER_SPELLS = [
   "flash", "ignite", "heal", "exhaust", "barrier", "ghost", "cleanse", "smite", "teleport", "mark",
 ];
 
+// NOTE: "/admin" is deliberately NOT listed here -- it's a private area,
+// reached only by navigating there directly, not a public nav item. See
+// src/pages/AdminPage.jsx and README's "Safe Browsing cleanup" section.
 export const NAV_LINKS = [
   { label: "Home", path: "/", page: "home" },
   { label: "AI Coach", path: "/ai-coach", page: "ai-coach" },
@@ -30,5 +33,6 @@ export const NAV_LINKS = [
   { label: "Items", path: "/items", page: "items" },
   { label: "Runes", path: "/runes", page: "runes" },
   { label: "Guides", path: "/guides", page: "guides" },
+  { label: "Patch Intel", path: "/patch-intelligence", page: "patch-intelligence" },
   { label: "Coaching", path: "/coaching", page: "coaching" },
 ];

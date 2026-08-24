@@ -71,3 +71,40 @@ export function resolveEffectivePatch(kvPatch, staticPatch) {
   const trimmed = typeof kvPatch === "string" ? kvPatch.trim() : "";
   return trimmed || staticPatch;
 }
+
+/** The Academy's DATA VERIFICATION STATUS for whatever the effective
+ *  patch currently is -- deliberately a SEPARATE question from "what is
+ *  the current patch" above. Changing the current patch (Coach Mode's
+ *  patch field, or a Patch Intelligence publish) must never, by itself,
+ *  make the site claim its data has been verified for that patch --
+ *  that would silently misrepresent unreviewed data as reviewed. The
+ *  only way `status` can ever come back "verified" is if
+ *  `overrides.verifiedPatch` is a non-empty string that EXACTLY matches
+ *  `effectivePatch` -- so the instant an admin bumps the current patch
+ *  to something new, this function structurally falls back to
+ *  "updating"/"not_reviewed" on its own, with no separate reset step
+ *  required anywhere else in the codebase.
+ *
+ *  `overrides.verifiedPatch`: the patch number an admin last explicitly
+ *  marked verified (via the Coach Mode patch editor's "Mark verified"
+ *  action, or via publishing a Patch Intelligence report with "also mark
+ *  verified" checked) -- see functions/api/admin/patch-reports.js and
+ *  src/components/TierBoard.jsx's CoachToggle.
+ *  `overrides.patchStatus`: an optional explicit "updating" flag an
+ *  admin can set the moment they start manually reviewing a new patch,
+ *  distinguishing "actively being worked on" from "not yet reviewed at
+ *  all" -- both are equally "not verified," but they read very
+ *  differently on the public site (see PatchStatus.jsx).
+ *
+ *  Called by both the website (src/App.jsx) and the AI Coach backend
+ *  (functions/api/coach.js) -- same reasoning as resolveEffectivePatch
+ *  above: one function, so the footer badge and the AI's own awareness
+ *  of whether its data is current can never disagree. */
+export function resolvePatchDataStatus(overrides, effectivePatch) {
+  const verifiedPatch = overrides && typeof overrides.verifiedPatch === "string" ? overrides.verifiedPatch.trim() : "";
+  if (verifiedPatch && verifiedPatch === effectivePatch) {
+    return { status: "verified", verifiedPatch };
+  }
+  const explicitStatus = overrides && overrides.patchStatus === "updating" ? "updating" : "not_reviewed";
+  return { status: explicitStatus, verifiedPatch: verifiedPatch || null };
+}

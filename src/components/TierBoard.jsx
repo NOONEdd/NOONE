@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
 import { TIER_ORDER, TIER_COLORS } from "../data/constants.js";
-import { useCoachUIVisible } from "../hooks/useCoachUIVisible.js";
+import { PatchStatusPill } from "./PatchStatus.jsx";
 import RankChip from "./RankChip.jsx";
 import BuildPanel from "./BuildPanel.jsx";
 
@@ -44,12 +44,22 @@ export function TierBoard({ entries, editMode, onUpdate }) {
   );
 }
 
-export function CoachToggle({ editMode, setEditMode, syncStatus, auth, currentPatch, onUpdatePatch }) {
-  const coachUIVisible = useCoachUIVisible();
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [error, setError] = useState(null);
-  const [verifying, setVerifying] = useState(false);
+/** Coach Mode's on-page toggle + (when unlocked) the live patch editor.
+ *
+ * SECURITY NOTE (see README's "Safe Browsing cleanup" section for the
+ * full story): this used to also contain a hidden-by-default reveal
+ * (`?coach` in the URL, remembered via localStorage) and its own
+ * password-prompt form, both rendered directly on public tier list
+ * pages. Both are gone. There is now exactly ONE place a password is
+ * ever entered anywhere in this app: the login form at #/admin
+ * (src/pages/AdminPage.jsx), which posts to a real server-side session
+ * endpoint (functions/api/admin/login.js). This component now does
+ * nothing but read `auth.isAuthorized` (itself only ever true because
+ * the server already verified a valid session cookie -- see
+ * src/hooks/useCoachOverrides.js) and, if so, show the same in-place
+ * editing controls Coach Mode always had. A visitor who never logs in
+ * at #/admin never sees so much as a lock icon on any public page. */
+export function CoachToggle({ editMode, setEditMode, syncStatus, auth, currentPatch, onUpdatePatch, patchStatus, patchVerification }) {
   const [patchInput, setPatchInput] = useState(currentPatch || "");
 
   // Stay in sync if the effective patch changes from elsewhere (e.g. a
@@ -72,39 +82,16 @@ export function CoachToggle({ editMode, setEditMode, syncStatus, auth, currentPa
   }[syncStatus] || "Saved to this browser only — see README to enable real syncing";
 
   function handleToggleClick() {
-    if (editMode) {
-      setEditMode(false); // turning off never needs the password
-      return;
-    }
-    if (auth?.isAuthorized) {
-      setEditMode(true); // already verified earlier this session
-      return;
-    }
-    setError(null);
-    setShowPrompt(true);
+    setEditMode(!editMode); // no password prompt here anymore -- being here at all already means auth.isAuthorized is true
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setVerifying(true);
-    setError(null);
-    const result = await auth.verify(passwordInput);
-    setVerifying(false);
-    if (result.ok) {
-      setShowPrompt(false);
-      setPasswordInput("");
-      setEditMode(true);
-    } else {
-      setError(result.error);
-    }
-  }
-
-  // Hidden from the page by default -- see src/hooks/useCoachUIVisible.js.
-  // The `|| editMode` fallback means that if editing is somehow already
-  // active, the control that turns it back off (and the sync-status
-  // note) still renders -- edit mode should never end up silently stuck
-  // on with no visible way to switch it off.
-  if (!coachUIVisible && !editMode) return null;
+  // The one and only gate: a verified admin session. No reveal
+  // mechanism, no hidden URL param, no on-page password form -- see the
+  // component comment above. `|| editMode` is a defensive fallback so
+  // an active edit session's own off-switch (and the sync-status note)
+  // can never disappear mid-use even in an edge case where the session
+  // check on load raced with something else.
+  if (!auth?.isAuthorized && !editMode) return null;
 
   return (
     <>
@@ -126,29 +113,31 @@ export function CoachToggle({ editMode, setEditMode, syncStatus, auth, currentPa
             onChange={handlePatchChange}
             placeholder="e.g. 7.3"
           />
+          {patchStatus && <PatchStatusPill status={patchStatus} />}
+          {patchVerification && (
+            <div className="patch-verify-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                onClick={() => patchVerification.markVerified(patchInput)}
+                disabled={!patchInput || patchStatus === "verified"}
+                title="Confirms Academy data has been manually reviewed for this exact patch"
+              >
+                Mark verified
+              </button>
+              <button
+                type="button"
+                className={"btn btn-ghost btn-small" + (patchStatus === "updating" ? " is-active" : "")}
+                onClick={() => patchVerification.setUpdating(patchStatus !== "updating")}
+              >
+                {patchStatus === "updating" ? "Updating: On" : "Mark as updating"}
+              </button>
+            </div>
+          )}
           <span className="storage-note" style={{ margin: 0 }}>
-            Shown site-wide and used by the AI Coach. Clear the field to fall back to the version shipped in the code.
+            Shown site-wide and used by the AI Coach. Clear the field to fall back to the version shipped in the code. Changing the patch number always drops verification back to "not yet reviewed" until you explicitly mark it verified again — see Patch Intelligence at #/patch-intelligence for a Support-focused breakdown of what changed.
           </span>
         </div>
-      )}
-
-      {showPrompt && !editMode && (
-        <form className="coach-password-prompt" onSubmit={handleSubmit}>
-          <input
-            type="password"
-            placeholder="Coach password"
-            value={passwordInput}
-            onChange={(e) => setPasswordInput(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" className="btn btn-primary btn-small" disabled={verifying || !passwordInput}>
-            {verifying ? "Checking..." : "Unlock"}
-          </button>
-          <button type="button" className="btn btn-ghost btn-small" onClick={() => { setShowPrompt(false); setError(null); setPasswordInput(""); }}>
-            Cancel
-          </button>
-          {error && <span className="coach-password-error">{error}</span>}
-        </form>
       )}
 
       {editMode && syncStatus === "local-only" && (

@@ -7,7 +7,9 @@ import { Pencil } from "lucide-react";
 // key to every visitor's browser, where anyone could read and misuse it.
 // The serverless function keeps the key server-side as an environment variable.
 
-export default function AICoachPage({ currentPatch }) {
+const PATCH_STATUS_LABEL = { verified: "verified", updating: "update in progress", not_reviewed: "not yet reviewed" };
+
+export default function AICoachPage({ currentPatch, patchStatus }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,10 @@ export default function AICoachPage({ currentPatch }) {
           </button>
         </div>
         <p className="coach-disclaimer">An AI feature of Nyx NOONEdd Academy — not a substitute for 1-on-1 coaching.</p>
-        <p className="coach-disclaimer">Builds, tiers, and matchup notes reflect patch {currentPatch || "—"}.</p>
+        <p className="coach-disclaimer">
+          Builds, tiers, and matchup notes target patch {currentPatch || "—"}
+          {patchStatus ? ` (data ${PATCH_STATUS_LABEL[patchStatus] || "not yet reviewed"} for this patch)` : ""}.
+        </p>
       </div>
     </section>
   );

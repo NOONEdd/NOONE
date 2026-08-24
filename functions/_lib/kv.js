@@ -12,7 +12,11 @@ export async function fetchOverrides(kv) {
   // `patch` is the KV-set current-patch override (see
   // src/lib/effectiveData.js's resolveEffectivePatch()); null means
   // "not set," which falls back to src/data/patch.js's static value.
-  const empty = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null };
+  // `verifiedPatch`/`patchStatus` feed resolvePatchDataStatus() in that
+  // same file -- kept alongside `patch` in this one object (not a
+  // separate KV key) so a patch bump and its verification state are
+  // always read/written together, never able to drift out of sync.
+  const empty = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null, verifiedPatch: null, patchStatus: null };
   if (!kv) return empty;
   try {
     const value = await kv.get(KEY);
