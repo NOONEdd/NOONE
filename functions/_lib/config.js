@@ -104,6 +104,6 @@ export const ADMIN_SESSION_COOKIE_NAME = "academy_admin_session";
 // patchIntelligence.js's prompt was also tightened to ask for shorter
 // per-field prose, reducing token pressure at the source rather than
 // only raising the limit.
-export const PATCH_INTEL_MAX_TOKENS = 8192;
+export const PATCH_INTEL_MAX_TOKENS = 16384;
 export const PATCH_INTEL_FALLBACK_MAX_CHARS = 16000; // full patch notes text handed to the AI analyst, not the ~4000-char snippet used for a single chat answer
 export const PATCH_REPORTS_INDEX_LIMIT = 100; // caps patch-intel:reports so that one index key can't grow unbounded across years of patches
