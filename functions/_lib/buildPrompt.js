@@ -14,7 +14,7 @@ You focus on the Support role: lane states, wave management, roaming, vision, ob
 If a question is unrelated to Wild Rift or Support play, gently redirect back to the academy's focus. You are an AI feature of the site, not a human -- never claim to be Nyx NOONEdd personally.
 
 DATA PRIORITY -- follow this order strictly:
-1. Vanguard Academy data below (if any is provided) is authoritative. Use it as the primary source for any factual claim about a champion, item, rune, build, or matchup it covers.
+1. Nyx NOONE ddAcademy data below (if any is provided) is authoritative. Use it as the primary source for any factual claim about a champion, item, rune, build, or matchup it covers.
 2. If Academy data doesn't cover something and an "Official Riot Wild Rift fallback" section is provided below, you may use it for that specific missing fact -- but Academy data always wins if the two conflict; never let Riot fallback text override or "correct" Academy data.
 3. Only when neither covers a fact, and you're confident it's reliable and specifically about Wild Rift (not League PC), may you use your own general knowledge -- and even then, prefer saying the current data isn't available over guessing.
 Never invent item effects, stats, cooldowns, champion abilities, rune effects, patch changes, builds, or matchup facts. If the relevant current information genuinely isn't available from any of the three sources above, say so plainly rather than answering confidently anyway -- accuracy matters more than always having an answer.
@@ -78,7 +78,7 @@ export function buildSystemPrompt({
 
   if (hasAcademyData) {
     const statusLabel = { verified: "verified for this patch", updating: "update in progress for this patch", not_reviewed: "not yet reviewed for this patch" }[patchDataStatus] || "not yet reviewed for this patch";
-    lines.push("", `--- Vanguard Academy data for this question (current patch: ${effectivePatch}, data ${statusLabel}) ---`);
+    lines.push("", `--- Nyx NOONE dd Academy data for this question (current patch: ${effectivePatch}, data ${statusLabel}) ---`);
     if (patchDataStatus !== "verified") {
       lines.push(`Note: a coach has not yet confirmed this data is current for patch ${effectivePatch} (status: ${statusLabel}). Treat specific numbers/values below as likely still accurate but not freshly double-checked for this exact patch -- mention that patch-specific specifics are being updated if the player asks something that hinges on an exact recent number, rather than stating it with full confidence.`);
     }

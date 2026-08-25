@@ -1,4 +1,4 @@
-# Vanguard Academy
+# Nyx NOONE dd Academy
 
 A Wild Rift Support coaching site — champion/item/rune tier lists, matchup guides, a Socratic AI Support Coach, and Patch Intelligence (AI-assisted, coach-reviewed patch analysis). Built with React + Vite, deployed on Cloudflare Pages.
 
@@ -135,7 +135,7 @@ Once KV is set up, edits are real: they save to the live site immediately and sh
 
 Priority order the AI Coach follows for any factual Wild Rift claim, strictly in this order:
 
-1. **Vanguard Academy effective data** — champions/items/runes/builds/matchups/decision trees, resolved from `src/data/*.js` (static baseline) merged with live Coach Mode KV overrides. This is the primary source for essentially everything the AI says about the game.
+1. **Nyx NOONE dd Academy effective data** — champions/items/runes/builds/matchups/decision trees, resolved from `src/data/*.js` (static baseline) merged with live Coach Mode KV overrides. This is the primary source for essentially everything the AI says about the game.
 2. **Official Riot Wild Rift patch notes** — used when Academy data isn't *sufficient* for the specific question, which is not the same as "an entity wasn't found." `functions/_lib/academyCoverage.js` makes this call deterministically (no extra AI call): Academy is treated as insufficient when nothing was grounded at all, when the question asks about a specific mechanical fact (e.g. "cooldown") the grounded text doesn't mention, or when the question is asking what *changed* — Academy only ever holds current data, never a diff against a previous patch. When Riot fallback does run, it discovers Riot's own latest published patch independently (from Riot's patch-notes index, not from Academy's patch) — Academy could say 7.2b while Riot's already on 7.3, and the fallback correctly uses 7.3. A patch explicitly named in the question (e.g. "what changed in 7.1d?") is looked up directly instead. Only `wildrift.leagueoflegends.com`, never a user-supplied URL or third-party site, cached in KV (~12h for "what's latest," ~7 days for a given patch's content since it's immutable once published), 5s timeout, always fails gracefully. See `functions/_lib/riotFallback.js`.
 3. **The model's own general knowledge** — last resort, and only for facts specifically about Wild Rift, never League PC.
 
