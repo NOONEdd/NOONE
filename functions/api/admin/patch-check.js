@@ -44,6 +44,7 @@ import { saveReport, getLastKnownSlug, setLastKnownSlug } from "../../_lib/patch
 import { sendPatchNotification, sendSourceUnavailableNotification } from "../../_lib/notify.js";
 import { resolveActiveProviderAndModel } from "../../_lib/aiProvider.js";
 import { fetchOverrides } from "../../_lib/kv.js";
+import { logPatchIntelEvent } from "../../_lib/logger.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch } from "../../../src/lib/effectiveData.js";
 import { CHAMPIONS } from "../../../src/data/champions.js";
 import { ITEMS } from "../../../src/data/items.js";
@@ -146,9 +147,26 @@ export async function onRequestPost(context) {
   const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 
+  const { provider: aiProvider, model: aiModel } = resolveActiveProviderAndModel(env);
   const analysis = await runPatchIntelAnalysis({ env, patchContent: contentResult.content, championRoster, itemRoster, runeRoster });
 
   if (!analysis.ok) {
+    // Surfaced in two places, both safe/bounded (see patchIntelligence.js
+    // and the two provider adapters -- logDetail never contains an API
+    // key, password, or session token, only reply length/finish-reason/
+    // a truncated raw-reply snippet or a parse-error message):
+    //   1. Cloudflare's real-time Function logs, for deep debugging.
+    //   2. The report's own adminNotes, so the failure reason is visible
+    //      directly in the Admin UI without needing separate log access.
+    // Previously this diagnostic detail was computed by
+    // patchIntelligence.js but discarded here entirely -- the Admin UI
+    // only ever showed the generic top-level error message, with no way
+    // to tell "truncated output" apart from "the model wrote prose
+    // around the JSON" apart from "the provider returned something else
+    // entirely." That gap, not the parser itself, was the main reason
+    // this failure was hard to diagnose.
+    logPatchIntelEvent({ stage: "analysis_failed", slug: latestSlug, provider: aiProvider, model: aiModel, code: analysis.code, detail: analysis.logDetail });
+
     const report = {
       id: latestSlug,
       patch: patchNumber,
@@ -158,13 +176,13 @@ export async function onRequestPost(context) {
       generatedAt: new Date().toISOString(),
       sourceUrl: contentResult.source,
       sourceAvailable: true,
-      aiProvider: null,
-      aiModel: null,
+      aiProvider,
+      aiModel,
       championChanges: [], itemChanges: [], runeChanges: [], systemChanges: [],
       supportMetaAnalysis: "",
       recommendedTierChanges: [],
       sourceReferences: [contentResult.source].filter(Boolean),
-      adminNotes: analysis.error || "",
+      adminNotes: `[${analysis.code}] ${analysis.error || ""}${analysis.logDetail ? `\n\nDiagnostic detail: ${analysis.logDetail}` : ""}`,
       reviewedBy: null,
       reviewedAt: null,
       notifiedAt: null,
@@ -176,10 +194,9 @@ export async function onRequestPost(context) {
     if (trigger === "scheduled") {
       await sendSourceUnavailableNotification({ env, previousPatch, adminReviewUrl });
     }
-    return json({ ok: true, newPatch: true, status: "ai_error", report, aiError: analysis.error });
+    return json({ ok: true, newPatch: true, status: "ai_error", report, aiError: analysis.error, aiErrorCode: analysis.code });
   }
 
-  const { provider: aiProvider, model: aiModel } = resolveActiveProviderAndModel(env);
   const report = {
     id: latestSlug,
     patch: patchNumber,
@@ -198,6 +215,8 @@ export async function onRequestPost(context) {
     reviewedAt: null,
     notifiedAt: null,
   };
+
+  logPatchIntelEvent({ stage: "analysis_succeeded", slug: latestSlug, provider: aiProvider, model: aiModel, parseStrategy: analysis.parseStrategy, championChanges: report.championChanges.length, itemChanges: report.itemChanges.length, runeChanges: report.runeChanges.length, systemChanges: report.systemChanges.length });
 
   await saveReport(kv, report);
   await setLastKnownSlug(kv, latestSlug);

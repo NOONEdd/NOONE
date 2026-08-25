@@ -89,6 +89,21 @@ export const ADMIN_SESSION_COOKIE_NAME = "academy_admin_session";
 // and its own (larger, separately cached) content cap rather than
 // borrowing MAX_TOKENS/RIOT_FALLBACK_MAX_CHARS and silently truncating a
 // real patch's worth of changes.
-export const PATCH_INTEL_MAX_TOKENS = 4096;
+//
+// PATCH_INTEL_MAX_TOKENS was raised from an initial 4096 after a
+// production failure ("the AI analyst didn't return valid JSON")
+// traced to output truncation: the report schema has ~14 fields per
+// change entry across 5 arrays, and a real patch with a double-digit
+// number of Support-relevant changes can genuinely need more than 4096
+// output tokens to finish the JSON object before hitting the cap --
+// stop_reason "max_tokens" was confirmed as the failure mode (see
+// providers/anthropic.js's and providers/openaiCompatible.js's
+// `truncated`/`finishReason` fields, and patchIntelligence.js's
+// dedicated "truncated_output" error code, both added at the same
+// time). This number is a considered ceiling, not a blind bump --
+// patchIntelligence.js's prompt was also tightened to ask for shorter
+// per-field prose, reducing token pressure at the source rather than
+// only raising the limit.
+export const PATCH_INTEL_MAX_TOKENS = 8192;
 export const PATCH_INTEL_FALLBACK_MAX_CHARS = 16000; // full patch notes text handed to the AI analyst, not the ~4000-char snippet used for a single chat answer
 export const PATCH_REPORTS_INDEX_LIMIT = 100; // caps patch-intel:reports so that one index key can't grow unbounded across years of patches

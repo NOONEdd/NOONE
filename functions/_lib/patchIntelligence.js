@@ -39,6 +39,7 @@ HARD RULES -- follow these strictly:
 5. You are an analyst/recommender, not the final authority -- a human coach reviews every report before anything about it goes live, and nothing you output is ever applied automatically. Write reasoning a human can quickly judge and disagree with if needed, not reasoning written to sound maximally confident.
 6. impactSeverity and confidence must each be exactly one of "Low", "Medium", "High". type/buffNerfAdjustment must be exactly one of "Buff", "Nerf", "Adjustment". Do not use any other values or casing.
 7. Respond with ONLY one JSON object matching the schema below. No markdown code fences, no prose before or after it, no comments inside it, no trailing commas.
+8. Keep every text field concise -- one short sentence or a compact phrase is enough for supportImpact, gameplayImplications, buildImplications, runeImplications, matchupImplications, and reasoning. This report needs to be scannable in a couple of minutes, not exhaustive; a patch with many changes needs SHORTER entries, not a longer response, so everything fits.
 
 JSON SCHEMA (every field required; use empty string/array when a field genuinely doesn't apply, never omit the key):
 {
@@ -50,6 +51,86 @@ JSON SCHEMA (every field required; use empty string/array when a field genuinely
   "recommendedTierChanges": [ { "entityType": "champion"|"item"|"rune", "entityName": string, "from": string, "to": string, "reasoning": string, "confidence": "Low"|"Medium"|"High" } ]
 }`;
 
+// JSON-Schema mirror of the prose schema above, for providers that
+// support native structured output (see providers/anthropic.js's forced
+// tool-use, providers/openaiCompatible.js's response_format). Kept as
+// data alongside the prose description rather than generated from it --
+// the two are simple enough to keep in sync by hand, and a hand-written
+// schema is easier to verify against the Anthropic tool-use contract
+// (root must be type:"object") than a generated one.
+const SEVERITY_SCHEMA = { type: "string", enum: SEVERITY_VALUES };
+const CONFIDENCE_SCHEMA = { type: "string", enum: CONFIDENCE_VALUES };
+const TYPE_SCHEMA = { type: "string", enum: TYPE_VALUES };
+
+const CHANGE_ENTRY_BASE_PROPERTIES = {
+  whatChanged: { type: "string" },
+  previousValue: { type: "string" },
+  newValue: { type: "string" },
+  type: TYPE_SCHEMA,
+  supportImpact: { type: "string" },
+  impactSeverity: SEVERITY_SCHEMA,
+  gameplayImplications: { type: "string" },
+  buildImplications: { type: "string" },
+  runeImplications: { type: "string" },
+  matchupImplications: { type: "string" },
+  tierListActionNeeded: { type: "boolean" },
+  recommendedTierAction: { type: "string" },
+  reasoning: { type: "string" },
+  confidence: CONFIDENCE_SCHEMA,
+};
+const CHANGE_ENTRY_BASE_REQUIRED = Object.keys(CHANGE_ENTRY_BASE_PROPERTIES);
+
+function changeEntrySchema(nameField, withChampionsAffected) {
+  const properties = { [nameField]: { type: "string" }, ...CHANGE_ENTRY_BASE_PROPERTIES };
+  const required = [nameField, ...CHANGE_ENTRY_BASE_REQUIRED];
+  if (withChampionsAffected) {
+    properties.championsAffected = { type: "array", items: { type: "string" } };
+    required.push("championsAffected");
+  }
+  return { type: "object", properties, required };
+}
+
+const SYSTEM_CHANGE_SCHEMA = {
+  type: "object",
+  properties: {
+    area: { type: "string" },
+    whatChanged: { type: "string" },
+    supportImpact: { type: "string" },
+    impactSeverity: SEVERITY_SCHEMA,
+    championsAffected: { type: "array", items: { type: "string" } },
+    gameplayImplications: { type: "string" },
+    reasoning: { type: "string" },
+    confidence: CONFIDENCE_SCHEMA,
+  },
+  required: ["area", "whatChanged", "supportImpact", "impactSeverity", "championsAffected", "gameplayImplications", "reasoning", "confidence"],
+};
+
+const RECOMMENDED_TIER_CHANGE_SCHEMA = {
+  type: "object",
+  properties: {
+    entityType: { type: "string", enum: ["champion", "item", "rune"] },
+    entityName: { type: "string" },
+    from: { type: "string" },
+    to: { type: "string" },
+    reasoning: { type: "string" },
+    confidence: CONFIDENCE_SCHEMA,
+  },
+  required: ["entityType", "entityName", "from", "to", "reasoning", "confidence"],
+};
+
+const REPORT_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    supportMetaAnalysis: { type: "string" },
+    championChanges: { type: "array", items: changeEntrySchema("championName", false) },
+    itemChanges: { type: "array", items: changeEntrySchema("itemName", true) },
+    runeChanges: { type: "array", items: changeEntrySchema("runeName", true) },
+    systemChanges: { type: "array", items: SYSTEM_CHANGE_SCHEMA },
+    recommendedTierChanges: { type: "array", items: RECOMMENDED_TIER_CHANGE_SCHEMA },
+  },
+  required: ["supportMetaAnalysis", "championChanges", "itemChanges", "runeChanges", "systemChanges", "recommendedTierChanges"],
+};
+
 function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
   const champLines = championRoster.map((c) => `${c.id}|${c.name}|${c.role}|tier:${c.tier}`).join("\n");
   const itemLines = itemRoster.map((i) => `${i.id}|${i.name}|${i.category}|tier:${i.tier}`).join("\n");
@@ -57,10 +138,93 @@ function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
   return `--- Academy champion roster (id|name|role|current tier) ---\n${champLines}\n\n--- Academy item roster (id|name|category|current tier) ---\n${itemLines}\n\n--- Academy rune roster (id|name|path|current tier) ---\n${runeLines}`;
 }
 
-function stripJsonFences(text) {
-  const trimmed = (text || "").trim();
-  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  return fenced ? fenced[1].trim() : trimmed;
+/** Deterministic, bounded extraction of the first complete top-level
+ *  JSON object from a string that may have stray text around it (a
+ *  model occasionally adding a short preamble or trailing remark
+ *  despite being told not to -- this happens even with the fence check
+ *  above, since there's no fence to strip if the wrapping is just plain
+ *  prose). Walks the string tracking brace depth AND whether we're
+ *  inside a JSON string literal, so a "{" or "}" that's part of a text
+ *  field's actual content (e.g. reasoning mentioning "the {50} shield")
+ *  never confuses the depth count. Stops at the FIRST balanced object.
+ *
+ *  Deliberately NOT "match anything between the outermost braces" --
+ *  that would happily accept a truncated or malformed fragment as if it
+ *  were complete. This only ever returns a substring whose braces are
+ *  genuinely balanced from the scanner's own count, so truncated JSON
+ *  (depth never returns to 0) correctly yields null here, same as
+ *  malformed JSON (yields a substring that then fails JSON.parse). Both
+ *  are still rejected, never guessed at or repaired. */
+function extractFirstJsonObject(text) {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null; // depth never returned to 0 -- unbalanced, i.e. truncated
+}
+
+/** Layered parse, cheapest/strictest first -- stops at the first
+ *  strategy that produces valid JSON:
+ *   1. raw            the whole trimmed reply, as-is. Covers native
+ *                      structured output (already clean JSON) and any
+ *                      provider that just followed instructions exactly.
+ *   2. fenced          the entire trimmed reply is exactly one markdown
+ *                      code fence wrapping JSON.
+ *   3. bounded-extraction   a brace-balanced scan (extractFirstJsonObject
+ *                      above) for the first complete JSON object
+ *                      anywhere in the text -- covers a stray preamble
+ *                      or trailing remark around otherwise-valid JSON.
+ *  Genuinely truncated or malformed JSON fails every strategy (that's
+ *  the correct, intentional outcome -- see extractFirstJsonObject's
+ *  comment). Returns { parsed, strategy } on success, null if every
+ *  strategy failed -- the caller treats null as a hard failure, never a
+ *  reason to guess at a repair. */
+function parseAIJson(rawReply) {
+  const trimmed = (rawReply || "").trim();
+
+  try {
+    return { parsed: JSON.parse(trimmed), strategy: "raw" };
+  } catch {
+    // fall through
+  }
+
+  const fenceMatch = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+  if (fenceMatch) {
+    try {
+      return { parsed: JSON.parse(fenceMatch[1].trim()), strategy: "fenced" };
+    } catch {
+      // fall through -- an opening fence with something unparseable inside is still worth the bounded-extraction attempt below
+    }
+  }
+
+  const extracted = extractFirstJsonObject(trimmed);
+  if (extracted) {
+    try {
+      return { parsed: JSON.parse(extracted), strategy: "bounded-extraction" };
+    } catch {
+      // fall through to final failure
+    }
+  }
+
+  return null;
 }
 
 function enumOrDefault(value, allowed, fallback) {
@@ -176,12 +340,13 @@ export function normalizePatchIntelReport(raw, { championRoster, itemRoster, run
 
 /**
  * Runs the full analysis: builds the analyst prompt from the fetched
- * patch text + Academy roster snapshot, calls the active AI provider,
- * and validates/normalizes the result.
+ * patch text + Academy roster snapshot, calls the active AI provider
+ * (requesting native structured output when the provider supports it --
+ * see aiProvider.js), and validates/normalizes the result.
  *
  * Returns one of:
- *   { ok: true, report: {...normalized fields above...} }
- *   { ok: false, code: "ai_error" | "ai_invalid_output", error, logDetail }
+ *   { ok: true, report: {...normalized fields above...}, parseStrategy }
+ *   { ok: false, code: "ai_error" | "truncated_output" | "ai_invalid_output", error, logDetail }
  * Never throws. Never called with fabricated patch content -- the
  * caller (functions/api/admin/patch-check.js) only invokes this after a
  * successful official-source fetch; a failed fetch produces a
@@ -198,33 +363,53 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
     systemPrompt,
     messages: [{ role: "user", content: "Analyze this patch now and return ONLY the JSON object described in your instructions." }],
     maxTokens: PATCH_INTEL_MAX_TOKENS,
+    jsonSchema: REPORT_JSON_SCHEMA,
   });
 
   if (!result.ok) {
-    return { ok: false, code: "ai_error", error: result.error, logDetail: result.logDetail };
+    return {
+      ok: false,
+      code: result.code === "truncated_output" ? "truncated_output" : "ai_error",
+      error: result.error,
+      logDetail: result.logDetail,
+    };
   }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(stripJsonFences(result.reply));
-  } catch (err) {
+  // Checked BEFORE attempting to parse -- a truncated reply is
+  // deterministically not valid JSON (it was cut off mid-object), so
+  // there's no point running it through the parser just to get a
+  // confusing generic "invalid JSON" error; this gives a specific,
+  // actionable one instead. See providers/anthropic.js /
+  // providers/openaiCompatible.js for how `truncated` is computed from
+  // the provider's own stop/finish reason.
+  if (result.truncated) {
+    return {
+      ok: false,
+      code: "truncated_output",
+      error: `The AI analyst's response was cut off before it finished (hit the ${PATCH_INTEL_MAX_TOKENS}-token output limit) -- most likely too many Support-relevant changes in this patch for the current budget.`,
+      logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}`,
+    };
+  }
+
+  const parseResult = parseAIJson(result.reply);
+  if (!parseResult) {
     return {
       ok: false,
       code: "ai_invalid_output",
       error: "The AI analyst didn't return valid JSON for this patch.",
-      logDetail: `JSON.parse failed: ${err && err.message ? err.message : String(err)}. Raw reply (first 300 chars): ${(result.reply || "").slice(0, 300)}`,
+      logDetail: `All parse strategies failed (raw, fenced, bounded-extraction). finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Raw reply (first 500 chars): ${JSON.stringify((result.reply || "").slice(0, 500))}`,
     };
   }
 
-  const normalized = normalizePatchIntelReport(parsed, { championRoster, itemRoster, runeRoster });
+  const normalized = normalizePatchIntelReport(parseResult.parsed, { championRoster, itemRoster, runeRoster });
   if (!normalized) {
     return {
       ok: false,
       code: "ai_invalid_output",
       error: "The AI analyst's response didn't match the expected report shape.",
-      logDetail: `Parsed JSON was not a usable object: ${JSON.stringify(parsed).slice(0, 300)}`,
+      logDetail: `Parsed via "${parseResult.strategy}" strategy but the shape was unusable: ${JSON.stringify(parseResult.parsed).slice(0, 300)}`,
     };
   }
 
-  return { ok: true, report: normalized };
+  return { ok: true, report: normalized, parseStrategy: parseResult.strategy };
 }

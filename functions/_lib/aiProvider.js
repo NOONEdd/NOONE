@@ -60,8 +60,22 @@ const PROVIDERS = {
  * back to DEFAULT_PROVIDER), looks up the matching adapter, resolves
  * that adapter's API key and model, and calls it. Returns the adapter's
  * normalized result unchanged. NEVER throws.
+ *
+ * `jsonSchema` is OPTIONAL and additive -- omitted, `callAIProvider`
+ * behaves exactly as it always has (this is what functions/api/coach.js
+ * does; AI Coach chat is completely untouched by anything below). When
+ * a caller (currently only functions/_lib/patchIntelligence.js) passes
+ * a JSON-schema-shaped object describing the exact response shape it
+ * needs, adapters that support native structured output use it to
+ * force a schema-conformant response instead of relying on prompt
+ * instructions alone -- see providers/anthropic.js (tool-use forcing)
+ * and providers/openaiCompatible.js (`response_format: json_object`)
+ * for what each adapter actually does with it. An adapter with no
+ * structured-output mechanism is free to ignore this param entirely;
+ * the caller's own JSON parsing (still required either way, since the
+ * result contract stays `reply: string`) is the fallback safety net.
  */
-export async function callAIProvider({ env, systemPrompt, messages, maxTokens }) {
+export async function callAIProvider({ env, systemPrompt, messages, maxTokens, jsonSchema }) {
   const providerName = ((env && env.AI_PROVIDER) || DEFAULT_PROVIDER).toLowerCase().trim();
   const provider = PROVIDERS[providerName];
 
@@ -86,7 +100,7 @@ export async function callAIProvider({ env, systemPrompt, messages, maxTokens })
   // substituting something.
   const model = (env && env.AI_MODEL) || provider.defaultModel || undefined;
 
-  return provider.call({ apiKey, model, maxTokens, systemPrompt, messages, env });
+  return provider.call({ apiKey, model, maxTokens, systemPrompt, messages, env, jsonSchema });
 }
 
 /** Exposed for functions/api/version.js so the version endpoint can
