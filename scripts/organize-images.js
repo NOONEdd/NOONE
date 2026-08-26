@@ -47,10 +47,10 @@ const CHAMPION_IDS = [
 ];
 
 const ITEM_IDS = [
-  "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer",
+  "abyssal-mask","amaranths-twinguard","archangels-staff","ardent-censer","awakened-soulstealer",
   "bandle-fantasy","black-cleaver","boots-of-dynamism","boots-of-mana","bramble-vest","cosmic-drive",
   "dawnshroud","dead-mans-plate","divine-sunderer","duskblade-of-draktharr","eclipse","edge-of-night",
-  "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart",
+  "essence-reaver","executioners-calling","forbidden-idol","force-of-nature","frozen-heart","galeforce",
   "glacial-shroud","harmonic-echo","heartsteel","hollow-radiance","iceborn-gauntlet","imperial-mandate",
   "infinity-orb","ionian-boots","kaenic-rookern","knights-vow","liandrys-torment","locket",
   "lord-dominiks-regards","ludens-echo","malignance","mercurys-treads","morellonomicon","mortal-reminder",
@@ -58,7 +58,7 @@ const ITEM_IDS = [
   "rabadons-deathcap","radiant-virtue","randuins-omen","redemption","rylais-crystal-scepter",
   "searing-crown","serpents-fang","serylda-grudge","spectres-cowl","staff-of-flowing-water",
   "stasis-enchant","stoneplate-enchant","sunfire-aegis","surging-scales","tear-of-the-goddess",
-  "the-collector","thornmail","unending-despair","mikael's-blessing","wardens-mail","warmogs-armor",
+  "the-collector","thornmail","unending-despair","mikeal's-blessing","wardens-mail","warmogs-armor",
   "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","spellslinger's-shoes","chainlaced-crusher","armored-advance","armor-crusher-boots","crimson-lucidity",
   "Stormsurge","Banshee's Veil","Void Staff","Cryptobloom","Bloodletter's Curse","Blackfire Torch","Protobelt","LichBane",
 ];

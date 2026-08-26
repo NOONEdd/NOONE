@@ -248,16 +248,43 @@ function strArray(value) {
  *  id, so the frontend/report never has to trust the model's spelling
  *  or guesswork about ids it was never actually given (the prompt above
  *  only hands it id|name pairs for CONTEXT, not asks it to invent ids).
- *  Exact case-insensitive match first, then a light substring match;
- *  returns null (not a guess) if nothing reasonably matches -- the raw
- *  name the AI gave is always preserved separately regardless, so a
- *  failed match never loses information, it just can't deep-link. */
+ *  Exact case-insensitive, apostrophe-style-insensitive match first
+ *  (see normalizeForMatch above), then the same-normalized substring
+ *  match; returns null (not a guess) if nothing reasonably matches --
+ *  the raw name the AI gave is always preserved separately regardless,
+ *  so a failed match never loses information, it just can't deep-link. */
+// Wild Rift patch analysis is free-flowing prose, and models commonly
+// render an apostrophe as a "smart"/typographic quote (' U+2018/U+2019,
+// or the Unicode-recommended modifier-letter apostrophe U+02BC) even
+// when the canonical Academy name in src/data/*.js uses a plain
+// straight apostrophe (' U+0027) -- e.g. the model writing "Mikael's
+// Blessing" with a curly apostrophe against a roster entry literally
+// named "Mikael's Blessing" with a straight one. A plain string
+// comparison treats those as entirely different characters, so the
+// NAME still displays correctly (itemName/championName/runeName is
+// always stored verbatim from the AI, regardless of whether resolution
+// below succeeds) while the id resolution silently fails -- the report
+// shows the right name next to the generic fallback icon instead of the
+// real image, because championId/itemId/runeId came back null.
+// Normalizing every apostrophe-like character to one form on BOTH sides
+// before comparing -- never touching the canonical id/name data itself,
+// which src/data/*.js and the id this function returns are unaffected
+// by -- closes that gap for every champion/item/rune this way, not
+// only one example.
+const APOSTROPHE_VARIANTS = /['\u2018\u2019\u02BC]/g;
+function normalizeForMatch(value) {
+  return value.replace(APOSTROPHE_VARIANTS, "'");
+}
+
 function resolveEntityId(name, roster) {
   if (!name) return null;
-  const target = name.trim().toLowerCase();
-  const exact = roster.find((e) => e.name.toLowerCase() === target);
+  const target = normalizeForMatch(name.trim().toLowerCase());
+  const exact = roster.find((e) => normalizeForMatch(e.name.toLowerCase()) === target);
   if (exact) return exact.id;
-  const partial = roster.find((e) => target.includes(e.name.toLowerCase()) || e.name.toLowerCase().includes(target));
+  const partial = roster.find((e) => {
+    const normalizedName = normalizeForMatch(e.name.toLowerCase());
+    return target.includes(normalizedName) || normalizedName.includes(target);
+  });
   return partial ? partial.id : null;
 }
 
