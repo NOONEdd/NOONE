@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Radar } from "lucide-react";
 import { PatchStatusBanner } from "../components/PatchStatus.jsx";
+import EntityImage from "../components/EntityImage.jsx";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 
@@ -8,10 +9,11 @@ function SeverityChip({ severity }) {
   return <span className="severity-chip" style={{ "--sc": SEVERITY_COLOR[severity] || "var(--text-dimmer)" }}>{severity}</span>;
 }
 
-function PublicChangeRow({ entry, nameField }) {
+function PublicChangeRow({ entry, nameField, entityType, idField, roster }) {
   return (
     <div className="patch-entry-card">
       <div className="patch-entry-head">
+        {entityType && <EntityImage entityType={entityType} entityId={entry[idField]} entityName={entry[nameField]} roster={roster} />}
         <span className="patch-entry-name">{entry[nameField]}</span>
         <span className="patch-entry-type">{entry.type}</span>
         <SeverityChip severity={entry.impactSeverity} />
@@ -25,7 +27,7 @@ function PublicChangeRow({ entry, nameField }) {
   );
 }
 
-function PublicReportCard({ report }) {
+function PublicReportCard({ report, roster }) {
   const [expanded, setExpanded] = useState(false);
   const totalChanges = report.championChanges.length + report.itemChanges.length + report.runeChanges.length + report.systemChanges.length;
 
@@ -44,19 +46,19 @@ function PublicReportCard({ report }) {
           {report.championChanges.length > 0 && (
             <>
               <h4 className="patch-section-label">Champions</h4>
-              {report.championChanges.map((e, i) => <PublicChangeRow key={i} entry={e} nameField="championName" />)}
+              {report.championChanges.map((e, i) => <PublicChangeRow key={i} entry={e} nameField="championName" entityType="champion" idField="championId" roster={roster.champions} />)}
             </>
           )}
           {report.itemChanges.length > 0 && (
             <>
               <h4 className="patch-section-label">Items</h4>
-              {report.itemChanges.map((e, i) => <PublicChangeRow key={i} entry={e} nameField="itemName" />)}
+              {report.itemChanges.map((e, i) => <PublicChangeRow key={i} entry={e} nameField="itemName" entityType="item" idField="itemId" roster={roster.items} />)}
             </>
           )}
           {report.runeChanges.length > 0 && (
             <>
               <h4 className="patch-section-label">Runes</h4>
-              {report.runeChanges.map((e, i) => <PublicChangeRow key={i} entry={e} nameField="runeName" />)}
+              {report.runeChanges.map((e, i) => <PublicChangeRow key={i} entry={e} nameField="runeName" entityType="rune" idField="runeId" roster={roster.runes} />)}
             </>
           )}
           {report.systemChanges.length > 0 && (
@@ -78,7 +80,7 @@ function PublicReportCard({ report }) {
   );
 }
 
-export default function PatchIntelligencePage({ currentPatch, patchStatus }) {
+export default function PatchIntelligencePage({ currentPatch, patchStatus, champions, items, runes }) {
   const [reports, setReports] = useState(null);
   const [error, setError] = useState(null);
 
@@ -116,7 +118,7 @@ export default function PatchIntelligencePage({ currentPatch, patchStatus }) {
 
         {reports && reports.length > 0 && (
           <div className="patch-report-list" style={{ marginTop: 24 }}>
-            {reports.map((r) => <PublicReportCard key={r.id} report={r} />)}
+            {reports.map((r) => <PublicReportCard key={r.id} report={r} roster={{ champions, items, runes }} />)}
           </div>
         )}
       </div>

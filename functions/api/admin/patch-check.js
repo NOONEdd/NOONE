@@ -165,7 +165,7 @@ export async function onRequestPost(context) {
     // around the JSON" apart from "the provider returned something else
     // entirely." That gap, not the parser itself, was the main reason
     // this failure was hard to diagnose.
-    logPatchIntelEvent({ stage: "analysis_failed", slug: latestSlug, provider: aiProvider, model: aiModel, code: analysis.code, detail: analysis.logDetail });
+    logPatchIntelEvent({ stage: "analysis_failed", slug: latestSlug, provider: aiProvider, model: aiModel, code: analysis.code, detail: analysis.logDetail, tokenBudget: analysis.tokenBudget });
 
     const report = {
       id: latestSlug,
@@ -216,7 +216,11 @@ export async function onRequestPost(context) {
     notifiedAt: null,
   };
 
-  logPatchIntelEvent({ stage: "analysis_succeeded", slug: latestSlug, provider: aiProvider, model: aiModel, parseStrategy: analysis.parseStrategy, championChanges: report.championChanges.length, itemChanges: report.itemChanges.length, runeChanges: report.runeChanges.length, systemChanges: report.systemChanges.length });
+  // tokenBudget carries the adaptive-budget diagnostics from
+  // estimatePatchIntelTokenBudget() (functions/_lib/patchIntelligence.js) --
+  // estimated entry count and the resulting maxTokens actually used for
+  // THIS patch, safe to log (no secrets, just counts/numbers).
+  logPatchIntelEvent({ stage: "analysis_succeeded", slug: latestSlug, provider: aiProvider, model: aiModel, parseStrategy: analysis.parseStrategy, championChanges: report.championChanges.length, itemChanges: report.itemChanges.length, runeChanges: report.runeChanges.length, systemChanges: report.systemChanges.length, tokenBudget: analysis.tokenBudget });
 
   await saveReport(kv, report);
   await setLastKnownSlug(kv, latestSlug);

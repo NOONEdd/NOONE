@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink } from "lucide-react";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
+import EntityImage from "../components/EntityImage.jsx";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 const CONFIDENCE_COLOR = { Low: "var(--text-dimmer)", Medium: "var(--text-dim)", High: "var(--cyan)" };
@@ -28,12 +29,22 @@ const STATUS_LABEL = {
  *  judgment-call fields most worth a human correcting (severity,
  *  confidence, recommended tier action, reasoning) -- see AdminPage's
  *  top comment for why the raw extracted facts (whatChanged/previousValue/
- *  newValue/etc.) stay read-only rather than every field being editable. */
-function ChangeEntryCard({ entry, nameField, editMode, onChange }) {
+ *  newValue/etc.) stay read-only rather than every field being editable.
+ *
+ *  `entityType`/`idField`/`roster` are only passed for champion/item/rune
+ *  entries (not systemChanges, which have no single resolvable entity --
+ *  `nameField="area"` there is a category like "Roaming", not a real
+ *  champion/item/rune name) -- see the four call sites below. When
+ *  present, renders the same image+fallback-icon pattern the rest of the
+ *  site already uses (src/components/EntityImage.jsx), keyed off the id
+ *  functions/_lib/patchIntelligence.js's own normalization already
+ *  resolved server-side -- never an AI-supplied name or URL. */
+function ChangeEntryCard({ entry, nameField, entityType, idField, roster, editMode, onChange }) {
   const name = entry[nameField];
   return (
     <div className="patch-entry-card">
       <div className="patch-entry-head">
+        {entityType && <EntityImage entityType={entityType} entityId={entry[idField]} entityName={name} roster={roster} />}
         <span className="patch-entry-name">{name}</span>
         <span className="patch-entry-type">{entry.type}</span>
         <SeverityChip severity={entry.impactSeverity} />
@@ -87,7 +98,7 @@ function ChangeEntryCard({ entry, nameField, editMode, onChange }) {
   );
 }
 
-function ReportCard({ report, onAction, busy, initiallyExpanded }) {
+function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
   const [expanded, setExpanded] = useState(Boolean(initiallyExpanded));
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -149,7 +160,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded }) {
                 <>
                   <h4 className="patch-section-label">Champions</h4>
                   {data.championChanges.map((e, i) => (
-                    <ChangeEntryCard key={i} entry={e} nameField="championName" editMode={editMode} onChange={(u) => updateEntryAt("championChanges", i, u)} />
+                    <ChangeEntryCard key={i} entry={e} nameField="championName" entityType="champion" idField="championId" roster={roster.champions} editMode={editMode} onChange={(u) => updateEntryAt("championChanges", i, u)} />
                   ))}
                 </>
               )}
@@ -157,7 +168,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded }) {
                 <>
                   <h4 className="patch-section-label">Items</h4>
                   {data.itemChanges.map((e, i) => (
-                    <ChangeEntryCard key={i} entry={e} nameField="itemName" editMode={editMode} onChange={(u) => updateEntryAt("itemChanges", i, u)} />
+                    <ChangeEntryCard key={i} entry={e} nameField="itemName" entityType="item" idField="itemId" roster={roster.items} editMode={editMode} onChange={(u) => updateEntryAt("itemChanges", i, u)} />
                   ))}
                 </>
               )}
@@ -165,7 +176,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded }) {
                 <>
                   <h4 className="patch-section-label">Runes</h4>
                   {data.runeChanges.map((e, i) => (
-                    <ChangeEntryCard key={i} entry={e} nameField="runeName" editMode={editMode} onChange={(u) => updateEntryAt("runeChanges", i, u)} />
+                    <ChangeEntryCard key={i} entry={e} nameField="runeName" entityType="rune" idField="runeId" roster={roster.runes} editMode={editMode} onChange={(u) => updateEntryAt("runeChanges", i, u)} />
                   ))}
                 </>
               )}
@@ -255,7 +266,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded }) {
   );
 }
 
-export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStatus, patchVerification }) {
+export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStatus, patchVerification, champions, items, runes }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [loginError, setLoginError] = useState(null);
   const [verifying, setVerifying] = useState(false);
@@ -421,7 +432,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
           {reports && reports.length > 0 && (
             <div className="patch-report-list">
               {reports.map((summary) => (
-                <ReportCardLoader key={summary.id} id={summary.id} summary={summary} onAction={handleAction} busy={busyId === summary.id} />
+                <ReportCardLoader key={summary.id} id={summary.id} summary={summary} onAction={handleAction} busy={busyId === summary.id} roster={{ champions, items, runes }} />
               ))}
             </div>
           )}
@@ -436,7 +447,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
  *  listAllReports) -- this fetches the ONE full report body lazily,
  *  only for whichever card the admin actually expands, rather than the
  *  list view pulling every report's full analysis up front. */
-function ReportCardLoader({ id, summary, onAction, busy }) {
+function ReportCardLoader({ id, summary, onAction, busy, roster }) {
   const [full, setFull] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -464,5 +475,5 @@ function ReportCardLoader({ id, summary, onAction, busy }) {
       </div>
     );
   }
-  return <ReportCard report={full} onAction={onAction} busy={busy} initiallyExpanded />;
+  return <ReportCard report={full} onAction={onAction} busy={busy} initiallyExpanded roster={roster} />;
 }

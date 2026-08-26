@@ -580,6 +580,18 @@
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* ENTITY IMAGE (src/components/EntityImage.jsx) -- same layered
+   icon-underneath / real-image-on-top pattern as .chip-icon-wrap /
+   .chip-portrait above (RankChip.jsx), just sized for inline use next
+   to a report entry's name instead of centered atop a whole card. */
+.entity-image-wrap {
+  position: relative; flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 28%, transparent), transparent 70%);
+  color: var(--accent);
+}
+.entity-image-portrait { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
 @media (max-width: 640px) {
   .patch-report-header { gap: 8px; }
   .patch-report-date { margin-left: 0; width: 100%; }

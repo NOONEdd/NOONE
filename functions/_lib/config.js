@@ -90,20 +90,99 @@ export const ADMIN_SESSION_COOKIE_NAME = "academy_admin_session";
 // borrowing MAX_TOKENS/RIOT_FALLBACK_MAX_CHARS and silently truncating a
 // real patch's worth of changes.
 //
-// PATCH_INTEL_MAX_TOKENS was raised from an initial 4096 after a
-// production failure ("the AI analyst didn't return valid JSON")
-// traced to output truncation: the report schema has ~14 fields per
-// change entry across 5 arrays, and a real patch with a double-digit
-// number of Support-relevant changes can genuinely need more than 4096
-// output tokens to finish the JSON object before hitting the cap --
-// stop_reason "max_tokens" was confirmed as the failure mode (see
+// PATCH_INTEL_MAX_TOKENS was originally a single fixed value, raised
+// from 4096 to 8192 after a production failure ("the AI analyst didn't
+// return valid JSON") traced to output truncation: the report schema
+// has ~14 fields per change entry across 5 arrays, and a real patch
+// with a double-digit number of Support-relevant changes can genuinely
+// need more output tokens to finish the JSON object than a quiet patch
+// -- stop_reason "max_tokens" was confirmed as the failure mode (see
 // providers/anthropic.js's and providers/openaiCompatible.js's
 // `truncated`/`finishReason` fields, and patchIntelligence.js's
-// dedicated "truncated_output" error code, both added at the same
-// time). This number is a considered ceiling, not a blind bump --
-// patchIntelligence.js's prompt was also tightened to ask for shorter
-// per-field prose, reducing token pressure at the source rather than
-// only raising the limit.
+// dedicated "truncated_output" error code).
+//
+// A single fixed value is still the wrong shape for this, though: a
+// quiet patch (one champion tweak) and a huge one (a full rework wave)
+// don't need the same budget, and picking one fixed number always means
+// either wasting budget on small patches or eventually re-hitting this
+// same truncation failure on a big one. functions/_lib/patchIntelligence.js's
+// estimatePatchIntelTokenBudget() now computes a per-patch estimate from
+// two signals available BEFORE the AI call -- never from asking the
+// model -- and clamps it between the two constants below:
+//
+//   PATCH_INTEL_MIN_TOKENS   a floor generous enough that even a
+//                            genuinely quiet patch (empty arrays, one
+//                            short supportMetaAnalysis sentence) is
+//                            never starved by an under-estimate -- the
+//                            JSON skeleton plus one full change entry
+//                            costs a few hundred tokens at most, so
+//                            1024 leaves real headroom without wasting
+//                            much on a small patch.
+//   PATCH_INTEL_MAX_TOKENS   the HARD ceiling -- estimates are always
+//                            clamped to this regardless of how large a
+//                            patch looks, so a mis-estimate can make a
+//                            request smaller than ideal but never
+//                            larger than this. Chosen as a considered,
+//                            conservative value rather than an
+//                            arbitrarily huge one (requirement: "do not
+//                            solve the problem by making the maximum
+//                            enormous") -- 16384 is comfortably within
+//                            the STANDARD (non-beta) output-token limit
+//                            of every current Claude Sonnet/Opus-class
+//                            model this project's Anthropic adapter
+//                            targets, and within the range most
+//                            OpenAI-compatible backends (OpenAI itself,
+//                            OpenRouter, Groq, Together, etc.) support
+//                            for max_tokens without special
+//                            configuration. It cannot be verified against
+//                            every possible AI_MODEL string someone
+//                            might configure (openai-compatible allows
+//                            literally any backend) -- if a specific
+//                            configured model is confirmed to support a
+//                            verified higher limit, this constant is the
+//                            one place to raise it, deliberately kept as
+//                            a single easy-to-find ceiling rather than a
+//                            speculative per-model lookup table this
+//                            codebase has no reliable way to keep
+//                            accurate.
+//
+// These estimation constants (also in patchIntelligence.js's
+// estimatePatchIntelTokenBudget(), kept alongside the MIN/MAX above
+// since they're the other half of the same clamp formula):
+//   PATCH_INTEL_BASE_TOKENS         fixed overhead per report: the JSON
+//                                   skeleton itself (empty arrays, keys,
+//                                   braces) plus a short
+//                                   supportMetaAnalysis sentence -- ~500
+//                                   tokens covers this comfortably even
+//                                   before a single change entry is
+//                                   added.
+//   PATCH_INTEL_TOKENS_PER_ENTRY    ~130 tokens per estimated change
+//                                   entry -- reasoned from the schema's
+//                                   ~14 fields once the prompt asks for
+//                                   concise phrases rather than
+//                                   sentences (short values: ~75-85
+//                                   tokens, plus JSON key/quote/comma
+//                                   structural overhead: ~40-50 tokens).
+//   PATCH_INTEL_CHARS_PER_EXTRA_ENTRY   used as a secondary, input-size-based
+//                                   signal (raw official patch-notes
+//                                   character count / this value) for
+//                                   change entries the name-matching
+//                                   signal can't see -- untitled system/
+//                                   meta changes (roaming, vision,
+//                                   objectives) that don't name a
+//                                   specific champion/item/rune but
+//                                   still cost systemChanges[] output.
+//                                   300 chars/entry is an approximate,
+//                                   deliberately conservative (i.e.
+//                                   erring toward a HIGHER entry count,
+//                                   not a lower one) read of how much
+//                                   text Wild Rift's patch notes
+//                                   typically spend describing one
+//                                   change.
+export const PATCH_INTEL_MIN_TOKENS = 1024;
 export const PATCH_INTEL_MAX_TOKENS = 16384;
+export const PATCH_INTEL_BASE_TOKENS = 500;
+export const PATCH_INTEL_TOKENS_PER_ENTRY = 130;
+export const PATCH_INTEL_CHARS_PER_EXTRA_ENTRY = 300;
 export const PATCH_INTEL_FALLBACK_MAX_CHARS = 16000; // full patch notes text handed to the AI analyst, not the ~4000-char snippet used for a single chat answer
 export const PATCH_REPORTS_INDEX_LIMIT = 100; // caps patch-intel:reports so that one index key can't grow unbounded across years of patches

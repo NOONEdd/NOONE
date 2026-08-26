@@ -79,13 +79,13 @@ export default function App() {
   } else if (route.page === "ai-coach") {
     content = <AICoachPage currentPatch={effectivePatch} patchStatus={patchStatus} />;
   } else if (route.page === "patch-intelligence") {
-    content = <PatchIntelligencePage currentPatch={effectivePatch} patchStatus={patchStatus} />;
+    content = <PatchIntelligencePage currentPatch={effectivePatch} patchStatus={patchStatus} champions={champions} items={items} runes={runes} />;
   } else if (route.page === "admin") {
     // Deliberately NOT in NAV_LINKS / any visible nav element -- reached
     // only by navigating here directly (e.g. a bookmark). See
     // src/pages/AdminPage.jsx's top comment and README's "Safe Browsing
     // cleanup" section for why this replaced the old ?coach reveal.
-    content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} />;
+    content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} champions={champions} items={items} runes={runes} />;
   } else {
     content = <HomePage champions={champions} />;
   }
