@@ -58,7 +58,7 @@ const ITEM_IDS = [
   "rabadons-deathcap","radiant-virtue","randuins-omen","redemption","rylais-crystal-scepter",
   "searing-crown","serpents-fang","serylda-grudge","spectres-cowl","staff-of-flowing-water",
   "stasis-enchant","stoneplate-enchant","sunfire-aegis","surging-scales","tear-of-the-goddess",
-  "the-collector","thornmail","unending-despair","mikeal's-blessing","wardens-mail","warmogs-armor",
+  "the-collector","thornmail","unending-despair","mikael's-blessing","wardens-mail","warmogs-armor",
   "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","spellslinger's-shoes","chainlaced-crusher","armored-advance","armor-crusher-boots","crimson-lucidity",
   "Stormsurge","Banshee's Veil","Void Staff","Cryptobloom","Bloodletter's Curse","Blackfire Torch","Protobelt","LichBane",
 ];
