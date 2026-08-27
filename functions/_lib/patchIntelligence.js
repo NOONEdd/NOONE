@@ -24,6 +24,13 @@
 
 import { PATCH_INTEL_MIN_TOKENS, PATCH_INTEL_MAX_TOKENS, PATCH_INTEL_BASE_TOKENS, PATCH_INTEL_TOKENS_PER_ENTRY, PATCH_INTEL_CHARS_PER_EXTRA_ENTRY } from "./config.js";
 import { callAIProvider } from "./aiProvider.js";
+// The SAME free-text-name -> Academy-entity resolver the rest of the
+// site already uses (src/components/BuildBoard.jsx, BuildList.jsx,
+// BuildEditor.jsx, ItemRunePicker.jsx for Coach Mode build/rune names;
+// src/components/EntityImage.jsx for these reports' own images) --
+// see resolveEntityId() below for why Patch Intelligence no longer
+// keeps its own copy of this matching logic.
+import { findCanonicalId } from "../../src/utils/images.js";
 
 const SEVERITY_VALUES = ["Low", "Medium", "High"];
 const CONFIDENCE_VALUES = ["Low", "Medium", "High"];
@@ -248,44 +255,37 @@ function strArray(value) {
  *  id, so the frontend/report never has to trust the model's spelling
  *  or guesswork about ids it was never actually given (the prompt above
  *  only hands it id|name pairs for CONTEXT, not asks it to invent ids).
- *  Exact case-insensitive, apostrophe-style-insensitive match first
- *  (see normalizeForMatch above), then the same-normalized substring
- *  match; returns null (not a guess) if nothing reasonably matches --
- *  the raw name the AI gave is always preserved separately regardless,
- *  so a failed match never loses information, it just can't deep-link. */
-// Wild Rift patch analysis is free-flowing prose, and models commonly
-// render an apostrophe as a "smart"/typographic quote (' U+2018/U+2019,
-// or the Unicode-recommended modifier-letter apostrophe U+02BC) even
-// when the canonical Academy name in src/data/*.js uses a plain
-// straight apostrophe (' U+0027) -- e.g. the model writing "Mikael's
-// Blessing" with a curly apostrophe against a roster entry literally
-// named "Mikael's Blessing" with a straight one. A plain string
-// comparison treats those as entirely different characters, so the
-// NAME still displays correctly (itemName/championName/runeName is
-// always stored verbatim from the AI, regardless of whether resolution
-// below succeeds) while the id resolution silently fails -- the report
-// shows the right name next to the generic fallback icon instead of the
-// real image, because championId/itemId/runeId came back null.
-// Normalizing every apostrophe-like character to one form on BOTH sides
-// before comparing -- never touching the canonical id/name data itself,
-// which src/data/*.js and the id this function returns are unaffected
-// by -- closes that gap for every champion/item/rune this way, not
-// only one example.
-const APOSTROPHE_VARIANTS = /['\u2018\u2019\u02BC]/g;
-function normalizeForMatch(value) {
-  return value.replace(APOSTROPHE_VARIANTS, "'");
-}
-
+ *
+ *  Delegates entirely to src/utils/images.js's findCanonicalId() -- this
+ *  file used to hand-roll its own copy of that exact matching logic
+ *  (including its own apostrophe-style normalization for the common
+ *  case of the AI rendering "Mikael's Blessing" with a curly quote
+ *  against a roster entry that spells it with a straight one). That was
+ *  precisely the kind of second, drift-prone resolver this project's
+ *  image architecture is meant to avoid -- findCanonicalId() now carries
+ *  that same apostrophe-insensitivity for every caller (Coach Mode's
+ *  build/rune tools included), not just this one, so there's exactly one
+ *  place that logic can ever need fixing again.
+ *
+ *  The one thing this wrapper adds on top of findCanonicalId(): that
+ *  function always returns SOMETHING, falling back to a bare slugify
+ *  guess when nothing in the list matches (its other callers build a
+ *  display id either way). A report's championId/itemId/runeId needs a
+ *  stricter contract -- null, not a guess, when nothing in Academy's own
+ *  roster actually matches -- so a mentioned-but-untracked name resolves
+ *  to nothing rather than to a plausible-looking but fabricated id.
+ *  Checking the result against the real roster is what enforces that.
+ *  The raw name the AI gave is always preserved separately regardless
+ *  (itemName/championName/runeName below), so a failed match never
+ *  loses information -- see src/components/EntityImage.jsx, which
+ *  re-resolves from that same name independently at render time rather
+ *  than trusting this value forever, so a report is never permanently
+ *  stuck showing the fallback icon just because resolution happened to
+ *  miss once at generation time. */
 function resolveEntityId(name, roster) {
   if (!name) return null;
-  const target = normalizeForMatch(name.trim().toLowerCase());
-  const exact = roster.find((e) => normalizeForMatch(e.name.toLowerCase()) === target);
-  if (exact) return exact.id;
-  const partial = roster.find((e) => {
-    const normalizedName = normalizeForMatch(e.name.toLowerCase());
-    return target.includes(normalizedName) || normalizedName.includes(target);
-  });
-  return partial ? partial.id : null;
+  const id = findCanonicalId(name, roster);
+  return roster.some((entity) => entity.id === id) ? id : null;
 }
 
 function normalizeChangeEntry(entry, { withChampionsAffected }) {

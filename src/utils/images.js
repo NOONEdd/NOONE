@@ -40,20 +40,54 @@ export function stripAnnotation(name) {
   return name.replace(/\s*\([^)]*\)\s*$/, "").trim();
 }
 
+// Free text -- AI-generated or hand-typed -- sometimes renders an
+// apostrophe as a "smart"/typographic quote (' U+2018/U+2019, or the
+// Unicode-recommended modifier-letter apostrophe U+02BC) even when the
+// canonical name in src/data/*.js uses a plain straight one (' U+0027)
+// -- e.g. "Mikael's Blessing" (curly) vs. a roster entry literally
+// named "Mikael's Blessing" (straight). A naive comparison treats those
+// as different characters and the match silently fails. Normalizing
+// every apostrophe-like character to one form before comparing (both
+// sides) closes that gap for EVERY caller of findCanonicalId below --
+// Coach Mode build/rune notes and Patch Intelligence's AI-extracted
+// entity names alike -- from this one place, rather than each caller
+// (or worse, each feature) needing its own copy of this normalization.
+// Deliberately NOT applied inside slugify() itself: slugify's own
+// apostrophe-stripping behavior is already relied on as-is by its other
+// callers (e.g. spell-name lookups), and this is only about making the
+// MATCH step apostrophe-style-insensitive, not changing what id gets
+// produced when nothing matches.
+const APOSTROPHE_VARIANTS = /['\u2018\u2019\u02BC]/g;
+function normalizeApostrophes(value) {
+  return value.replace(APOSTROPHE_VARIANTS, "'");
+}
+
 /** Resolves a hand-written name (e.g. "Locket" or "Ionian Boots of
  *  Lucidity") to the real id used in the canonical items/runes list, so
  *  build entries don't need an explicit `id` field to display correctly.
+ *  This is the ONE canonical "free-text name -> Academy entity" resolver
+ *  for the whole project: src/components/BuildBoard.jsx, BuildList.jsx,
+ *  BuildEditor.jsx, and ItemRunePicker.jsx already call this for
+ *  hand-written Coach Mode build/rune names, and src/components/
+ *  EntityImage.jsx (Patch Intelligence's report images) calls this same
+ *  function for the AI's extracted entity names -- nobody maintains a
+ *  second copy of this matching logic.
  *  Tries, in order: exact match, then substring match in either
  *  direction (covers shorthand like "Locket" matching "Locket of the
- *  Iron Solari"). Falls back to a plain slugify of the cleaned name if
- *  nothing in the list matches, so behavior never gets worse than before. */
+ *  Iron Solari") -- both apostrophe-style-insensitive (see
+ *  normalizeApostrophes above). Falls back to a plain slugify of the
+ *  cleaned name if nothing in the list matches, so behavior never gets
+ *  worse than before -- callers that need to know whether a match was a
+ *  REAL roster hit (vs. a fabricated slugify guess) should check the
+ *  returned id against the list themselves, e.g.
+ *  `canonicalList.some(c => c.id === id)` (see EntityImage.jsx). */
 export function findCanonicalId(rawName, canonicalList) {
   const cleaned = stripAnnotation(rawName);
-  const normalized = cleaned.toLowerCase();
-  const exact = canonicalList.find((c) => c.name.toLowerCase() === normalized);
+  const normalized = normalizeApostrophes(cleaned.toLowerCase());
+  const exact = canonicalList.find((c) => normalizeApostrophes(c.name.toLowerCase()) === normalized);
   if (exact) return exact.id;
   const partial = canonicalList.find((c) => {
-    const cName = c.name.toLowerCase();
+    const cName = normalizeApostrophes(c.name.toLowerCase());
     return cName.includes(normalized) || normalized.includes(cName);
   });
   if (partial) return partial.id;
@@ -88,7 +122,6 @@ const ALIASES = {
   "i:spectres-cowl": ["80px-spectre_s_cowl_wr_item", "spectres_cowl", "spectre's-cowl"],
   "i:tear-of-the-goddess": ["80px-tear_of_the_goddess_wr_item", "tear_of_the_goddess", "Tear_of_the_Goddess"],
   "i:stormsurge": ["storm_surge", "stormsurge"],
-  "i:mikael's-blessing": ["mikael's-blessing", "mikael's-blessing"],
   "i:banshee's-veil": ["banshee's-veil", "banshees-veil"],
   "i:cryptobloom": ["cryptobloom"],
   "i:bloodletter's-curse": ["bloodletter's-curse", "bloodletters-curse"],

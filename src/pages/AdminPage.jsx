@@ -31,20 +31,21 @@ const STATUS_LABEL = {
  *  top comment for why the raw extracted facts (whatChanged/previousValue/
  *  newValue/etc.) stay read-only rather than every field being editable.
  *
- *  `entityType`/`idField`/`roster` are only passed for champion/item/rune
- *  entries (not systemChanges, which have no single resolvable entity --
+ *  `entityType`/`roster` are only passed for champion/item/rune entries
+ *  (not systemChanges, which have no single resolvable entity --
  *  `nameField="area"` there is a category like "Roaming", not a real
  *  champion/item/rune name) -- see the four call sites below. When
  *  present, renders the same image+fallback-icon pattern the rest of the
- *  site already uses (src/components/EntityImage.jsx), keyed off the id
- *  functions/_lib/patchIntelligence.js's own normalization already
- *  resolved server-side -- never an AI-supplied name or URL. */
-function ChangeEntryCard({ entry, nameField, entityType, idField, roster, editMode, onChange }) {
+ *  site already uses (src/components/EntityImage.jsx), which resolves
+ *  the entity live from its name via the same canonical resolver Coach
+ *  Mode's build tools use (src/utils/images.js's findCanonicalId()) --
+ *  never an AI-supplied id or URL. */
+function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onChange }) {
   const name = entry[nameField];
   return (
     <div className="patch-entry-card">
       <div className="patch-entry-head">
-        {entityType && <EntityImage entityType={entityType} entityId={entry[idField]} entityName={name} roster={roster} />}
+        {entityType && <EntityImage entityType={entityType} entityName={name} roster={roster} />}
         <span className="patch-entry-name">{name}</span>
         <span className="patch-entry-type">{entry.type}</span>
         <SeverityChip severity={entry.impactSeverity} />
@@ -160,7 +161,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
                 <>
                   <h4 className="patch-section-label">Champions</h4>
                   {data.championChanges.map((e, i) => (
-                    <ChangeEntryCard key={i} entry={e} nameField="championName" entityType="champion" idField="championId" roster={roster.champions} editMode={editMode} onChange={(u) => updateEntryAt("championChanges", i, u)} />
+                    <ChangeEntryCard key={i} entry={e} nameField="championName" entityType="champion" roster={roster.champions} editMode={editMode} onChange={(u) => updateEntryAt("championChanges", i, u)} />
                   ))}
                 </>
               )}
@@ -168,7 +169,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
                 <>
                   <h4 className="patch-section-label">Items</h4>
                   {data.itemChanges.map((e, i) => (
-                    <ChangeEntryCard key={i} entry={e} nameField="itemName" entityType="item" idField="itemId" roster={roster.items} editMode={editMode} onChange={(u) => updateEntryAt("itemChanges", i, u)} />
+                    <ChangeEntryCard key={i} entry={e} nameField="itemName" entityType="item" roster={roster.items} editMode={editMode} onChange={(u) => updateEntryAt("itemChanges", i, u)} />
                   ))}
                 </>
               )}
@@ -176,7 +177,7 @@ function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
                 <>
                   <h4 className="patch-section-label">Runes</h4>
                   {data.runeChanges.map((e, i) => (
-                    <ChangeEntryCard key={i} entry={e} nameField="runeName" entityType="rune" idField="runeId" roster={roster.runes} editMode={editMode} onChange={(u) => updateEntryAt("runeChanges", i, u)} />
+                    <ChangeEntryCard key={i} entry={e} nameField="runeName" entityType="rune" roster={roster.runes} editMode={editMode} onChange={(u) => updateEntryAt("runeChanges", i, u)} />
                   ))}
                 </>
               )}
