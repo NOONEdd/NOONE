@@ -3,24 +3,32 @@ import { X, Search } from "lucide-react";
 import { candidatePaths } from "../utils/images.js";
 import { ChipIcon } from "./BuildBoard.jsx";
 
-/** Searchable modal for picking a real item or rune from the catalog --
- *  used by BuildEditor's "Add item"/"Add rune" buttons and each row's
- *  "Pick" button. Always hands back the catalog entry's own `name` field
- *  verbatim (never a typed/guessed string), so findCanonicalId() (in
- *  images.js) resolves it with an exact match every time. The image
- *  shown here during picking is resolved the exact same way the real
- *  build page resolves it, so what you see here is what actually shows
- *  up afterward -- no surprises once you save. */
+/** Searchable modal for picking a real item, rune, or champion from the
+ *  catalog -- used by BuildEditor's "Add item"/"Add rune" buttons and
+ *  each row's "Pick" button, and by ChampionMatchups.jsx's "Add
+ *  champion" buttons (type="champion", catalog=the site's live
+ *  champion roster -- see Champion Matchups redesign spec §2: the
+ *  selector is never a hardcoded dropdown, it's always this same
+ *  generic search over whatever's actually in the canonical dataset
+ *  right now, so a champion added to src/data/champions.js later is
+ *  automatically pickable here with no changes to this file). Always
+ *  hands back the catalog entry's own `name`/`id` fields verbatim
+ *  (never a typed/guessed string), so findCanonicalId() (in images.js)
+ *  resolves it with an exact match every time, and matchup saves never
+ *  need to guess an id from free text either. The image shown here
+ *  during picking is resolved the exact same way the real page
+ *  resolves it, so what you see here is what actually shows up
+ *  afterward -- no surprises once you save. */
 export default function ItemRunePicker({ type, catalog, onPick, onClose }) {
   const [query, setQuery] = useState("");
-  const typeChar = type === "item" ? "i" : "r";
-  const label = type === "item" ? "items" : "runes";
+  const typeChar = type === "item" ? "i" : type === "champion" ? "c" : "r";
+  const label = type === "item" ? "items" : type === "champion" ? "champions" : "runes";
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return catalog;
     return catalog.filter((e) =>
-      e.name.toLowerCase().includes(q) || (e.category || e.path || "").toLowerCase().includes(q)
+      e.name.toLowerCase().includes(q) || (e.category || e.path || e.role || "").toLowerCase().includes(q)
     );
   }, [query, catalog]);
 

@@ -10,11 +10,12 @@ import { CoachToggle } from "../components/TierBoard.jsx";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import DecisionTreePanel from "../components/DecisionTreePanel.jsx";
 import BuildEditor from "../components/BuildEditor.jsx";
+import ChampionMatchups from "../components/ChampionMatchups.jsx";
 
 export default function ChampionDetailPage({
   champion, editMode, setEditMode, syncStatus, auth, currentPatch, patchStatus,
   decisionTrees, onAddDecisionTree, onUpdateDecisionTree, onDeleteDecisionTree,
-  onUpdateChampionBuilds,
+  onUpdateChampionBuilds, roster, onUpdateChampionMatchups,
 }) {
   const [tab, setTab] = useState("build");
   const [selectedBuild, setSelectedBuild] = useState(0);
@@ -103,12 +104,22 @@ const currentBuild = builds[selectedBuild];
         )}
 
         {tab === "matchups" && (
-  <BuildList
-    entries={champion.matchups}
-    _type="c"
-    emptyText={`No matchup notes yet for ${champion.name}.`}
-  />
-)}
+          <>
+            <CoachToggle editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth} />
+            <ChampionMatchups
+              championId={champion.id}
+              matchupRelations={champion.matchupRelations}
+              roster={roster}
+              editMode={editMode}
+              onChange={onUpdateChampionMatchups}
+            />
+            <BuildList
+              entries={champion.matchups}
+              _type="c"
+              emptyText={`No matchup notes yet for ${champion.name}.`}
+            />
+          </>
+        )}
 
         {tab === "decisiontrees" && (
           <>

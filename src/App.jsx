@@ -4,6 +4,7 @@ import { useCoachOverrides } from "./hooks/useCoachOverrides.js";
 import { CHAMPIONS } from "./data/champions.js";
 import { ITEMS } from "./data/items.js";
 import { RUNES } from "./data/runes.js";
+import { MATCHUPS } from "./data/matchups.js";
 import { STATIC_PATCH_VERSION } from "./data/patch.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch, resolvePatchDataStatus } from "./lib/effectiveData.js";
 import { NavBar, MobileMenu, Footer, BackToTop } from "./components/Layout.jsx";
@@ -29,7 +30,7 @@ export default function App() {
   // Only recompute when the actual override data changes — not on every
   // App render (menu open/close, route changes, editMode toggling, etc.
   // all used to force a full re-map of all 34/71/50 entries for no reason).
-  const champions = useMemo(() => CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id])), [overrides.champions]);
+  const champions = useMemo(() => CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id])), [overrides.champions]);
   const items = useMemo(() => ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id])), [overrides.items]);
   const runes = useMemo(() => RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id])), [overrides.runes]);
   const effectivePatch = useMemo(() => resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION), [overrides.patch]);
@@ -72,6 +73,8 @@ export default function App() {
         onUpdateDecisionTree={(entryId, content) => decisionTreeActions.update(champ.id, entryId, content)}
         onDeleteDecisionTree={(entryId) => decisionTreeActions.remove(champ.id, entryId)}
         onUpdateChampionBuilds={(newBuilds) => updateOverride("champions", champ.id, { builds: newBuilds })}
+        roster={champions}
+        onUpdateChampionMatchups={(newMatchupRelations) => updateOverride("champions", champ.id, { matchupRelations: newMatchupRelations })}
       />
     ) : <NotFoundPage />;
   } else if (route.page === "coaching") {

@@ -47,6 +47,7 @@ import { fetchOverrides } from "../../_lib/kv.js";
 import { logPatchIntelEvent } from "../../_lib/logger.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch } from "../../../src/lib/effectiveData.js";
 import { CHAMPIONS } from "../../../src/data/champions.js";
+import { MATCHUPS } from "../../../src/data/matchups.js";
 import { ITEMS } from "../../../src/data/items.js";
 import { RUNES } from "../../../src/data/runes.js";
 import { STATIC_PATCH_VERSION } from "../../../src/data/patch.js";
@@ -143,7 +144,7 @@ export async function onRequestPost(context) {
 
   const { patchNumber, source: patchNumberSource } = extractPatchNumberFromContent(contentResult.content, latestSlug);
 
-  const championRoster = CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id]));
+  const championRoster = CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id]));
   const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 

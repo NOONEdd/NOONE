@@ -295,6 +295,29 @@
   .build-chip-img{width:100%;height:100%;object-fit:cover;}
   .build-chip-name{font-size:12px;font-weight:600;line-height:1.3;word-break:break-word;}
 
+  /* CHAMPION MATCHUPS -- structured Hard Against/Good Against/Good With
+     relationships (src/components/ChampionMatchups.jsx). Same visual
+     language as .build-chip/.picker-item above (border/background/hover
+     tokens, .chip-group-label section headers), just laid out as a
+     horizontal removable pill instead of a grid tile -- fits better
+     next to the existing free-text matchup rows (.build-row) below it. */
+  .matchup-relations{display:flex;flex-direction:column;gap:26px;margin-bottom:28px;}
+  .matchup-pill-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .matchup-pill{display:flex;align-items:center;gap:2px;}
+  .matchup-pill-main{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.02);
+    transition:border-color .2s var(--ease),background .2s var(--ease),transform .15s var(--ease);}
+  .matchup-pill-main:hover{border-color:rgba(255,255,255,.25);transform:translateY(-1px);}
+  .matchup-pill-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.05);overflow:hidden;flex-shrink:0;}
+  .matchup-pill-icon .build-chip-img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+  .matchup-pill-name{font-size:13px;font-weight:600;}
+  .matchup-pill-remove{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:var(--text-dimmer);flex-shrink:0;}
+  .matchup-pill-remove:hover{color:#ff6b6b;}
+  .matchup-add-btn{border-radius:999px;}
+  .matchup-empty-note{color:var(--text-dimmer);font-size:13.5px;margin-top:2px;}
+
   /* Desktop sticky panel — hidden on mobile, where the bottom-sheet takes over */
   .build-board-panel-desktop{display:none;}
   @media (min-width:900px){

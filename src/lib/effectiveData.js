@@ -23,7 +23,7 @@
  *  fall through to `base` untouched -- this is what makes a partial
  *  Coach Mode edit (e.g. just changing `tier`) safe, instead of
  *  requiring every edit to restate the champion's entire record. */
-export function resolveEffectiveChampion(base, override) {
+export function resolveEffectiveChampion(base, override, matchupSeed) {
   return {
     ...base,
     tier: override?.tier || base.tier || "Unranked",
@@ -32,6 +32,24 @@ export function resolveEffectiveChampion(base, override) {
     items: base.items || [],
     runes: base.runes || [],
     matchups: base.matchups || [],
+    // The NEW structured Hard Against / Good Against / Good With system
+    // (src/components/ChampionMatchups.jsx) -- deliberately a SEPARATE
+    // field from `matchups` above, which stays exactly what it always
+    // was (Academy's existing free-text coaching prose). `matchupSeed`
+    // is src/data/matchups.js's MATCHUPS[base.id] -- the caller passes
+    // it in (rather than this file importing it directly) so this stays
+    // usable from a plain object in tests without a real data file, same
+    // reasoning as base/override already being parameters. An override
+    // object is trusted WHOLESALE the instant it's present (even with
+    // every array empty -- that's a real, intentional "coach cleared
+    // this category" state, not "no override"), exactly like `builds`
+    // above; there's no partial per-category merge here because Coach
+    // Mode (functions/api/coach-overrides.js, src/hooks/
+    // useCoachOverrides.js's existing generic update()) always computes
+    // and saves the complete next {hardAgainst,goodAgainst,goodWith}
+    // object on every add/remove, the same controlled-component pattern
+    // `builds` already uses. */
+    matchupRelations: override?.matchupRelations || matchupSeed || { hardAgainst: [], goodAgainst: [], goodWith: [] },
   };
 }
 

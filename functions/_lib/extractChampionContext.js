@@ -1,5 +1,6 @@
 import { MAX_DECISION_TREE_ENTRIES, MAX_DECISION_TREE_CHARS } from "./config.js";
 import { resolveEffectiveChampion } from "../../src/lib/effectiveData.js";
+import { MATCHUPS } from "../../src/data/matchups.js";
 
 /** Given one championId, returns a compact object with ONLY that
  *  champion's relevant data -- never the whole 30+ champion roster.
@@ -18,7 +19,7 @@ export function extractChampionContext(championId, champions, overrides) {
   const base = champions.find((c) => c.id === championId);
   if (!base) return null;
 
-  const champion = resolveEffectiveChampion(base, overrides?.champions?.[championId]);
+  const champion = resolveEffectiveChampion(base, overrides?.champions?.[championId], MATCHUPS[championId]);
   const builds = champion.builds && champion.builds.length > 0
     ? champion.builds
     : [{ name: "Default", items: champion.items || [], runes: champion.runes || [] }];
