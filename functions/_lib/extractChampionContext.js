@@ -1,6 +1,7 @@
 import { MAX_DECISION_TREE_ENTRIES, MAX_DECISION_TREE_CHARS } from "./config.js";
 import { resolveEffectiveChampion } from "../../src/lib/effectiveData.js";
 import { MATCHUPS } from "../../src/data/matchups.js";
+import { isAcademyCovered } from "../../src/data/champions.js";
 
 /** Given one championId, returns a compact object with ONLY that
  *  champion's relevant data -- never the whole 30+ champion roster.
@@ -40,6 +41,15 @@ export function extractChampionContext(championId, champions, overrides) {
     role: champion.role,
     tier: champion.tier,
     note: champion.note,
+    // Whether Academy has actual coaching content for this champion
+    // (src/data/champions.js's isAcademyCovered) -- NOT a restriction on
+    // identity resolution above (name/role/matchups all still resolve
+    // for any canonical champion, e.g. as a Matchup/enemy reference);
+    // this only tells buildPrompt.js whether `builds`/`note` below
+    // represent real Academy judgment or just empty placeholders, so it
+    // can say so honestly instead of the model inferring meaning from
+    // an empty section.
+    isAcademyCovered: isAcademyCovered(champion.id),
     builds: builds.map((b) => ({
       name: b.name,
       items: (b.items || []).map((i) => `${i.tag}: ${i.name} — ${i.note || ""}`.trim()),

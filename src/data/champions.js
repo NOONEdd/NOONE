@@ -1238,3 +1238,59 @@ export const CHAMPIONS = [
   { id: "zoe", name: "Zoe", role: "Mid", tier: "Unranked" },
 
 ];
+
+// ---- Academy coverage (Champion Matchups redesign, separation-of-
+// concerns phase) ----
+//
+// CHAMPIONS above is the ONE canonical Champion registry -- every id in
+// it is a real, resolvable identity: valid for image resolution
+// (src/utils/images.js), valid as a Matchup target (src/data/
+// matchups.js, functions/api/coach-overrides.js's validation), and
+// valid for AI Coach/Patch Intelligence to recognize by name. That's
+// deliberate and unchanged -- see requirement #2 in the redesign spec
+// this section implements: "Do NOT solve this by deleting non-Support
+// Champions from the canonical Champion registry."
+//
+// ACADEMY_COVERED_IDS is a SEPARATE, narrower concept: which of those
+// champions Nyx NOONEdd Academy actually has coaching content for --
+// appears in the Support Champion Tier List, the guide-browsing page,
+// the homepage teaser, and Patch Intelligence's own roster snapshot.
+// This is exactly the original 36-champion roster from before the
+// Phase 3 "add every current Wild Rift champion so Matchups can
+// reference them" expansion -- the 105 added in that phase have no
+// blurb/builds (no coaching content was ever written for them) and are
+// tagged with a lane role (Baron/Jungle/Mid/Dragon) rather than one of
+// this roster's own Support sub-roles, both of which already implied
+// the same distinction. This list makes that distinction EXPLICIT
+// instead of relying on either of those as an inferred signal --
+// deliberately not derived from role or from "has a blurb", so it
+// can't silently change if either of those changes for an unrelated
+// reason (e.g. editing a blurb, or a future role value).
+//
+// A champion NOT in this list is not invalid, not unusable, and not
+// scheduled for removal -- it's fully valid everywhere identity/image/
+// Matchup resolution is needed, just not presented as something Nyx
+// NOONEdd Academy has written coaching content for. Adding real
+// coverage for a champion (writing them a blurb/builds/tier, the way
+// every one of the 36 already has) is the signal to add their id here
+// too -- this list and "has real content" should always describe the
+// same set; it isn't meant to diverge from that as its own separate
+// judgment call.
+const ACADEMY_COVERED_IDS = new Set([
+  "alistar", "bard", "blitzcrank", "braum", "galio", "gragas", "janna", "jarvan-iv",
+  "karma", "leona", "lulu", "lux", "maokai", "mel", "milio", "morgana", "nami",
+  "nautilus", "norra", "ornn", "poppy", "pyke", "rakan", "rell", "senna", "seraphine",
+  "sett", "skarner", "sona", "soraka", "swain", "taliyah", "thresh", "yuumi", "zilean", "zyra",
+]);
+
+/** True if Nyx NOONEdd Academy has actual coaching content for this
+ *  champion (a real blurb/builds/tier judgment, not the "Unranked"
+ *  placeholder every Matchup-only champion has) -- see
+ *  ACADEMY_COVERED_IDS above for what this is and isn't. Accepts
+ *  either a champion object (`{id}`) or a bare id string, so callers
+ *  that already have the id on hand (e.g. functions/api/coach-
+ *  overrides.js's validation) don't need to look up the object first. */
+export function isAcademyCovered(champion) {
+  const id = typeof champion === "string" ? champion : champion?.id;
+  return ACADEMY_COVERED_IDS.has(id);
+}

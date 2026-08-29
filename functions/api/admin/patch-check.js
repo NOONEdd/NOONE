@@ -46,7 +46,7 @@ import { resolveActiveProviderAndModel } from "../../_lib/aiProvider.js";
 import { fetchOverrides } from "../../_lib/kv.js";
 import { logPatchIntelEvent } from "../../_lib/logger.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch } from "../../../src/lib/effectiveData.js";
-import { CHAMPIONS } from "../../../src/data/champions.js";
+import { CHAMPIONS, isAcademyCovered } from "../../../src/data/champions.js";
 import { MATCHUPS } from "../../../src/data/matchups.js";
 import { ITEMS } from "../../../src/data/items.js";
 import { RUNES } from "../../../src/data/runes.js";
@@ -144,7 +144,18 @@ export async function onRequestPost(context) {
 
   const { patchNumber, source: patchNumberSource } = extractPatchNumberFromContent(contentResult.content, latestSlug);
 
-  const championRoster = CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id]));
+  // Patch Intelligence's roster snapshot is shown directly to the AI as
+  // "here's what Academy tracks" (see patchIntelligence.js's
+  // formatRosterSnapshot/ANALYST_INSTRUCTIONS) -- it's not just used
+  // for post-hoc id resolution afterward. Restricting it to Academy-
+  // covered champions keeps analysis scoped to Support the way it was
+  // before the Phase 3 roster expansion (which widened CHAMPIONS from
+  // 36 to 141 specifically so the Matchup picker could reference any
+  // Wild Rift champion -- a separate concern from what Patch
+  // Intelligence should treat as relevant). A champion change Academy
+  // doesn't cover simply isn't included in championRoster here; it was
+  // never part of what this endpoint reported on before Phase 3 either.
+  const championRoster = CHAMPIONS.filter(isAcademyCovered).map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id]));
   const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 

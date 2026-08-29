@@ -85,6 +85,9 @@ export function buildSystemPrompt({
 
     if (championContext) {
       lines.push(`Champion: ${championContext.name} (${championContext.role}, tier ${championContext.tier})`);
+      if (!championContext.isAcademyCovered) {
+        lines.push("Note: Nyx NOONEdd Academy doesn't have written coaching content (builds, playstyle notes) for this champion -- they're not a Support pick Academy covers as a primary champion. Don't invent a build or coaching philosophy for them; it's fine to discuss them as an opponent/synergy reference using any Matchup notes below, or answer generally from your own knowledge if asked to play them directly, just don't present it as Academy's own judgment.");
+      }
       if (championContext.note) lines.push(`Coach's note: ${championContext.note}`);
 
       for (const build of championContext.builds) {

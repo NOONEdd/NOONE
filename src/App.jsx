@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useHashRoute } from "./hooks/useHashRoute.js";
 import { useCoachOverrides } from "./hooks/useCoachOverrides.js";
-import { CHAMPIONS } from "./data/champions.js";
+import { CHAMPIONS, isAcademyCovered } from "./data/champions.js";
 import { ITEMS } from "./data/items.js";
 import { RUNES } from "./data/runes.js";
 import { MATCHUPS } from "./data/matchups.js";
@@ -31,6 +31,14 @@ export default function App() {
   // App render (menu open/close, route changes, editMode toggling, etc.
   // all used to force a full re-map of all 34/71/50 entries for no reason).
   const champions = useMemo(() => CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id])), [overrides.champions]);
+  // Academy-covered subset (src/data/champions.js's isAcademyCovered) --
+  // for surfaces that represent "Champions Nyx NOONEdd Academy covers"
+  // (tier list, guide browsing, homepage teaser). `champions` above
+  // stays the full canonical roster and is UNCHANGED everywhere else --
+  // ChampionDetailPage's `roster` prop (the Matchup picker) and the
+  // guide-detail lookup below both still need every champion, per the
+  // redesign spec's "MATCHUP ROSTER = CANONICAL ROSTER" invariant.
+  const academyChampions = useMemo(() => champions.filter(isAcademyCovered), [champions]);
   const items = useMemo(() => ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id])), [overrides.items]);
   const runes = useMemo(() => RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id])), [overrides.runes]);
   const effectivePatch = useMemo(() => resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION), [overrides.patch]);
@@ -44,7 +52,7 @@ export default function App() {
 
   let content;
   if (route.page === "tierlist") {
-    content = <ChampionTierListPage champions={champions} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth}
+    content = <ChampionTierListPage champions={academyChampions} editMode={editMode} setEditMode={setEditMode} syncStatus={syncStatus} auth={auth}
       currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification}
       onUpdate={(id, patch) => updateOverride("champions", id, patch)} />;
   } else if (route.page === "items") {
@@ -56,7 +64,7 @@ export default function App() {
       currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification}
       onUpdate={(id, patch) => updateOverride("runes", id, patch)} />;
   } else if (route.page === "guides") {
-    content = <GuidesPage champions={champions} />;
+    content = <GuidesPage champions={academyChampions} />;
   } else if (route.page === "guide-detail") {
     const champ = champions.find((c) => c.id === route.id);
     content = champ ? (
@@ -90,7 +98,7 @@ export default function App() {
     // cleanup" section for why this replaced the old ?coach reveal.
     content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} champions={champions} items={items} runes={runes} />;
   } else {
-    content = <HomePage champions={champions} />;
+    content = <HomePage champions={academyChampions} />;
   }
 
   return (
