@@ -31,13 +31,6 @@ export const CHAMPIONS = [
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
   },],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Bard", note: "His Q can stun you or your ADC at any moment, and his ultimate can freeze your entire team at the worst possible time. Prioritize vision so you see him before he lands either of these." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Lulu's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you." },
-      { tag: "Decision", name: "The W question: buff or polymorph?", note: "Most players only use W as a speed buff for an ally. But it can also be cast on an enemy to polymorph them — removing them from the fight for 1-2 seconds. Before you cast, ask: is slowing their carry more valuable right now, or is silencing their threat? The answer changes every fight." },
-    ],
   },
   { id: "janna", name: "Janna", role: "Enchanter", tier: "B", blurb: "One of the best disengage supports — strong with AD carries who want the buff, solid healing and shielding.",
     items: [
@@ -61,13 +54,7 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
     ],
-  
-    matchups: [
-      { tag: "Strong With", name: "Jhin, draven", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
-    ],},
+  },
   { id: "soraka", name: "Soraka", role: "Enchanter", tier: "B", blurb: "The best pure healer in the game — pick her when keeping the team alive matters most.",
     items: [
       { tag: "Always", name: "spectral sickle", note: "Your support mission item every game — gives HP and rotates gold to your ADC. Never skip this." },
@@ -89,12 +76,6 @@ export const CHAMPIONS = [
       { tag: "Inspiration", name: "Transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-    ],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
     ],},
   { id: "milio", name: "Milio", role: "Enchanter", tier: "S", blurb: "Strong pick against heavy-CC enemies, great for carries who need range, with light disengage via Q.",
     items: [
@@ -118,12 +99,6 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-    ],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
     ],},
   { id: "seraphine", name: "Seraphine", role: "Enchanter", tier: "B", blurb: "Good poke damage; a teamfight powerhouse thanks to her ult and combo damage, moderate as a pure enchanter.",
         builds: [
@@ -172,11 +147,7 @@ export const CHAMPIONS = [
       { tag: "inspiration( swap for bone plating)", name: " transcendence", note: "Ability haste at levels 1 and 6, plus cooldown refunds later. Keeps your W and E cycling faster throughout the entire game." },
       { tag: "summoner spells", name: "flash + ignite", note: "use your ignite on the enemy who has healing effect."},
       { tag: "summoner spells", name: "barrier ( swap for ignite)", note: " to have more sustainibility and prevent being one shotted."},
-    ],}],
-      matchups: [
-      { tag: "strong with", name: "camille, ezreal,orianna", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
-      { tag: " hard into", name: "nautilus, thresh, Rakan", note: " Rakan can catch you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
-      ],},
+    ],}],},
  
     { id: "karma", name: "Karma", role: "Enchanter", tier: "A", blurb: "High mobility for catching or escaping, strong poke damage, moderate CC.",
     builds: [
@@ -201,12 +172,6 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Heal", note: "Default setup. Flash to reposition or save yourself; Heal as an emergency lifeline in lane fights." },
       { tag: "Spell Swap", name: "Ignite (swap for Heal)", note: "Against enemy healers in lane (Soraka, Nami, Yuumi). Ignite's Grievous Wounds cuts their healing in half while you fight." },
       { tag: "Rune Swap", name: "Perseverance (swap for Revitalize)", note: "When the enemy has too much CC — pair with Amaranth's Twinguard. Gives tenacity so you're not chain-controlled every fight." },
-    ],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
     ],},
   {
     name: "Full Damage Poke",
@@ -258,13 +223,7 @@ export const CHAMPIONS = [
     ],
     
    }
- ],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
-    ],},
+ ],},
      
       { id: "sona", name: "Sona", role: "Enchanter", tier: "B", blurb: "Strong mid-to-late game buff support, moderate CC.",
          builds: [
@@ -295,13 +254,7 @@ export const CHAMPIONS = [
     ],
     
    }
- ],
-    matchups: [
-      { tag: "Strong With", name: "Jinx, Vayne, Kog'Maw", note: "Lulu is built for attack speed ADCs. Your W speeds them up, your E shields them, your R keeps them alive when they get dove. Ardent Censer amplifies all of this. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no mobility and dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
-    ],},
+ ],},
 
   // Catcher
   { id: "thresh", name: "Thresh", role: "Catcher", tier: "S", blurb: "Very strong late game into AD champions, with heavy CC and a bit of damage.",
@@ -336,13 +289,6 @@ export const CHAMPIONS = [
     ],
     }
  ],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Janna, Zyra, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Nautilus partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't hook just because you can", note: "Every hook should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing. Hook into a pushed lane, hook when your ADC is ready to trade, hook when you see an isolated target. The worst Thresh games are the ones with 15 hooks and 0 kills." },
-    ],
   },
   { id: "blitzcrank", name: "Blitzcrank", role: "Catcher", tier: "B", blurb: "Elite catcher if you land hooks — high mobility for chasing, high CC.",
       builds: [
@@ -376,13 +322,6 @@ export const CHAMPIONS = [
     ],
   }
 ],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Janna, Zyra, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Nautilus partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't hook just because you can", note: "Every hook should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing. Hook into a pushed lane, hook when your ADC is ready to trade, hook when you see an isolated target. The worst Blitzcrank games are the ones with 15 hooks and 0 kills." },
-    ],
   },
   { id: "leona", name: "Leona", role: "Catcher", tier: "A", blurb: "High sustain and CC; one of the best engage supports, with moderate damage depending on build.",
       builds: [
@@ -415,12 +354,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
   }],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Janna, Zyra, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Nautilus partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-    ],
   },
   { id: "pyke", name: "Pyke", role: "Assassin Catcher", tier: "A", blurb: "Hard to catch with high mobility; strong damage and execute potential on squishies, one of the best roamer-gankers.",
      builds: [
@@ -445,11 +378,7 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
-  ],}],
-    matchups: [
-      { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with pyke's cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
-      { tag: " hard into", name: "nautilus, thresh", note: " nautilus and thresh can catch you easily especially nautilus with his ult and take you down with their follow up CrowdControls.also thresh can cancel your Q and E when you are casting it, with his E." },
-    ], },
+  ],}], },
   { id: "rakan", name: "Rakan", role: "Catcher", tier: "S", blurb: "Quick high-damage engages on squishies, with strong mobility and some save potential via Q and E.",
         builds: [
   {
@@ -504,11 +433,7 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Transcendence)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Ingenious Hunter (swap for Zombie Ward)", note: "to increase your ability haste and lower your cooldown when you think your damage is enough." },
-  ],}],
-    matchups: [
-      { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
-      { tag: " hard into", name: "nautilus, thresh, Janna", note: " Rakan can be catched easily especially with nautilus's ult." },
-    ], },
+  ],}], },
     
       // Warden
   { id: "braum", name: "Braum", role: "Warden", tier: "S", blurb: "Best-in-class disengage and damage-blocking, with high CC for catching enemies too.",
@@ -540,12 +465,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],}],
-    matchups: [
-      { tag: "Strong With", name: "ezreal, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Karma, Zyra, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune, Draven, and Lucian are great Braum's partners because they follow up on engages and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-    ],
   },
   { id: "nautilus", name: "Nautilus", role: "Catcher", tier: "S", blurb: "Excessive CC, strong engage for catching enemies — best paired with ADCs who can follow up fast. One of the highest CC outputs of any support in the game.",
       builds: [
@@ -577,13 +496,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],}],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Janna, Zyra, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Nautilus partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't hook just because you can", note: "Every hook should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing. Hook into a pushed lane, hook when your ADC is ready to trade, hook when you see an isolated target. The worst Nautilus games are the ones with 15 hooks and 0 kills." },
-    ],
   },
   { id: "alistar", name: "Alistar", role: "Catcher", tier: "A", blurb: "Best-in-class tank for sustain and damage soak; elite playmaker for throwing enemies into your team to kill.",
             builds: [
@@ -615,13 +527,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],}],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Janna, thresh, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; thresh can also interruput your W/Q engage if he uses his E on time. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Rakan's partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't engage just because you can", note: "Every engage should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing." },
-    ],
   },
 
   { id: "rell", name: "Rell", role: "Catcher", tier: "S", blurb: "Top-tier tank and engager with high CC — especially strong alongside one-shot AP carries like Orianna, Syndra, or Kennen.",
@@ -654,13 +559,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],}],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Zyra, Karma, Morgana, Janna", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Zyra's plants punish you for walking forward. Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Rakan's partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't engage just because you can", note: "Every engage should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing." },
-    ],
   },
   { id: "maokai", name: "Maokai", role: "Catcher", tier: "A", blurb: "Excellent at catching enemies — one of the best engage ultimates in the game.",
           builds: [
@@ -692,13 +590,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],}],
-    matchups: [
-      { tag: "Strong With", name: "Samira, Draven, Lucian, Miss Fortune", note: "These ADCs want to kill fast after you land a hook. Samira especially — your chain CC feeds directly into her passive stack. The pattern is: hook, her follow-up, your ult if needed, and the kill is almost guaranteed. Miss Fortune's ult into your knocked-up hook is a teamfight finisher on its own." },
-      { tag: "Hard Into", name: "Karma, Janna, Morgana", note: "Ranged poke wears you down before you can engage. Janna's R tosses your whole engage aside; Morgana's shield absorbs your CC entirely; Against these, you need to engage after their cooldowns are burned, not into them." },
-      { tag: "Hard Into", name: "Sett", note: "His W can absorb a huge amount of your engage damage and send it back. You can out-CC him, but if he catches you alone or grabs a carry, the table turns quickly." },
-      { tag: "Roaming", name: "The Warmog's roam window", note: "If your lane is slow and you want to roam, you need an ADC who can push the wave fast on their own — champions like Varus, Ezreal, or Miss Fortune. Samira, Draven, and Lucian are great Rakan's partners because they follow up on hooks and kill instantly, but they're not fast wave-pushers. Leaving them alone to roam is a mistake. Vayne, Ashe, and Jinx are the same — don't leave them. Only roam if your ADC can clear the wave and stay safe without you." },
-      { tag: "Engage", name: "Don't engage just because you can", note: "Every engage should answer one question: can my team follow up within 2 seconds? If not, you've burned your cooldown and got nothing." },
-    ],
   },
 
   // Mage Support
@@ -759,13 +650,7 @@ export const CHAMPIONS = [
     ],
     
    }
- ],
-    matchups: [
-      { tag: "Strong With", name: "lucian, Vayne, varus", note: "nami's W speeds them and heal them up, your E gives them more damage and slow down your enemies, your R is one of the greatest engaging ability. These pairings turn a good ADC into a late-game threat that's nearly impossible to fight." },
-      { tag: "Hard Into", name: "Senna", note: "A skilled Senna outranges and outpokes you at every stage of the game. She wins the slow, passive lane every time. Play safe, stay behind minions, and don't look for fights she hasn't started." },
-      { tag: "Hard Into", name: "Catchers", note: "since you have no dashes, catchers can catch you and kill you easily.so take position carefully." },
-      { tag: "Roaming", name: "When to roam — and when not to", note: "Most of the time, don't. Sona's value is protecting her ADC. If you've pushed the wave at level 3-4, your ADC is safe, and your jungle is calling for help, you can follow. Otherwise stay. Never leave a Jinx, Vayne, or Ashe alone — they can't protect themselves without you."  },
-    ],},
+ ],},
 
   { id: "bard", name: "Bard", role: "Mage Support", tier: "B", blurb: "One of the best playmaking and catching champions — his ultimate can swing a whole fight.",
    builds: [
@@ -898,10 +783,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-{tag: "strong against tanks.", name: " nautilus,thresh,poppy,alistar"},
-   ],
   },
   { id: "norra", name: "Norra", role: "Off-Meta Flex", tier: "B", blurb: "Strong poke; W can pull the enemy frontline or tank out of the fight so you can pick off the rest.",
       builds: [
@@ -973,11 +854,7 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
-  ],}],
-    matchups: [
-      { tag: "strong with", name: "lucian, ezreal,varus", note: " these ADCs can follow up with your W cc and take down enemies or play for a roaming style after they cleared the wave quickly." },
-      { tag: " hard into", name: "nautilus, thresh, Rakan", note: " Rakan can catch you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
-    ], },
+  ],}], },
     
   { id: "swain", name: "Swain", role: "Off-Meta Flex", tier: "C", blurb: "Good sustain tank for long teamfights, with moderate damage on a tank build.",
       builds: [
@@ -1028,11 +905,7 @@ export const CHAMPIONS = [
       { tag: "Summoner Spells", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your engage combo lands." },
       { tag: "Rune Swap", name: "Bone Plating (swap for Second Wind)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
-  ],}],
-  matchups: [
-      { tag: "strong with", name: "amumu, ezreal,varus, orianna", note: " these champions can follow up with your cc and take down enemies or play for one shot combo on enemies." },
-      { tag: " hard into", name: "nautilus,brand,syndra", note: "   these champions can catch or kill you easily especially nautilus with his ult and take you down with their follow up CrowdControls." },
-     ], },
+  ],}], },
     
   { id: "lux", name: "Lux", role: "Off-Meta Flex", tier: "B", blurb: "High poke damage into squishies — one of the best at one-shotting players.",
       builds: [
@@ -1085,10 +958,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-{tag: "strong with.", name: "camille,amumu,jarvan iv."},
-   ],
   },
   { id: "jarvan-iv", name: "Jarvan IV", role: "Off-Meta Flex", tier: "B", blurb: "Devastating into champions with no dash or blink to escape his ult; great for catching and deleting a single target in teamfights, plus attack speed from E.",
       builds: [
@@ -1115,10 +984,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-{tag: "strong against", name:" ashe,jinx and thee type of champions who don't have any dashes to get out of his ultiamte" },
-],
   },
   { id: "gragas", name: "Gragas", role: "Off-Meta Flex", tier: "C", blurb: "Elite playmaker via ult or Flash-E combo; hits tanks hard.",
        builds: [
@@ -1146,10 +1011,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-{tag: "strong against", name:" ashe,jinx and thee type of champions who don't have any dashes to get out of his ultiamte" },
-],
   },
   { id: "ornn", name: "Ornn", role: "Off-Meta Flex", tier: "A", blurb: "Strong engage and playmaking champion, good in teamfights, moderate damage into tanks.",
      builds: [
@@ -1176,10 +1037,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-
-   ],
   },
   { id: "poppy", name: "Poppy", role: "Off-Meta Flex", tier: "C", blurb: "One of the best picks into blink or dash-heavy enemies; her ultimate is great for catching someone and throwing them out of the fight.",
      builds: [
@@ -1207,12 +1064,8 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-
-   ],
   },
-  { id: "Morgana", name: "Morgana", role: "Off-Meta Flex", tier: "C", blurb: "A versatile support champion with strong crowd control and damage capabilities.",
+  { id: "morgana", name: "Morgana", role: "Off-Meta Flex", tier: "C", blurb: "A versatile support champion with strong crowd control and damage capabilities.",
      builds: [
     {
     name: "Full Damage Support",
@@ -1238,10 +1091,6 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or Assassins and Poke damage dealers like orianna or karma."},
-
-   ],
   },
   { id: "skarner", name: "Skarner", role: "Catcher", tier: "Unranked", blurb: "His charge (grabbing and dragging a champion into a wall) and ultimate (suppressing and dragging up to 3 enemies) are genuine catcher tools. Worth knowing: every current source describes him as primarily a jungler, not an established support — treat this as an experimental pick until there's real match data to back it, not a settled recommendation.",
     builds: [
@@ -1268,9 +1117,124 @@ export const CHAMPIONS = [
       { tag: "Rune Swap", name: "Perseverance (swap for Overgrowth)", note: "Against tanks or enemies with heavy CC. Tenacity reduces how long you get chain-controlled, letting you get your own CC off faster in return." },
     ],
     },],
-  matchups: [
-{tag: "hard into", name: "high mobility champions or dissengagers and enchanters like janna or karma."},
-
-   ],
   },
+  // ---- Full Wild Rift roster expansion (Phase 3, Champion Matchups redesign) ----
+  // Added so the Matchup picker can select ANY current Wild Rift champion, not just
+  // the 36 Support-focused ones above. Minimal fields ONLY -- id/name/role/tier --
+  // no builds/items/runes/blurb, since none of that coaching content exists for
+  // these champions yet; inventing it would misrepresent Academy expertise that
+  // hasn't actually been written. tier is "Unranked" for all of them (an already-
+  // established, valid bucket -- see src/data/constants.js TIER_ORDER) rather than
+  // a guessed ranking. role is a conventional primary-lane tag (Baron/Jungle/Mid/
+  // Dragon -- Wild Rift's own lane names), used only for the same icon/accent-color
+  // /filter-tag purpose the existing 36 champions' role already serves, not a
+  // competitive or support-viability judgment. ids generated via this file's own
+  // slugify() (src/utils/images.js) -- the project's own established convention,
+  // confirmed by reproducing the existing jarvan-iv id exactly from 'Jarvan IV'.
+  { id: "aatrox", name: "Aatrox", role: "Baron", tier: "Unranked" },
+  { id: "ahri", name: "Ahri", role: "Mid", tier: "Unranked" },
+  { id: "akali", name: "Akali", role: "Mid", tier: "Unranked" },
+  { id: "akshan", name: "Akshan", role: "Mid", tier: "Unranked" },
+  { id: "ambessa", name: "Ambessa", role: "Baron", tier: "Unranked" },
+  { id: "amumu", name: "Amumu", role: "Jungle", tier: "Unranked" },
+  { id: "annie", name: "Annie", role: "Mid", tier: "Unranked" },
+  { id: "ashe", name: "Ashe", role: "Dragon", tier: "Unranked" },
+  { id: "aurelion-sol", name: "Aurelion Sol", role: "Mid", tier: "Unranked" },
+  { id: "aurora", name: "Aurora", role: "Mid", tier: "Unranked" },
+  { id: "brand", name: "Brand", role: "Mid", tier: "Unranked" },
+  { id: "caitlyn", name: "Caitlyn", role: "Dragon", tier: "Unranked" },
+  { id: "camille", name: "Camille", role: "Baron", tier: "Unranked" },
+  { id: "chogath", name: "Cho'Gath", role: "Baron", tier: "Unranked" },
+  { id: "corki", name: "Corki", role: "Mid", tier: "Unranked" },
+  { id: "darius", name: "Darius", role: "Baron", tier: "Unranked" },
+  { id: "diana", name: "Diana", role: "Jungle", tier: "Unranked" },
+  { id: "dr-mundo", name: "Dr. Mundo", role: "Baron", tier: "Unranked" },
+  { id: "draven", name: "Draven", role: "Dragon", tier: "Unranked" },
+  { id: "ekko", name: "Ekko", role: "Jungle", tier: "Unranked" },
+  { id: "evelynn", name: "Evelynn", role: "Jungle", tier: "Unranked" },
+  { id: "ezreal", name: "Ezreal", role: "Dragon", tier: "Unranked" },
+  { id: "fiddlesticks", name: "Fiddlesticks", role: "Jungle", tier: "Unranked" },
+  { id: "fiora", name: "Fiora", role: "Baron", tier: "Unranked" },
+  { id: "fizz", name: "Fizz", role: "Mid", tier: "Unranked" },
+  { id: "garen", name: "Garen", role: "Baron", tier: "Unranked" },
+  { id: "gnar", name: "Gnar", role: "Baron", tier: "Unranked" },
+  { id: "graves", name: "Graves", role: "Jungle", tier: "Unranked" },
+  { id: "gwen", name: "Gwen", role: "Baron", tier: "Unranked" },
+  { id: "hecarim", name: "Hecarim", role: "Jungle", tier: "Unranked" },
+  { id: "heimerdinger", name: "Heimerdinger", role: "Mid", tier: "Unranked" },
+  { id: "irelia", name: "Irelia", role: "Baron", tier: "Unranked" },
+  { id: "jax", name: "Jax", role: "Baron", tier: "Unranked" },
+  { id: "jayce", name: "Jayce", role: "Baron", tier: "Unranked" },
+  { id: "jhin", name: "Jhin", role: "Dragon", tier: "Unranked" },
+  { id: "jinx", name: "Jinx", role: "Dragon", tier: "Unranked" },
+  { id: "ksante", name: "K'Sante", role: "Baron", tier: "Unranked" },
+  { id: "kaisa", name: "Kai'Sa", role: "Dragon", tier: "Unranked" },
+  { id: "kalista", name: "Kalista", role: "Dragon", tier: "Unranked" },
+  { id: "kassadin", name: "Kassadin", role: "Mid", tier: "Unranked" },
+  { id: "katarina", name: "Katarina", role: "Mid", tier: "Unranked" },
+  { id: "kayle", name: "Kayle", role: "Baron", tier: "Unranked" },
+  { id: "kayn", name: "Kayn", role: "Jungle", tier: "Unranked" },
+  { id: "kennen", name: "Kennen", role: "Baron", tier: "Unranked" },
+  { id: "khazix", name: "Kha'Zix", role: "Jungle", tier: "Unranked" },
+  { id: "kindred", name: "Kindred", role: "Jungle", tier: "Unranked" },
+  { id: "kogmaw", name: "Kog'Maw", role: "Dragon", tier: "Unranked" },
+  { id: "lee-sin", name: "Lee Sin", role: "Jungle", tier: "Unranked" },
+  { id: "lillia", name: "Lillia", role: "Jungle", tier: "Unranked" },
+  { id: "lissandra", name: "Lissandra", role: "Mid", tier: "Unranked" },
+  { id: "lucian", name: "Lucian", role: "Dragon", tier: "Unranked" },
+  { id: "malphite", name: "Malphite", role: "Baron", tier: "Unranked" },
+  { id: "master-yi", name: "Master Yi", role: "Jungle", tier: "Unranked" },
+  { id: "miss-fortune", name: "Miss Fortune", role: "Dragon", tier: "Unranked" },
+  { id: "mordekaiser", name: "Mordekaiser", role: "Baron", tier: "Unranked" },
+  { id: "nasus", name: "Nasus", role: "Baron", tier: "Unranked" },
+  { id: "nidalee", name: "Nidalee", role: "Jungle", tier: "Unranked" },
+  { id: "nilah", name: "Nilah", role: "Dragon", tier: "Unranked" },
+  { id: "nocturne", name: "Nocturne", role: "Jungle", tier: "Unranked" },
+  { id: "nunu-willump", name: "Nunu & Willump", role: "Jungle", tier: "Unranked" },
+  { id: "olaf", name: "Olaf", role: "Jungle", tier: "Unranked" },
+  { id: "orianna", name: "Orianna", role: "Mid", tier: "Unranked" },
+  { id: "pantheon", name: "Pantheon", role: "Jungle", tier: "Unranked" },
+  { id: "rammus", name: "Rammus", role: "Jungle", tier: "Unranked" },
+  { id: "renekton", name: "Renekton", role: "Baron", tier: "Unranked" },
+  { id: "rengar", name: "Rengar", role: "Jungle", tier: "Unranked" },
+  { id: "riven", name: "Riven", role: "Baron", tier: "Unranked" },
+  { id: "rumble", name: "Rumble", role: "Baron", tier: "Unranked" },
+  { id: "ryze", name: "Ryze", role: "Mid", tier: "Unranked" },
+  { id: "samira", name: "Samira", role: "Dragon", tier: "Unranked" },
+  { id: "shen", name: "Shen", role: "Baron", tier: "Unranked" },
+  { id: "shyvana", name: "Shyvana", role: "Jungle", tier: "Unranked" },
+  { id: "singed", name: "Singed", role: "Baron", tier: "Unranked" },
+  { id: "sion", name: "Sion", role: "Baron", tier: "Unranked" },
+  { id: "sivir", name: "Sivir", role: "Dragon", tier: "Unranked" },
+  { id: "smolder", name: "Smolder", role: "Dragon", tier: "Unranked" },
+  { id: "syndra", name: "Syndra", role: "Mid", tier: "Unranked" },
+  { id: "talon", name: "Talon", role: "Jungle", tier: "Unranked" },
+  { id: "teemo", name: "Teemo", role: "Baron", tier: "Unranked" },
+  { id: "tristana", name: "Tristana", role: "Dragon", tier: "Unranked" },
+  { id: "tryndamere", name: "Tryndamere", role: "Baron", tier: "Unranked" },
+  { id: "twisted-fate", name: "Twisted Fate", role: "Mid", tier: "Unranked" },
+  { id: "twitch", name: "Twitch", role: "Dragon", tier: "Unranked" },
+  { id: "urgot", name: "Urgot", role: "Baron", tier: "Unranked" },
+  { id: "varus", name: "Varus", role: "Dragon", tier: "Unranked" },
+  { id: "vayne", name: "Vayne", role: "Dragon", tier: "Unranked" },
+  { id: "veigar", name: "Veigar", role: "Mid", tier: "Unranked" },
+  { id: "velkoz", name: "Vel'Koz", role: "Mid", tier: "Unranked" },
+  { id: "vex", name: "Vex", role: "Mid", tier: "Unranked" },
+  { id: "vi", name: "Vi", role: "Jungle", tier: "Unranked" },
+  { id: "viego", name: "Viego", role: "Jungle", tier: "Unranked" },
+  { id: "viktor", name: "Viktor", role: "Mid", tier: "Unranked" },
+  { id: "vladimir", name: "Vladimir", role: "Mid", tier: "Unranked" },
+  { id: "volibear", name: "Volibear", role: "Jungle", tier: "Unranked" },
+  { id: "warwick", name: "Warwick", role: "Jungle", tier: "Unranked" },
+  { id: "wukong", name: "Wukong", role: "Jungle", tier: "Unranked" },
+  { id: "xayah", name: "Xayah", role: "Dragon", tier: "Unranked" },
+  { id: "xin-zhao", name: "Xin Zhao", role: "Jungle", tier: "Unranked" },
+  { id: "yasuo", name: "Yasuo", role: "Mid", tier: "Unranked" },
+  { id: "yone", name: "Yone", role: "Mid", tier: "Unranked" },
+  { id: "yunara", name: "Yunara", role: "Dragon", tier: "Unranked" },
+  { id: "zed", name: "Zed", role: "Mid", tier: "Unranked" },
+  { id: "zeri", name: "Zeri", role: "Dragon", tier: "Unranked" },
+  { id: "ziggs", name: "Ziggs", role: "Mid", tier: "Unranked" },
+  { id: "zoe", name: "Zoe", role: "Mid", tier: "Unranked" },
+
 ];

@@ -24,6 +24,16 @@ export function extractChampionContext(championId, champions, overrides) {
     ? champion.builds
     : [{ name: "Default", items: champion.items || [], runes: champion.runes || [] }];
 
+  const CATEGORY_LABELS = { hardAgainst: "Hard Against", goodAgainst: "Good Against", goodWith: "Good With" };
+  const matchupLines = [];
+  for (const category of ["hardAgainst", "goodAgainst", "goodWith"]) {
+    for (const entry of champion.matchupRelations[category]) {
+      const target = champions.find((c) => c.id === entry.championId);
+      const targetName = target ? target.name : entry.championId;
+      matchupLines.push(`${CATEGORY_LABELS[category]}: ${targetName} (${entry.difficulty})${entry.reason ? ` — ${entry.reason}` : ""}`);
+    }
+  }
+
   return {
     id: champion.id,
     name: champion.name,
@@ -35,7 +45,7 @@ export function extractChampionContext(championId, champions, overrides) {
       items: (b.items || []).map((i) => `${i.tag}: ${i.name} — ${i.note || ""}`.trim()),
       runes: (b.runes || []).map((r) => `${r.tag}: ${r.name} — ${r.note || ""}`.trim()),
     })),
-    matchups: (champion.matchups || []).map((m) => `${m.tag}: ${m.name} — ${m.note || ""}`.trim()),
+    matchups: matchupLines,
   };
 }
 

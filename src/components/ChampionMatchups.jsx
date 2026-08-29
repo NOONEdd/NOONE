@@ -6,56 +6,93 @@ import { ChipIcon } from "./BuildBoard.jsx";
 import ItemRunePicker from "./ItemRunePicker.jsx";
 
 const CATEGORIES = [
-  { key: "hardAgainst", label: "Hard Against" },
-  { key: "goodAgainst", label: "Good Against" },
-  { key: "goodWith", label: "Good With" },
+  { key: "hardAgainst", label: "Hard Against", emptyText: "No significant hard matchups recorded yet." },
+  { key: "goodAgainst", label: "Good Against", emptyText: "No significant favorable matchups recorded yet." },
+  { key: "goodWith", label: "Good With", emptyText: "No synergy partners recorded yet." },
 ];
+const DIFFICULTIES = ["low", "medium", "high"];
+// Reused from the site's existing palette (RED already means "aggressive
+// /danger" for Assassin Catcher/Physical items/Domination runes; GOLD
+// already means "notable" for S-tier/Keystone; CYAN already means
+// "mild/defensive" for Warden/Defense items/Precision runes) rather than
+// inventing new colors for this one scale.
+const DIFFICULTY_COLORS = { high: "#ff6b6b", medium: "#f3c969", low: "#1fd0ff" };
 
-/** One clickable champion pill inside a matchup category. Resolves its
- *  image the EXACT same way every other champion image on the site
- *  does -- candidatePaths() + <SmartImage> via the shared ChipIcon
- *  (src/components/BuildBoard.jsx), from the id alone. Matchup data
- *  only ever stores canonical Champion IDs (redesign spec §1/§10), so
- *  there is no name lookup and no second image mapping here at all.
- *  Clicking navigates to that champion's own page via the site's
- *  existing route (#/guides/:id, src/hooks/useHashRoute.js) -- same
- *  navigate() the page's own "All Champions" back-link already uses.
- *  The remove ("x") control is a SIBLING button, not nested inside the
- *  navigate button, so this never produces an invalid <button> inside
- *  a <button>; only rendered at all when `onRemove` is passed (i.e.
- *  only in Coach Mode -- public visitors never see it). */
-function MatchupPill({ championId, roster, onRemove }) {
-  const champ = roster.find((c) => c.id === championId);
-  // Still renders something sane (the raw id) instead of silently
-  // vanishing if a stored id somehow isn't in the live roster right
-  // now (e.g. a champion later removed from champions.js) -- the
-  // relationship stays visible/editable rather than disappearing
-  // without explanation.
-  const name = champ ? champ.name : championId;
+/** One matchup relationship -- a champion pill plus its difficulty and
+ *  reason. Two render modes:
+ *   - Read (public / Coach Mode toggled off): image, name, a small
+ *     difficulty badge, and the reason as smaller/dimmer secondary text
+ *     underneath (redesign spec §5 -- "visually secondary to the
+ *     Champion name but still easy to read", never admin-only metadata).
+ *   - Edit (Coach Mode on): same image/name (still clickable to
+ *     navigate), plus a difficulty <select> and a reason <textarea>,
+ *     both direct controlled inputs wired straight to onChange -- same
+ *     pattern src/components/BuildEditor.jsx's EditableRow already uses
+ *     for item/rune notes, so this inherits the exact same debounced
+ *     Coach Mode save (src/hooks/useCoachOverrides.js) with no new
+ *     persistence code.
+ *  Image resolution is identical to every other champion image on the
+ *  site: candidatePaths() + <SmartImage> via the shared ChipIcon
+ *  (src/components/BuildBoard.jsx), from championId alone -- matchup
+ *  data never stores a name or an image path (redesign spec §2/§11). */
+function MatchupEntryRow({ entry, roster, editMode, onEdit, onRemove }) {
+  const champ = roster.find((c) => c.id === entry.championId);
+  const name = champ ? champ.name : entry.championId; // still shows something sane rather than vanishing if the id isn't in the live roster right now
+  const color = DIFFICULTY_COLORS[entry.difficulty] || DIFFICULTY_COLORS.medium;
+
   return (
-    <div className="matchup-pill">
-      <button type="button" className="matchup-pill-main" onClick={() => navigate(`/guides/${championId}`)}>
-        <span className="matchup-pill-icon"><ChipIcon paths={candidatePaths(`c:${championId}`)} size={22} /></span>
-        <span className="matchup-pill-name">{name}</span>
-      </button>
-      {onRemove && (
-        <button type="button" className="matchup-pill-remove" onClick={onRemove} aria-label={`Remove ${name}`}>
-          <X size={12} />
+    <div className="matchup-entry">
+      <div className="matchup-entry-head">
+        <button type="button" className="matchup-pill-main" onClick={() => navigate(`/guides/${entry.championId}`)}>
+          <span className="matchup-pill-icon"><ChipIcon paths={candidatePaths(`c:${entry.championId}`)} size={22} /></span>
+          <span className="matchup-pill-name">{name}</span>
         </button>
+
+        {editMode ? (
+          <select
+            className="matchup-difficulty-select"
+            value={entry.difficulty}
+            onChange={(e) => onEdit({ ...entry, difficulty: e.target.value })}
+            style={{ "--accent": color }}
+          >
+            {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        ) : (
+          <span className="matchup-difficulty-badge" style={{ "--accent": color }}>{entry.difficulty}</span>
+        )}
+
+        {editMode && (
+          <button type="button" className="matchup-pill-remove" onClick={onRemove} aria-label={`Remove ${name}`}>
+            <X size={13} />
+          </button>
+        )}
+      </div>
+
+      {editMode ? (
+        <textarea
+          className="matchup-reason-input"
+          placeholder="Why? (optional, shown to visitors)"
+          value={entry.reason || ""}
+          onChange={(e) => onEdit({ ...entry, reason: e.target.value || null })}
+          rows={2}
+        />
+      ) : (
+        entry.reason && <p className="matchup-reason-text">{entry.reason}</p>
       )}
     </div>
   );
 }
 
-/** "+ Add champion" -- opens the SAME searchable picker BuildEditor
- *  uses for items/runes (src/components/ItemRunePicker.jsx, extended
- *  with a "champion" type rather than duplicated), fed the site's live
- *  champion roster as its catalog. Nothing here is a hardcoded list:
- *  whatever's currently in src/data/champions.js is what's searchable
- *  (redesign spec §2). Excludes champions already in this category
- *  (no duplicate relationship within a category, spec §5/§9) and this
- *  champion itself (a champion can't have a matchup relationship with
- *  itself). */
+/** "+ Add champion" -- same searchable picker BuildEditor uses for
+ *  items/runes (src/components/ItemRunePicker.jsx, extended with a
+ *  "champion" type rather than duplicated), fed the site's live champion
+ *  roster. Never a hardcoded list -- whatever's currently in
+ *  src/data/champions.js is what's searchable (redesign spec §1/§2 --
+ *  now the full multi-role roster, not just Support). Excludes
+ *  champions already in this category (no duplicate relationship within
+ *  a category) and this champion itself (no self-matchups). New entries
+ *  start at difficulty "medium" (the most neutral starting point, not a
+ *  guess at severity) with no reason -- edited immediately afterward. */
 function AddMatchupButton({ roster, selfId, excludeIds, onAdd }) {
   const [open, setOpen] = useState(false);
   const pickable = roster.filter((c) => c.id !== selfId && !excludeIds.includes(c.id));
@@ -68,7 +105,7 @@ function AddMatchupButton({ roster, selfId, excludeIds, onAdd }) {
         <ItemRunePicker
           type="champion"
           catalog={pickable}
-          onPick={(picked) => { onAdd(picked.id); setOpen(false); }}
+          onPick={(picked) => { onAdd({ championId: picked.id, difficulty: "medium", reason: null }); setOpen(false); }}
           onClose={() => setOpen(false)}
         />
       )}
@@ -76,69 +113,84 @@ function AddMatchupButton({ roster, selfId, excludeIds, onAdd }) {
   );
 }
 
-function MatchupCategory({ label, ids, roster, selfId, editMode, onAdd, onRemove }) {
+function MatchupCategory({ label, emptyText, entries, roster, selfId, editMode, onAdd, onEdit, onRemove }) {
   return (
     <div className="matchup-relation-group">
       <h4 className="chip-group-label">{label}</h4>
-      <div className="matchup-pill-row">
-        {ids.map((id) => (
-          <MatchupPill key={id} championId={id} roster={roster} onRemove={editMode ? () => onRemove(id) : null} />
+      <div className="matchup-entry-list">
+        {entries.map((entry, i) => (
+          <MatchupEntryRow
+            key={entry.championId}
+            entry={entry}
+            roster={roster}
+            editMode={editMode}
+            onEdit={(next) => onEdit(i, next)}
+            onRemove={() => onRemove(i)}
+          />
         ))}
-        {editMode && <AddMatchupButton roster={roster} selfId={selfId} excludeIds={ids} onAdd={onAdd} />}
+        {!editMode && entries.length === 0 && <p className="matchup-empty-note">{emptyText}</p>}
       </div>
-      {!editMode && ids.length === 0 && <p className="matchup-empty-note">None noted yet.</p>}
+      {editMode && (
+        <AddMatchupButton roster={roster} selfId={selfId} excludeIds={entries.map((e) => e.championId)} onAdd={onAdd} />
+      )}
     </div>
   );
 }
 
 /** Structured Champion vs. Champion relationships (Hard Against / Good
- *  Against / Good With) for one champion's Matchups tab -- see
- *  src/pages/ChampionDetailPage.jsx, which renders this ABOVE the
- *  existing free-text matchup notes (src/components/BuildList.jsx +
- *  champions.js's own `matchups` prose array), untouched, not replaced.
- *  This is the NEW structured system the Champion Matchups redesign
- *  asked for: quick-glance, canonical-Champion-ID-only, editable from
- *  Coach Mode without touching source code.
+ *  Against / Good With), each with a difficulty and an optional written
+ *  reason -- see src/pages/ChampionDetailPage.jsx, where this is the
+ *  ONLY Matchups content now (the old free-text prose system and its
+ *  rendering were removed project-wide in Phase 3 -- see
+ *  src/data/champions.js and src/lib/effectiveData.js).
  *
- *  `matchupRelations`: this champion's already-resolved {hardAgainst,
- *  goodAgainst, goodWith} object -- src/lib/effectiveData.js's
+ *  `matchupRelations`: this champion's already-resolved
+ *  {hardAgainst,goodAgainst,goodWith} object, each an array of
+ *  {championId, difficulty, reason} -- src/lib/effectiveData.js's
  *  resolveEffectiveChampion() already merged the Coach Mode KV override
- *  onto the src/data/matchups.js seed before this component ever sees
- *  it; nothing is merged here.
- *  `roster`: the site's live champion list (same array RankChip/
- *  BuildEditor/etc. already use) -- used only to resolve each id's
- *  name/image, and as the Add-champion picker's dynamic catalog.
+ *  onto the src/data/matchups.js seed (and normalized either the current
+ *  or Phase 2's older bare-id-array shape to this one) before this
+ *  component ever sees it; nothing is merged or normalized here.
+ *  `roster`: the site's live champion list (now the full multi-role
+ *  roster, not just Support) -- used only to resolve each id's name/
+ *  image, and as the Add-champion picker's dynamic catalog.
  *  `onChange(nextMatchupRelations)`: called with the COMPLETE next
- *  {hardAgainst,goodAgainst,goodWith} object on every add/remove --
- *  the same controlled-component pattern onChangeBuilds already uses
- *  for the Build tab, so this inherits the exact same debounced,
- *  KV-quota-safe Coach Mode sync for free (src/hooks/
- *  useCoachOverrides.js's existing generic update()) -- no new
- *  persistence code anywhere in this file. */
+ *  {hardAgainst,goodAgainst,goodWith} object on every add/remove/edit --
+ *  the same controlled-component pattern onChangeBuilds already uses,
+ *  so this inherits the exact same debounced, KV-quota-safe Coach Mode
+ *  sync (src/hooks/useCoachOverrides.js's existing generic update())
+ *  with no new persistence code anywhere in this file. */
 export default function ChampionMatchups({ championId, matchupRelations, roster, editMode, onChange }) {
   const relations = matchupRelations || { hardAgainst: [], goodAgainst: [], goodWith: [] };
 
-  function addTo(categoryKey, targetId) {
+  function addTo(categoryKey, entry) {
     const current = relations[categoryKey] || [];
-    if (current.includes(targetId)) return; // duplicate within the same category -- safely ignored, not an error (spec §5/§9)
-    onChange({ ...relations, [categoryKey]: [...current, targetId] });
+    if (current.some((e) => e.championId === entry.championId)) return; // duplicate within the same category -- safely ignored, not an error
+    onChange({ ...relations, [categoryKey]: [...current, entry] });
   }
-  function removeFrom(categoryKey, targetId) {
-    onChange({ ...relations, [categoryKey]: (relations[categoryKey] || []).filter((id) => id !== targetId) });
+  function editIn(categoryKey, index, nextEntry) {
+    const current = relations[categoryKey] || [];
+    onChange({ ...relations, [categoryKey]: current.map((e, i) => (i === index ? nextEntry : e)) });
+  }
+  function removeFrom(categoryKey, index) {
+    const current = relations[categoryKey] || [];
+    onChange({ ...relations, [categoryKey]: current.filter((_, i) => i !== index) });
   }
 
   return (
     <div className="matchup-relations">
-      {CATEGORIES.map(({ key, label }) => (
+      {CATEGORIES.map(({ key, label, emptyText }) => (
         <MatchupCategory
           key={key}
           label={label}
-          ids={relations[key] || []}
+          emptyText={emptyText}
+          entries={relations[key] || []}
           roster={roster}
           selfId={championId}
           editMode={editMode}
-          onAdd={(targetId) => addTo(key, targetId)}
-          onRemove={(targetId) => removeFrom(key, targetId)}
+          onAdd={(entry) => addTo(key, entry)}
+          onEdit={(i, next) => editIn(key, i, next)}
+          onRemove={(i) => removeFrom(key, i)}
         />
       ))}
     </div>

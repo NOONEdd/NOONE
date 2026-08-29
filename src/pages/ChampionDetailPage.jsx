@@ -4,7 +4,6 @@ import { navigate } from "../hooks/useHashRoute.js";
 import { TIER_COLORS, ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
 import { candidatePaths } from "../utils/images.js";
 import SmartImage from "../components/SmartImage.jsx";
-import BuildList from "../components/BuildList.jsx";
 import BuildBoard from "../components/BuildBoard.jsx";
 import { CoachToggle } from "../components/TierBoard.jsx";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
@@ -112,11 +111,6 @@ const currentBuild = builds[selectedBuild];
               roster={roster}
               editMode={editMode}
               onChange={onUpdateChampionMatchups}
-            />
-            <BuildList
-              entries={champion.matchups}
-              _type="c"
-              emptyText={`No matchup notes yet for ${champion.name}.`}
             />
           </>
         )}

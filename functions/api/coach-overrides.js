@@ -59,32 +59,44 @@ function json(data, status = 200) {
 }
 
 const MATCHUP_CATEGORIES = ["hardAgainst", "goodAgainst", "goodWith"];
+const VALID_DIFFICULTIES = ["low", "medium", "high"];
 const VALID_CHAMPION_IDS = new Set(CHAMPIONS.map((c) => c.id));
 
 /** Server-side validation for matchupRelations specifically (Champion
- *  Matchups redesign spec §9) -- this is the ONE thing this endpoint
+ *  Matchups redesign spec §10) -- this is the ONE thing this endpoint
  *  didn't already validate for anything (tiers/notes/builds/decision
  *  trees have never had server-side schema checks here, and adding
  *  that for all of them is out of scope for this feature -- see spec
- *  §15 "do not rewrite unrelated systems"). Runs only when a champion
- *  override actually contains a `matchupRelations` field; every other
- *  override write (a plain tier change, a build edit, etc.) skips this
- *  entirely and behaves exactly as it always has.
+ *  §18 "do not modify unrelated functionality"). Runs only when a
+ *  champion override actually contains a `matchupRelations` field;
+ *  every other override write (a plain tier change, a build edit, etc.)
+ *  skips this entirely and behaves exactly as it always has.
  *
  *  Never trusts the client for which Champion IDs are real -- re-checks
  *  every id against CHAMPIONS (the same canonical import
  *  functions/api/admin/patch-check.js already uses across this exact
  *  functions/ -> src/ boundary), the live source of truth, not
- *  whatever the request claims.
+ *  whatever the request claims. Same for difficulty -- checked against
+ *  VALID_DIFFICULTIES, never trusted as free text.
+ *
+ *  Each category entry is normally {championId, difficulty, reason}
+ *  (Phase 3's schema), but a bare id string (Phase 2's original schema,
+ *  in case an old client/tab is still open) is accepted too and
+ *  silently upgraded to {championId: theString, difficulty: "medium",
+ *  reason: null} -- the same "safe normalization, not a second schema"
+ *  approach src/lib/effectiveData.js's normalizeMatchupRelations()
+ *  already uses on the read side (spec §13), applied here on the write
+ *  side too so a stale client can't corrupt what gets saved.
  *
  *  Returns { ok: true, sanitized } on success, where `sanitized` is the
- *  same overrides object with every matchupRelations array deduplicated
- *  and stripped of self-references (a champion can't be its own
- *  matchup) -- duplicates are "safely ignored" per spec §5/§9, not a
- *  rejection. Returns { ok: false, error } -- a hard 400 -- for the two
- *  cases the spec calls out as REQUIRED to reject outright: an unknown
- *  relationship-type key, or a Champion ID that doesn't exist in the
- *  canonical roster. */
+ *  same overrides object with every matchupRelations array normalized,
+ *  deduplicated by championId, and stripped of self-references (a
+ *  champion can't be its own matchup) -- duplicates are "safely
+ *  ignored" per spec §10, not a rejection. Returns { ok: false, error }
+ *  -- a hard 400 -- for the cases the spec calls out as REQUIRED to
+ *  reject outright: an unknown relationship-type key, a Champion ID
+ *  (the champion's own, or a target) that doesn't exist in the
+ *  canonical roster, or an invalid difficulty value. */
 function validateAndSanitizeMatchups(overrides) {
   const champions = overrides.champions;
   if (!champions || typeof champions !== "object") return { ok: true, sanitized: overrides };
@@ -111,19 +123,29 @@ function validateAndSanitizeMatchups(overrides) {
       const list = rel[category];
       if (list === undefined) { sanitizedRel[category] = []; continue; }
       if (!Array.isArray(list)) {
-        return { ok: false, error: `matchupRelations.${category} for "${championId}" must be an array of Champion IDs.` };
+        return { ok: false, error: `matchupRelations.${category} for "${championId}" must be an array.` };
       }
-      for (const targetId of list) {
+
+      const seen = new Map(); // championId -> normalized entry, dedupes by last-write-wins
+      for (const raw of list) {
+        // Backward compat: a bare id string (Phase 2 shape) is upgraded,
+        // not rejected -- see function doc above.
+        const isBareString = typeof raw === "string";
+        const targetId = isBareString ? raw : raw?.championId;
         if (typeof targetId !== "string" || !VALID_CHAMPION_IDS.has(targetId)) {
           return { ok: false, error: `"${targetId}" in ${championId}'s ${category} is not a real Champion ID.` };
         }
+        if (targetId === championId) continue; // self-matchup -- silently sanitized away, not rejected
+
+        const difficulty = isBareString ? "medium" : (raw.difficulty || "medium");
+        if (!VALID_DIFFICULTIES.includes(difficulty)) {
+          return { ok: false, error: `"${difficulty}" in ${championId}'s ${category} (${targetId}) is not a valid difficulty -- must be one of ${VALID_DIFFICULTIES.join(", ")}.` };
+        }
+        const reason = isBareString ? null : (typeof raw.reason === "string" ? raw.reason : null);
+
+        seen.set(targetId, { championId: targetId, difficulty, reason }); // duplicate target within the category -- safely ignored (last one wins), not rejected
       }
-      // Duplicates within the same category, and a champion referencing
-      // itself, are sanitized away silently rather than rejected -- see
-      // spec §5/§9 ("duplicate relationship rejected OR safely
-      // ignored"; self-reference was never an explicit case in the
-      // spec, but the same "safely ignored" latitude applies).
-      sanitizedRel[category] = [...new Set(list)].filter((id) => id !== championId);
+      sanitizedRel[category] = [...seen.values()];
     }
     champions[championId] = { ...entry, matchupRelations: sanitizedRel };
   }

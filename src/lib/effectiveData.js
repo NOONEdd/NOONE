@@ -19,6 +19,35 @@
 // Cloudflare-specific APIs) so it can be imported unchanged by both a
 // Vite browser bundle and a Cloudflare Pages Function.
 
+const MATCHUP_CATEGORIES = ["hardAgainst", "goodAgainst", "goodWith"];
+
+/** Normalizes one matchup relations object to the current
+ *  {championId, difficulty, reason} entry shape (Phase 3 -- Champion
+ *  Matchups redesign spec §2/§13), whether it's already in that shape,
+ *  still in Phase 2's original bare-id-string-array shape (any Coach
+ *  Mode override saved before this phase), or missing a category
+ *  entirely. Never throws on a malformed/partial shape -- worst case an
+ *  unrecognized entry is dropped, never left half-formed for a
+ *  component to choke on. Backward compatibility, not a second schema:
+ *  the OUTPUT is always today's shape; nothing downstream of this
+ *  function ever needs to know the old shape existed. */
+function normalizeMatchupRelations(relations) {
+  const out = {};
+  for (const category of MATCHUP_CATEGORIES) {
+    const list = relations?.[category];
+    out[category] = Array.isArray(list)
+      ? list.map((entry) => {
+          if (typeof entry === "string") return { championId: entry, difficulty: "medium", reason: null }; // Phase 2 shape
+          if (entry && typeof entry === "object" && typeof entry.championId === "string") {
+            return { championId: entry.championId, difficulty: entry.difficulty || "medium", reason: entry.reason ?? null };
+          }
+          return null;
+        }).filter(Boolean)
+      : [];
+  }
+  return out;
+}
+
 /** Field-level merge for one champion. Fields not present in `override`
  *  fall through to `base` untouched -- this is what makes a partial
  *  Coach Mode edit (e.g. just changing `tier`) safe, instead of
@@ -31,25 +60,32 @@ export function resolveEffectiveChampion(base, override, matchupSeed) {
     builds: override?.builds && override.builds.length > 0 ? override.builds : (base.builds || []),
     items: base.items || [],
     runes: base.runes || [],
-    matchups: base.matchups || [],
-    // The NEW structured Hard Against / Good Against / Good With system
-    // (src/components/ChampionMatchups.jsx) -- deliberately a SEPARATE
-    // field from `matchups` above, which stays exactly what it always
-    // was (Academy's existing free-text coaching prose). `matchupSeed`
-    // is src/data/matchups.js's MATCHUPS[base.id] -- the caller passes
-    // it in (rather than this file importing it directly) so this stays
-    // usable from a plain object in tests without a real data file, same
-    // reasoning as base/override already being parameters. An override
-    // object is trusted WHOLESALE the instant it's present (even with
-    // every array empty -- that's a real, intentional "coach cleared
-    // this category" state, not "no override"), exactly like `builds`
-    // above; there's no partial per-category merge here because Coach
-    // Mode (functions/api/coach-overrides.js, src/hooks/
-    // useCoachOverrides.js's existing generic update()) always computes
-    // and saves the complete next {hardAgainst,goodAgainst,goodWith}
-    // object on every add/remove, the same controlled-component pattern
-    // `builds` already uses. */
-    matchupRelations: override?.matchupRelations || matchupSeed || { hardAgainst: [], goodAgainst: [], goodWith: [] },
+    // The structured Hard Against / Good Against / Good With system
+    // (src/components/ChampionMatchups.jsx) is the ONLY Champion
+    // Matchup data now -- src/data/champions.js's old free-text
+    // `matchups` field (and this file's own `matchups: base.matchups
+    // || []` line that used to resolve it) was removed project-wide in
+    // Phase 3; nothing reads a champion's `.matchups` anymore. `reason`
+    // text that used to live in that prose was carried forward into the
+    // entries below at migration time (src/data/matchups.js), not
+    // duplicated here.
+    // `matchupSeed` is src/data/matchups.js's MATCHUPS[base.id] -- the
+    // caller passes it in (rather than this file importing it directly)
+    // so this stays usable from a plain object in tests without a real
+    // data file, same reasoning as base/override already being
+    // parameters. An override object is trusted WHOLESALE the instant
+    // it's present (even with every array empty -- that's a real,
+    // intentional "coach cleared this category" state, not "no
+    // override"), exactly like `builds` above; there's no partial
+    // per-category merge here because Coach Mode (functions/api/
+    // coach-overrides.js, src/hooks/useCoachOverrides.js's existing
+    // generic update()) always computes and saves the complete next
+    // object on every add/remove/edit, the same controlled-component
+    // pattern `builds` already uses. Both the seed and any override are
+    // run through normalizeMatchupRelations() so a champion's effective
+    // data is always today's {championId,difficulty,reason} shape
+    // regardless of which shape it was actually stored in.
+    matchupRelations: normalizeMatchupRelations(override?.matchupRelations || matchupSeed || { hardAgainst: [], goodAgainst: [], goodWith: [] }),
   };
 }
 

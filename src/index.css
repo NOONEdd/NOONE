@@ -302,8 +302,6 @@
      horizontal removable pill instead of a grid tile -- fits better
      next to the existing free-text matchup rows (.build-row) below it. */
   .matchup-relations{display:flex;flex-direction:column;gap:26px;margin-bottom:28px;}
-  .matchup-pill-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
-  .matchup-pill{display:flex;align-items:center;gap:2px;}
   .matchup-pill-main{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;
     border:1px solid var(--line);background:rgba(255,255,255,.02);
     transition:border-color .2s var(--ease),background .2s var(--ease),transform .15s var(--ease);}
@@ -317,6 +315,24 @@
   .matchup-pill-remove:hover{color:#ff6b6b;}
   .matchup-add-btn{border-radius:999px;}
   .matchup-empty-note{color:var(--text-dimmer);font-size:13.5px;margin-top:2px;}
+
+  /* Extended matchup entries (Phase 3) -- difficulty badge/select and
+     reason text/textarea, added alongside the pill styles above. */
+  .matchup-entry-list{display:flex;flex-direction:column;gap:10px;}
+  .matchup-entry{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.015);}
+  .matchup-entry-head{display:flex;align-items:center;gap:10px;}
+  .matchup-entry .matchup-pill-main{border:none;background:none;padding:2px 0;flex:1;min-width:0;}
+  .matchup-entry .matchup-pill-main:hover{transform:none;}
+  .matchup-entry .matchup-pill-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .matchup-difficulty-badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    padding:3px 9px;border-radius:999px;color:var(--accent);border:1px solid var(--accent);background:color-mix(in srgb, var(--accent) 12%, transparent);
+    flex-shrink:0;}
+  .matchup-difficulty-select{font-size:12px;font-weight:600;text-transform:capitalize;color:var(--accent);
+    border:1px solid var(--accent);border-radius:8px;background:rgba(0,0,0,.2);padding:4px 8px;flex-shrink:0;}
+  .matchup-reason-text{color:var(--text-dim);font-size:13px;line-height:1.5;margin-top:8px;font-style:italic;}
+  .matchup-reason-input{width:100%;margin-top:8px;font-size:13px;line-height:1.5;color:var(--text);
+    background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;resize:vertical;font-family:inherit;}
+  .matchup-reason-input:focus{outline:none;border-color:rgba(255,255,255,.3);}
 
   /* Desktop sticky panel — hidden on mobile, where the bottom-sheet takes over */
   .build-board-panel-desktop{display:none;}
