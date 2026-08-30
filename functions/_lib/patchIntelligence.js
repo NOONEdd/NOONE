@@ -449,7 +449,7 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
     env,
     systemPrompt,
     messages: [{ role: "user", content: "Analyze this patch now and return ONLY the JSON object described in your instructions." }],
-    maxTokens: tokenBudget.maxTokens,
+    maxTokens: PATCH_INTEL_MAX_TOKENS,
     jsonSchema: REPORT_JSON_SCHEMA,
   });
 
@@ -473,16 +473,18 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
   // miss, not as "even the hard maximum wasn't enough." See
   // providers/anthropic.js / providers/openaiCompatible.js for how
   // `truncated` is computed from the provider's own stop/finish reason.
-  if (result.truncated) {
-    const hitHardCeiling = tokenBudget.maxTokens >= PATCH_INTEL_MAX_TOKENS;
-    return {
-      ok: false,
-      code: "truncated_output",
-      error: `The AI analyst's response was cut off before it finished (hit the ${tokenBudget.maxTokens}-token budget estimated for this patch${hitHardCeiling ? `, which is already the ${PATCH_INTEL_MAX_TOKENS}-token hard maximum` : ""}) -- most likely too many Support-relevant changes in this patch for the current budget.`,
-      logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}. Token budget: ${JSON.stringify(tokenBudget)}`,
-      tokenBudget,
-    };
-  }
+ if (result.truncated) {
+  return {
+    ok: false,
+    code: "truncated_output",
+    error: `The AI analyst's response was cut off because it reached the ${PATCH_INTEL_MAX_TOKENS}-token output limit.`,
+    logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}. Token budget diagnostics: ${JSON.stringify(tokenBudget)}. Actual maxTokens sent: ${PATCH_INTEL_MAX_TOKENS}`,
+    tokenBudget: {
+      ...tokenBudget,
+      maxTokens: PATCH_INTEL_MAX_TOKENS,
+    },
+  };
+}
 
   const parseResult = parseAIJson(result.reply);
   if (!parseResult) {
