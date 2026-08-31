@@ -22,7 +22,7 @@
 // that only ever touches the patch-number/verification fields, never
 // champion/item/rune content (see that file's comment for exactly why).
 
-import { PATCH_INTEL_MIN_TOKENS, PATCH_INTEL_MAX_TOKENS, PATCH_INTEL_BASE_TOKENS, PATCH_INTEL_TOKENS_PER_ENTRY, PATCH_INTEL_CHARS_PER_EXTRA_ENTRY } from "./config.js";
+import { PATCH_INTEL_MAX_TOKENS } from "./config.js";
 import { callAIProvider } from "./aiProvider.js";
 // The SAME free-text-name -> Academy-entity resolver the rest of the
 // site already uses (src/components/BuildBoard.jsx, BuildList.jsx,
@@ -39,19 +39,26 @@ const TYPE_VALUES = ["Buff", "Nerf", "Adjustment"];
 const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOONEdd Academy, a Wild Rift Support coaching site. Your only input is the official Wild Rift patch notes text provided below, plus a snapshot of the Academy's current Support-relevant champion/item/rune roster and their CURRENT tiers. Your job is to extract and structure whatever in this specific patch matters to SUPPORT players -- not to rewrite the patch notes in full, and not to invent anything the patch notes don't actually say.
 
 HARD RULES -- follow these strictly:
-1. Every change you report must be traceable to the official patch notes text below. Never invent a change, a number, or a champion/item/rune that isn't actually mentioned in that text. If you are not sure something is really in the text, leave it out rather than guessing.
+1. FACTS vs. ANALYSIS -- keep these separate and never blur them. The official patch notes text below is the ONLY source of "what changed" -- every reported change must be traceable to it. "whatChanged"/"previousValue"/"newValue" are FACTS: they describe the actual change, straight from the text. "Support impact," "gameplay/build/rune/matchup implications," and "recommended tier action" are your ANALYSIS, clearly reasoned FROM that fact -- but never invent a change, a number, a mechanic, or a champion/item/rune that isn't actually in the text. If you are not sure something is really in the text, leave it out rather than guessing. Do not infer an old/new value the text doesn't explicitly give you.
 2. If the patch notes contain no changes relevant to Support, return empty arrays. A quiet patch producing a short, mostly-empty report is the CORRECT output -- do not manufacture relevance or pad the report to seem thorough.
 3. Only report changes that are actually relevant to Support play. Skip changes to non-Support-relevant champions/items/runes entirely -- do not include an entry just because a name was mentioned in the patch notes if it has no real bearing on Support.
-4. "Support impact," "gameplay/build/rune/matchup implications," and "recommended tier action" are your analysis, clearly reasoned FROM the raw change -- but the raw change itself (what changed, the previous value, the new value) must come from the text, not be inferred.
-5. Use the Academy roster snapshot below for two things ONLY: (a) judging whether a mentioned champion/item/rune is one Academy actually tracks, and (b) using its ACTUAL CURRENT tier as the "from" side of any recommended tier action -- never guess a current tier that isn't in the snapshot.
-6. You are an analyst/recommender, not the final authority -- a human coach reviews every report before anything about it goes live, and nothing you output is ever applied automatically. Write reasoning a human can quickly judge and disagree with if needed, not reasoning written to sound maximally confident.
-7. impactSeverity and confidence must each be exactly one of "Low", "Medium", "High". type/buffNerfAdjustment must be exactly one of "Buff", "Nerf", "Adjustment". Do not use any other values or casing.
-8. Respond with ONLY one JSON object matching the schema below. No markdown code fences, no prose before or after it, no comments inside it, no trailing commas.
-9. Write for MAXIMUM USEFUL INFORMATION PER TOKEN, not maximum length -- this report needs to be scannable in a couple of minutes, not exhaustive. Specifically:
-  - "whatChanged"/"previousValue"/"newValue": report the ACTUAL changes from the official patch notes, including important numerical and mechanical details. NEVER summarize a concrete change only as "buffed", "nerfed", or "adjusted". If a value changes, show the OLD and NEW values explicitly. This includes damage, healing, shielding, cooldown, mana/energy cost, range, duration, attack speed, movement speed, health, armor, AD/AP, ratios, percentages, stack counts, thresholds, scaling, and any other meaningful numerical value. For multiple changes to the same entity, include ALL important changes using concise labels such as "Q: damage 80→90; cooldown 10s→8s; W: shield 60→80". Do not omit important numbers or mechanics merely to make the response shorter.
-  - "supportImpact" and "reasoning": keep these concise and decision-oriented, but they MUST NOT replace the factual details of the actual changes. The factual numbers and mechanics belong in whatChanged/previousValue/newValue.
-  - Conciseness means removing repetition and unnecessary wording, NOT removing important patch information. Prefer dense factual summaries over vague statements such as "Q buffed" or "this makes the champion stronger."
-  10. AGGREGATE ALL CHANGES FOR THE SAME ENTITY INTO ONE ENTRY. Each champion may appear at most ONCE in championChanges. If a champion has multiple changes in this patch, combine ALL of them into that champion's single entry. This includes Passive, Q, W, E, R, base stats, scaling, cooldowns, damage, ratios, costs, durations, ranges, and any other changes. NEVER create separate entries for Q, W, E, R, Passive, or individual changes of the same champion. Put all changes together in the same whatChanged, previousValue, and newValue fields, using concise labels such as "Q:", "W:", "E:", "R:", and "Passive:" to keep them organized. The same rule applies to items and runes: each item or rune may appear at most ONCE, with all of its changes combined into that single entry.
+4. ONE ENTRY PER ENTITY -- this is critical. A given champion may appear AT MOST ONCE in championChanges for the whole report, no matter how many of its abilities changed. The same applies to items in itemChanges and runes in runeChanges: at most one entry per item, at most one entry per rune. If Leona's Q, W, and E all changed, that is ONE championChanges entry for Leona, not three. Riot's own patch notes format each ability in its own section -- do NOT mirror that structure into separate entries. Combine every change belonging to the same entity into that one entry's whatChanged/previousValue/newValue, organized with short labels so it stays readable when there are several:
+   Passive: ...
+   Q: ...
+   W: ...
+   E: ...
+   R: ...
+   Base Stats: ...
+   Example whatChanged for a champion with two ability changes: "Q: damage 80/120/160/200 -> 90/130/170/210; cooldown 9/8/7/6s -> 8/7/6/5s. W: armor 20/30/40/50 -> 25/35/45/55." Also avoid duplicate entries for the same entity in recommendedTierChanges -- one recommendation per entity, same rule.
+5. PRESERVE THE NUMBERS -- do not over-summarize. "Leona was buffed" or "Q was buffed" is NOT an acceptable whatChanged/previousValue/newValue -- that describes a category, not the change. Whenever the patch notes give a number, include it: damage, healing, shielding, cooldown, mana/energy cost, range, duration, percentages, ratios, AD/AP scaling, attack speed, movement speed, health, armor, magic resistance, stack counts, thresholds, charges, level scaling -- whatever the text actually specifies, both the OLD value and the NEW value when both are given. "Concise" means cutting repetition and unnecessary prose, NOT cutting factual numbers to save space -- a patch with many changes needs each entry written more economically, not stripped of its actual values. The "type" field (Buff/Nerf/Adjustment) is a classification, never a substitute for describing what actually changed.
+6. Use the Academy roster snapshot below for two things ONLY: (a) judging whether a mentioned champion/item/rune is one Academy actually tracks, and (b) using its ACTUAL CURRENT tier as the "from" side of any recommended tier action -- never guess a current tier that isn't in the snapshot, and never invent a roster entity that isn't listed there.
+7. You are an analyst/recommender, not the final authority -- a human coach reviews every report before anything about it goes live, and nothing you output is ever applied automatically. Write reasoning a human can quickly judge and disagree with if needed, not reasoning written to sound maximally confident.
+8. impactSeverity and confidence must each be exactly one of "Low", "Medium", "High". type/buffNerfAdjustment must be exactly one of "Buff", "Nerf", "Adjustment". Do not use any other values or casing.
+9. Respond with ONLY one JSON object matching the schema below. No markdown code fences, no prose before or after it, no comments inside it, no trailing commas.
+10. Write for MAXIMUM USEFUL INFORMATION PER TOKEN, not maximum length -- this report needs to be scannable in a couple of minutes, not exhaustive, but "scannable" is about cutting prose and repetition, never about cutting the actual numbers (see rule 5). Specifically:
+   - "supportImpact" and "reasoning": one short, decision-oriented sentence each -- state the conclusion, not the full chain of thought behind it.
+   - Every other implications field: a compact phrase, or the literal string "None." if genuinely not applicable -- never restate information already given in another field of the same entry.
+
 JSON SCHEMA (every field required; use empty string/array when a field genuinely doesn't apply, never omit the key):
 {
   "supportMetaAnalysis": string (2-4 sentences: what this patch means for Support play overall, or "No Support-relevant changes in this patch." if that's genuinely true),
@@ -308,6 +315,62 @@ function normalizeChangeEntry(entry, { withChampionsAffected }) {
   return base;
 }
 
+/** Safety net for ANALYST_INSTRUCTIONS' "one entry per entity" rule --
+ *  even with an explicit instruction, a model can still occasionally
+ *  split one entity's changes across multiple entries (e.g. mirroring
+ *  the patch notes' own per-ability section structure). This
+ *  deterministically merges any entries that resolved to the SAME id
+ *  (or, if id resolution failed for both, the same normalized name) --
+ *  it never asks the AI to retry, it just combines what's already
+ *  there. First-seen order and position are kept; whatChanged/
+ *  previousValue/newValue from every merged entry are concatenated so
+ *  no factual detail from either entry is lost (this is the one thing
+ *  that must never be silently dropped -- see HARD RULE 5); every other
+ *  field keeps the first entry's value, and championsAffected (items/
+ *  runes only) is unioned rather than overwritten. */
+function mergeDuplicateEntities(entries, idField, nameField) {
+  const merged = [];
+  const indexByKey = new Map();
+  const join = (a, b) => [a, b].map((s) => (s || "").trim()).filter(Boolean).join(" ");
+
+  for (const entry of entries) {
+    const key = entry[idField] || `name:${(entry[nameField] || "").trim().toLowerCase()}`;
+    const existingIndex = indexByKey.get(key);
+    if (existingIndex === undefined) {
+      indexByKey.set(key, merged.length);
+      merged.push(entry);
+      continue;
+    }
+    const existing = merged[existingIndex];
+    merged[existingIndex] = {
+      ...existing,
+      whatChanged: join(existing.whatChanged, entry.whatChanged),
+      previousValue: join(existing.previousValue, entry.previousValue),
+      newValue: join(existing.newValue, entry.newValue),
+      ...(existing.championsAffected
+        ? { championsAffected: [...new Set([...existing.championsAffected, ...(entry.championsAffected || [])])] }
+        : {}),
+    };
+  }
+  return merged;
+}
+
+/** Same "one entry per entity" rule applied to recommendedTierChanges --
+ *  that shape has no whatChanged/previousValue/newValue to concatenate
+ *  (just from/to/reasoning), so a duplicate recommendation for the same
+ *  entity is simply dropped (first one kept) rather than merged. */
+function dedupeByEntity(entries, idField, nameField) {
+  const seen = new Set();
+  const result = [];
+  for (const entry of entries) {
+    const key = entry[idField] || `name:${(entry[nameField] || "").trim().toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(entry);
+  }
+  return result;
+}
+
 /** Validates and normalizes the AI's raw JSON into a shape the rest of
  *  the app can trust: every enum clamped to its allowed set, every
  *  array actually an array, every id cross-checked against the real
@@ -328,21 +391,21 @@ export function normalizePatchIntelReport(raw, { championRoster, itemRoster, run
 
   return {
     supportMetaAnalysis: str(raw.supportMetaAnalysis),
-    championChanges: championChanges.map((e) => ({
+    championChanges: mergeDuplicateEntities(championChanges.map((e) => ({
       championName: str(e.championName),
       championId: resolveEntityId(e.championName, championRoster),
       ...normalizeChangeEntry(e, { withChampionsAffected: false }),
-    })),
-    itemChanges: itemChanges.map((e) => ({
+    })), "championId", "championName"),
+    itemChanges: mergeDuplicateEntities(itemChanges.map((e) => ({
       itemName: str(e.itemName),
       itemId: resolveEntityId(e.itemName, itemRoster),
       ...normalizeChangeEntry(e, { withChampionsAffected: true }),
-    })),
-    runeChanges: runeChanges.map((e) => ({
+    })), "itemId", "itemName"),
+    runeChanges: mergeDuplicateEntities(runeChanges.map((e) => ({
       runeName: str(e.runeName),
       runeId: resolveEntityId(e.runeName, runeRoster),
       ...normalizeChangeEntry(e, { withChampionsAffected: true }),
-    })),
+    })), "runeId", "runeName"),
     systemChanges: systemChanges.map((e) => ({
       area: str(e.area) || "Other",
       whatChanged: str(e.whatChanged),
@@ -353,7 +416,7 @@ export function normalizePatchIntelReport(raw, { championRoster, itemRoster, run
       reasoning: str(e.reasoning),
       confidence: enumOrDefault(e.confidence, CONFIDENCE_VALUES, "Medium"),
     })),
-    recommendedTierChanges: recommendedTierChanges.map((e) => {
+    recommendedTierChanges: dedupeByEntity(recommendedTierChanges.map((e) => {
       const entityType = enumOrDefault(e.entityType, ["champion", "item", "rune"], "champion");
       const roster = entityType === "item" ? itemRoster : entityType === "rune" ? runeRoster : championRoster;
       return {
@@ -365,72 +428,36 @@ export function normalizePatchIntelReport(raw, { championRoster, itemRoster, run
         reasoning: str(e.reasoning),
         confidence: enumOrDefault(e.confidence, CONFIDENCE_VALUES, "Medium"),
       };
-    }),
+    }), "entityId", "entityName"),
   };
-}
-
-/**
- * Deterministic, explainable estimate of how many output tokens THIS
- * specific patch's analysis will likely need -- computed BEFORE calling
- * the AI (never asks the model itself). Two signals, both available
- * from data already in hand at call time:
- *
- *   1. Name-matching: how many of Academy's own champion/item/rune
- *      names actually appear in the official patch text -- a genuine
- *      proxy for "how many change entries this patch will likely
- *      produce," since the analyst is instructed (HARD RULE 5 above) to
- *      only report entities Academy actually tracks.
- *   2. Length-based: raw official-patch-notes character count divided
- *      by PATCH_INTEL_CHARS_PER_EXTRA_ENTRY. Catches change categories
- *      the name-matching signal can't see -- system/meta changes
- *      (roaming, vision, objectives) that don't name a specific
- *      champion/item/rune but still cost systemChanges[] output tokens.
- *
- * The LARGER of the two signals wins (not averaged) -- underestimating
- * is the exact failure mode this exists to prevent (the original
- * production truncation bug), so erring toward a bigger request is the
- * safe direction; erring smaller risks reintroducing it. The result is
- * then clamped to [PATCH_INTEL_MIN_TOKENS, PATCH_INTEL_MAX_TOKENS] --
- * MAX_TOKENS is a HARD ceiling this estimate can never exceed, no
- * matter how large a patch looks (see config.js's comment for why that
- * specific number).
- *
- * Returns the full breakdown, not just the final number, so
- * functions/api/admin/patch-check.js can log safe, explainable
- * diagnostic metadata (estimated entries, chosen budget) without
- * recomputing anything, and so a truncation error message can cite the
- * actual budget that was used for that specific patch.
- */
-export function estimatePatchIntelTokenBudget({ patchContent, championRoster, itemRoster, runeRoster }) {
-  const content = patchContent || "";
-  const lowerContent = content.toLowerCase();
-
-  const allNames = [...championRoster, ...itemRoster, ...runeRoster].map((e) => e.name).filter(Boolean);
-  const mentionedCount = allNames.filter((name) => lowerContent.includes(name.toLowerCase())).length;
-
-  const lengthBasedEntries = Math.floor(content.length / PATCH_INTEL_CHARS_PER_EXTRA_ENTRY);
-
-  const estimatedEntries = Math.max(mentionedCount, lengthBasedEntries);
-  const estimatedBudget = PATCH_INTEL_BASE_TOKENS + estimatedEntries * PATCH_INTEL_TOKENS_PER_ENTRY;
-  const maxTokens = Math.min(Math.max(estimatedBudget, PATCH_INTEL_MIN_TOKENS), PATCH_INTEL_MAX_TOKENS);
-
-  return { maxTokens, estimatedEntries, mentionedCount, lengthBasedEntries, estimatedBudget };
 }
 
 /**
  * Runs the full analysis: builds the analyst prompt from the fetched
  * patch text + Academy roster snapshot, calls the active AI provider
  * (requesting native structured output when the provider supports it --
- * see aiProvider.js) with an ADAPTIVE per-patch token budget (see
- * estimatePatchIntelTokenBudget above -- functions/_lib/aiProvider.js
- * and the AI Coach chat path at functions/api/coach.js are untouched by
- * this: coach.js still passes its own fixed MAX_TOKENS constant, this
- * function is the only caller that ever computes an adaptive value),
- * and validates/normalizes the result.
+ * see aiProvider.js) with maxTokens ALWAYS SET TO THE FIXED
+ * PATCH_INTEL_MAX_TOKENS CEILING -- no per-patch estimate, no heuristic
+ * derived from mentioned-entity count or patch-content length. This
+ * file previously computed an adaptive per-patch budget
+ * (estimatePatchIntelTokenBudget(), clamped between a MIN floor and the
+ * MAX ceiling) specifically to avoid "wasting" budget on a quiet patch
+ * -- but an estimate that runs LOW is exactly the failure mode that
+ * caused real truncated reports in production (stop_reason
+ * "max_tokens" well below the hard ceiling), so the estimator is gone,
+ * not tuned. A quiet patch still naturally produces a short response
+ * and costs about the same regardless of the requested ceiling; a
+ * heavy patch can now use as much of that ceiling as it actually needs
+ * every time, not just when an estimate happened to guess high enough.
+ * functions/_lib/aiProvider.js and the AI Coach chat path at
+ * functions/api/coach.js are untouched by this -- coach.js still passes
+ * its own separate, fixed MAX_TOKENS constant (config.js), same as
+ * always; this function has always been the only caller that ever
+ * touched PATCH_INTEL_MAX_TOKENS, and still is.
  *
  * Returns one of:
- *   { ok: true, report: {...normalized fields above...}, parseStrategy, tokenBudget }
- *   { ok: false, code: "ai_error" | "truncated_output" | "ai_invalid_output", error, logDetail, tokenBudget }
+ *   { ok: true, report: {...normalized fields above...}, parseStrategy, maxTokens }
+ *   { ok: false, code: "ai_error" | "truncated_output" | "ai_invalid_output", error, logDetail, maxTokens }
  * Never throws. Never called with fabricated patch content -- the
  * caller (functions/api/admin/patch-check.js) only invokes this after a
  * successful official-source fetch; a failed fetch produces a
@@ -441,8 +468,6 @@ export function estimatePatchIntelTokenBudget({ patchContent, championRoster, it
 export async function runPatchIntelAnalysis({ env, patchContent, championRoster, itemRoster, runeRoster }) {
   const rosterSnapshot = formatRosterSnapshot(championRoster, itemRoster, runeRoster);
   const systemPrompt = `${ANALYST_INSTRUCTIONS}\n\n${rosterSnapshot}\n\n--- Official Wild Rift patch notes (the ONLY source of "what changed" -- analyze this) ---\n${patchContent}`;
-
-  const tokenBudget = estimatePatchIntelTokenBudget({ patchContent, championRoster, itemRoster, runeRoster });
 
   const result = await callAIProvider({
     env,
@@ -458,7 +483,7 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       code: result.code === "truncated_output" ? "truncated_output" : "ai_error",
       error: result.error,
       logDetail: result.logDetail,
-      tokenBudget,
+      maxTokens: PATCH_INTEL_MAX_TOKENS,
     };
   }
 
@@ -466,24 +491,22 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
   // deterministically not valid JSON (it was cut off mid-object), so
   // there's no point running it through the parser just to get a
   // confusing generic "invalid JSON" error; this gives a specific,
-  // actionable one instead, citing the ACTUAL adaptive budget this
-  // patch got (not just the hard ceiling), so a report that's truncated
-  // well below PATCH_INTEL_MAX_TOKENS clearly reads as an estimation
-  // miss, not as "even the hard maximum wasn't enough." See
-  // providers/anthropic.js / providers/openaiCompatible.js for how
-  // `truncated` is computed from the provider's own stop/finish reason.
- if (result.truncated) {
-  return {
-    ok: false,
-    code: "truncated_output",
-    error: `The AI analyst's response was cut off because it reached the ${PATCH_INTEL_MAX_TOKENS}-token output limit.`,
-    logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}. Token budget diagnostics: ${JSON.stringify(tokenBudget)}. Actual maxTokens sent: ${PATCH_INTEL_MAX_TOKENS}`,
-    tokenBudget: {
-      ...tokenBudget,
+  // actionable one instead. Since every request already uses the fixed
+  // hard ceiling, a truncation now unambiguously means the patch
+  // genuinely produced more output than the ceiling allows -- it can no
+  // longer mean "the estimate for this patch happened to guess too
+  // low" (there is no estimate anymore). See providers/anthropic.js /
+  // providers/openaiCompatible.js for how `truncated` is computed from
+  // the provider's own stop/finish reason.
+  if (result.truncated) {
+    return {
+      ok: false,
+      code: "truncated_output",
+      error: `The AI analyst's response was cut off before it finished (hit the ${PATCH_INTEL_MAX_TOKENS}-token hard maximum) -- this patch has more Support-relevant changes than the current ceiling allows.`,
+      logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}.`,
       maxTokens: PATCH_INTEL_MAX_TOKENS,
-    },
-  };
-}
+    };
+  }
 
   const parseResult = parseAIJson(result.reply);
   if (!parseResult) {
@@ -492,7 +515,7 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       code: "ai_invalid_output",
       error: "The AI analyst didn't return valid JSON for this patch.",
       logDetail: `All parse strategies failed (raw, fenced, bounded-extraction). finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Raw reply (first 500 chars): ${JSON.stringify((result.reply || "").slice(0, 500))}`,
-      tokenBudget,
+      maxTokens: PATCH_INTEL_MAX_TOKENS,
     };
   }
 
@@ -503,9 +526,9 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       code: "ai_invalid_output",
       error: "The AI analyst's response didn't match the expected report shape.",
       logDetail: `Parsed via "${parseResult.strategy}" strategy but the shape was unusable: ${JSON.stringify(parseResult.parsed).slice(0, 300)}`,
-      tokenBudget,
+      maxTokens: PATCH_INTEL_MAX_TOKENS,
     };
   }
 
-  return { ok: true, report: normalized, parseStrategy: parseResult.strategy, tokenBudget };
+  return { ok: true, report: normalized, parseStrategy: parseResult.strategy, maxTokens: PATCH_INTEL_MAX_TOKENS };
 }

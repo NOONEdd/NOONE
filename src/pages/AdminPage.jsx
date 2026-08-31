@@ -20,6 +20,8 @@ const STATUS_LABEL = {
   approved: "Approved",
   rejected: "Rejected",
   published: "Published",
+  archived: "Archived (older revision)",
+  unpublished: "Unpublished",
   source_unavailable: "Source unavailable",
   ai_error: "Analysis failed",
 };
@@ -99,7 +101,73 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
   );
 }
 
-function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
+/** Revision history for one patch -- fetched on demand (only when
+ *  expanded) via GET ?id=X&allRevisions=1, never as part of the normal
+ *  report load, so a patch that's never been re-analyzed (the common
+ *  case) never pays for this extra request. Restoring an older
+ *  revision reuses the exact same server-side operation as Publish
+ *  (publishRevision() with that revision's number, see
+ *  patchReportsStore.js) -- there is no separate restore code path,
+ *  just a different revision number in the same request. */
+function RevisionHistory({ reportId, onAction, busy }) {
+  const [open, setOpen] = useState(false);
+  const [revisions, setRevisions] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+
+  async function toggle() {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    if (revisions) return;
+    try {
+      const res = await fetch(`${REPORTS_URL}?id=${encodeURIComponent(reportId)}&allRevisions=1`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load revision history");
+      setRevisions(data.revisions || []);
+    } catch (e) {
+      setLoadError(e.message || "Couldn't load revision history.");
+    }
+  }
+
+  return (
+    <div className="revision-history">
+      <button type="button" className="btn btn-ghost btn-small" onClick={toggle}>
+        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />} Revision history
+      </button>
+      {open && (
+        loadError ? <p className="patch-entry-line">{loadError}</p> :
+        !revisions ? <p className="patch-entry-line">Loading…</p> :
+        revisions.length <= 1 ? <p className="patch-entry-line">No earlier revisions — this patch has only ever been analyzed once.</p> : (
+          <ul className="revision-list">
+            {revisions.map((rev) => (
+              <li key={rev.revision} className="revision-list-item">
+                <span>Revision {rev.revision}</span>
+                <span className={"patch-report-status status-" + rev.status}>{STATUS_LABEL[rev.status] || rev.status}</span>
+                <span className="patch-report-date">{new Date(rev.generatedAt).toLocaleString()}</span>
+                {rev.status !== "published" && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-small"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm(`Restore revision ${rev.revision}? This will replace whatever is currently published for this patch.`)) {
+                        onAction(reportId, "restore", { revision: rev.revision });
+                        setRevisions(null); // force a fresh reload next time it's opened
+                      }
+                    }}
+                  >
+                    Restore
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </div>
+  );
+}
+
+function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, roster, publishedRevision }) {
   const [expanded, setExpanded] = useState(Boolean(initiallyExpanded));
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -132,8 +200,15 @@ function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
         {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <span className="patch-report-patch">Patch {report.patch || report.id}</span>
         <span className={"patch-report-status status-" + report.status}>{STATUS_LABEL[report.status] || report.status}</span>
+        {report.revision > 1 && <span className="patch-revision-badge">Rev {report.revision}</span>}
         <span className="patch-report-date">{new Date(report.generatedAt).toLocaleString()}</span>
       </button>
+
+      {expanded && publishedRevision && publishedRevision !== report.revision && (
+        <p className="patch-entry-line" style={{ padding: "0 20px" }}>
+          <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} /> Revision {publishedRevision} is currently the one shown publicly — this is revision {report.revision}. See revision history below to compare or restore.
+        </p>
+      )}
 
       {expanded && (
         <div className="patch-report-body">
@@ -207,6 +282,11 @@ function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
                   </a>
                 </p>
               )}
+              {(report.aiProvider || report.aiModel) && (
+                <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", fontSize: 12.5 }}>
+                  Generated by {report.aiProvider || "unknown provider"}{report.aiModel ? ` (${report.aiModel})` : ""} · revision {report.revision || 1}
+                </p>
+              )}
 
               <label className="save-note" htmlFor={`notes-${report.id}`}>Admin notes:</label>
               {editMode ? (
@@ -260,7 +340,35 @@ function ReportCard({ report, onAction, busy, initiallyExpanded, roster }) {
                 </button>
               </span>
             )}
+            {!editMode && report.status === "published" && (
+              <>
+                <button
+                  className="btn btn-ghost btn-small"
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm(`Re-analyze patch ${report.patch || report.id}? This runs a fresh AI analysis (uses AI/API credits) and creates a new revision pending your review — the currently published version stays live until you publish the new one.`)) {
+                      onReanalyze(report.id);
+                    }
+                  }}
+                >
+                  <RefreshCw size={14} /> Re-analyze
+                </button>
+                <button
+                  className="btn btn-ghost btn-small"
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm(`Unpublish patch ${report.patch || report.id}? It will disappear from the public Patch Intelligence page immediately. The report itself is kept and can be published again later.`)) {
+                      onAction(report.id, "unpublish");
+                    }
+                  }}
+                >
+                  <XCircle size={14} /> Unpublish
+                </button>
+              </>
+            )}
           </div>
+
+          {!isSourceProblem && <RevisionHistory reportId={report.id} onAction={onAction} busy={busy} />}
         </div>
       )}
     </div>
@@ -359,6 +467,27 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
     }
   }
 
+  async function handleReanalyze(patchId) {
+    setBusyId(patchId);
+    setCheckResult(null);
+    try {
+      const res = await fetch(CHECK_URL, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reanalyze", patchId }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || "Re-analysis failed");
+      setCheckResult({ ok: true, message: `Re-analysis complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review. The published version is unchanged until you publish it.` });
+      await loadReports();
+    } catch (e) {
+      setLoadError(e.message || "Re-analysis failed.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (!auth?.isAuthorized) {
     return (
       <section className="page-section">
@@ -433,7 +562,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
           {reports && reports.length > 0 && (
             <div className="patch-report-list">
               {reports.map((summary) => (
-                <ReportCardLoader key={summary.id} id={summary.id} summary={summary} onAction={handleAction} busy={busyId === summary.id} roster={{ champions, items, runes }} />
+                <ReportCardLoader key={summary.id} id={summary.id} summary={summary} onAction={handleAction} onReanalyze={handleReanalyze} busy={busyId === summary.id} roster={{ champions, items, runes }} />
               ))}
             </div>
           )}
@@ -448,7 +577,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
  *  listAllReports) -- this fetches the ONE full report body lazily,
  *  only for whichever card the admin actually expands, rather than the
  *  list view pulling every report's full analysis up front. */
-function ReportCardLoader({ id, summary, onAction, busy, roster }) {
+function ReportCardLoader({ id, summary, onAction, onReanalyze, busy, roster }) {
   const [full, setFull] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -471,10 +600,11 @@ function ReportCardLoader({ id, summary, onAction, busy, roster }) {
           <ChevronRight size={16} />
           <span className="patch-report-patch">Patch {summary.patch || summary.id}</span>
           <span className={"patch-report-status status-" + summary.status}>{STATUS_LABEL[summary.status] || summary.status}</span>
+          {summary.latestRevision > 1 && <span className="patch-revision-badge">Rev {summary.latestRevision}</span>}
           <span className="patch-report-date">{loading ? "Loading…" : new Date(summary.generatedAt).toLocaleString()}</span>
         </button>
       </div>
     );
   }
-  return <ReportCard report={full} onAction={onAction} busy={busy} initiallyExpanded roster={roster} />;
+  return <ReportCard report={full} onAction={onAction} onReanalyze={onReanalyze} busy={busy} initiallyExpanded roster={roster} publishedRevision={summary.publishedRevision} />;
 }
