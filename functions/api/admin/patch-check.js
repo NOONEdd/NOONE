@@ -182,12 +182,23 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
   };
 }
 
-/** Re-analyze: {"action":"reanalyze","patchId":"7-3a"}. Admin session
- *  only (see file header for why the scheduled secret can't reach
- *  this). Requires a report to already exist for patchId -- re-analysis
- *  is "generate another revision of a patch Patch Intelligence already
- *  knows about," not a way to sneak a brand-new patch in through a
- *  side door.
+/** Re-analyze / Retry Analysis -- ONE shared implementation for both.
+ *  {"action":"reanalyze","patchId":"7-3a"} and
+ *  {"action":"retry-analysis","patchId":"7-2d"} are aliases that reach
+ *  this exact same function; the only difference is which label a
+ *  caller used (kept distinct in logs/response so "an admin
+ *  deliberately wanted a fresh look at a working report" and "an admin
+ *  is recovering a failed one" stay tell-apart-able), never a second
+ *  code path. Admin session only (see file header for why the scheduled
+ *  secret can't reach this). Requires a report to already exist for
+ *  patchId -- this is "generate another revision of a patch Patch
+ *  Intelligence already knows about," not a way to sneak a brand-new
+ *  patch in through a side door. Works identically regardless of the
+ *  EXISTING report's status -- published, ai_error, source_unavailable,
+ *  whatever -- there is no "only retry if currently broken" gate here;
+ *  that distinction is purely which button the Admin UI shows for which
+ *  status (src/pages/AdminPage.jsx), not anything this function itself
+ *  enforces or needs to.
  *
  *  Response is deliberately explicit about success vs. failure at the
  *  TOP level (`success`), not just buried in `status` -- a caller that
@@ -195,10 +206,14 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
  *  was recorded, but the AI call inside it failed" for "re-analysis
  *  produced a usable new analysis." `ok` stays true whenever the
  *  OPERATION itself completed (a new revision -- possibly a failure
- *  record -- was successfully created and revision 1 is untouched);
- *  `success` is specifically "did the new revision actually get a
- *  fresh, usable AI analysis." Both are always present so neither can
- *  be misread as the other. */
+ *  record -- was successfully created and the previously published
+ *  revision, if any, is untouched); `success` is specifically "did the
+ *  new revision actually get a fresh, usable AI analysis." Both are
+ *  always present so neither can be misread as the other. A failed
+ *  retry is never a dead end: it still creates a normal revision (just
+ *  with status ai_error/source_unavailable), so the SAME action can
+ *  always be called again -- there is no state a failure can leave the
+ *  patch in that blocks a further retry. */
 async function handleReanalyze(context, body) {
   const { env } = context;
   const kv = env.COACH_KV;
@@ -208,21 +223,22 @@ async function handleReanalyze(context, body) {
     return json({ ok: false, code: "unauthorized", error: "Not authenticated." }, 401);
   }
 
+  const action = body?.action === "retry-analysis" ? "retry-analysis" : "reanalyze";
   const patchId = body?.patchId;
   if (!patchId || typeof patchId !== "string") {
-    return json({ ok: false, error: "Missing patchId." }, 400);
+    return json({ ok: false, action, error: "Missing patchId." }, 400);
   }
 
   const existing = await getLatestReport(kv, patchId);
   if (!existing) {
-    return json({ ok: false, error: `No existing report for patch "${patchId}" -- re-analyze only works on a patch Patch Intelligence has already generated at least once.` }, 404);
+    return json({ ok: false, action, error: `No existing report for patch "${patchId}" -- ${action === "retry-analysis" ? "retry" : "re-analyze"} only works on a patch Patch Intelligence has already generated at least once.` }, 404);
   }
   const currentRevision = existing.revision || 1;
 
   let result;
   try {
     const overrides = await fetchOverrides(kv);
-    result = await analyzePatch({ env, kv, slug: patchId, overrides, logContext: { action: "reanalyze", currentRevision } });
+    result = await analyzePatch({ env, kv, slug: patchId, overrides, logContext: { action, currentRevision } });
   } catch (err) {
     // Belt-and-braces: analyzePatch/its dependencies are written to
     // catch their own failures and return a status, never throw -- but
@@ -230,13 +246,13 @@ async function handleReanalyze(context, body) {
     // edge case), this must still produce a real, visible error instead
     // of a bare 500 with no detail, and MUST NOT touch anything already
     // published (nothing above this point has written anything).
-    logPatchIntelEvent({ stage: "reanalyze_unexpected_error", slug: patchId, action: "reanalyze", currentRevision, error: String(err && err.message || err) });
-    return json({ ok: false, success: false, action: "reanalyze", patchId, error: `Unexpected error during re-analysis: ${err && err.message ? err.message : String(err)}` }, 500);
+    logPatchIntelEvent({ stage: `${action}_unexpected_error`, slug: patchId, action, currentRevision, error: String(err && err.message || err) });
+    return json({ ok: false, success: false, action, patchId, error: `Unexpected error during ${action === "retry-analysis" ? "retry" : "re-analysis"}: ${err && err.message ? err.message : String(err)}` }, 500);
   }
 
   const revision = await saveReanalysisRevision(kv, patchId, result.report);
   if (revision === null) {
-    return json({ ok: false, success: false, action: "reanalyze", patchId, error: "Failed to save the new revision." }, 500);
+    return json({ ok: false, success: false, action, patchId, error: "Failed to save the new revision." }, 500);
   }
 
   // Deliberately NOT calling setLastKnownSlug and NOT calling
@@ -251,7 +267,7 @@ async function handleReanalyze(context, body) {
   return json({
     ok: true,
     success,
-    action: "reanalyze",
+    action,
     patchId,
     previousRevision: currentRevision,
     revision,
@@ -277,7 +293,13 @@ export async function onRequestPost(context) {
     // no body / not JSON is fine -- trigger just defaults below
   }
 
-  if (body && body.action === "reanalyze") {
+  // "reanalyze" and "retry-analysis" are aliases for the exact same
+  // operation (see handleReanalyze's doc comment) -- Admin UI uses
+  // "reanalyze" for the deliberate fresh-look button on a published
+  // report, and "retry-analysis" for the recovery button on an
+  // ai_error/source_unavailable one (src/pages/AdminPage.jsx), but
+  // there is only one implementation either way.
+  if (body && (body.action === "reanalyze" || body.action === "retry-analysis")) {
     return handleReanalyze(context, body);
   }
 

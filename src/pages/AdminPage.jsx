@@ -223,13 +223,17 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
       {expanded && (
         <div className="patch-report-body">
           {isSourceProblem ? (
-            <p className="patch-entry-line">
-              <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} />{" "}
-              {report.status === "source_unavailable"
-                ? "The official patch notes page couldn't be retrieved for this patch. No analysis was generated."
-                : `The AI analyst couldn't produce a usable report: ${report.adminNotes || "unknown error"}`}
-              {" "}Use "Check for new patch now" above to retry.
-            </p>
+            <div>
+              <p className="patch-entry-line">
+                <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} />{" "}
+                {report.status === "source_unavailable"
+                  ? "The official patch notes page couldn't be retrieved for this patch. No analysis was generated."
+                  : `The AI analyst couldn't produce a usable report: ${report.adminNotes || "unknown error"}`}
+              </p>
+              <p className="patch-entry-line" style={{ color: "var(--text-dimmer)" }}>
+                "Check for New Patch" won't retry this — it only looks for a Riot patch newer than the last one Patch Intelligence already knows about, and this one is already known. Use the button below instead, which re-runs the fetch/analysis for THIS specific patch directly.
+              </p>
+            </div>
           ) : (
             <>
               {editMode ? (
@@ -357,7 +361,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   disabled={busy}
                   onClick={() => {
                     if (window.confirm(`Re-analyze patch ${report.patch || report.id}? This runs a fresh AI analysis (uses AI/API credits) and creates a new revision pending your review — the currently published version stays live until you publish the new one.`)) {
-                      onReanalyze(report.id);
+                      onReanalyze(report.id, "reanalyze");
                     }
                   }}
                 >
@@ -376,9 +380,23 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 </button>
               </>
             )}
+            {!editMode && isSourceProblem && (
+              <button
+                className="btn btn-primary btn-small"
+                disabled={busy}
+                onClick={() => {
+                  const label = report.status === "source_unavailable" ? "Retry Source Fetch" : "Retry Analysis";
+                  if (window.confirm(`${label} for patch ${report.patch || report.id}? This fetches the official patch notes again and runs a fresh AI analysis (uses AI/API credits) as a new revision pending your review.`)) {
+                    onReanalyze(report.id, "retry-analysis");
+                  }
+                }}
+              >
+                <RefreshCw size={14} /> {report.status === "source_unavailable" ? "Retry Source Fetch" : "Retry Analysis"}
+              </button>
+            )}
           </div>
 
-          {!isSourceProblem && <RevisionHistory reportId={report.id} onAction={onAction} busy={busy} refreshToken={refreshToken} />}
+          <RevisionHistory reportId={report.id} onAction={onAction} busy={busy} refreshToken={refreshToken} />
         </div>
       )}
     </div>
@@ -447,9 +465,9 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
       } else if (data.status === "pending_review") {
         setCheckResult({ ok: true, message: `New patch detected: ${data.report.patch}. Report generated below.` });
       } else if (data.status === "source_unavailable") {
-        setCheckResult({ ok: false, message: "A new patch was detected but its official notes page couldn't be fetched. Try again shortly." });
+        setCheckResult({ ok: false, message: "A new patch was detected but its official notes page couldn't be fetched. A report was created below — use its \"Retry Source Fetch\" button once the source is reachable, not this button again (this one only looks for a newer patch, which won't exist yet)." });
       } else if (data.status === "ai_error") {
-        setCheckResult({ ok: false, message: `A new patch was found but analysis failed: ${data.aiError || "unknown error"}` });
+        setCheckResult({ ok: false, message: `A new patch was found but analysis failed: ${data.aiError || "unknown error"}. A report was created below — use its "Retry Analysis" button to try again, not this button again (this one only looks for a newer patch than ${data.report.patch}, which won't exist yet).` });
       }
       await loadReports();
     } catch {
@@ -494,31 +512,32 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
    *  fixes this generically: every already-loaded card refetches its
    *  full body whenever ANY action completes, not just the one that was
    *  acted on -- see ReportCardLoader's effect below. */
-  async function handleReanalyze(patchId) {
+  async function handleReanalyze(patchId, action = "reanalyze") {
     setBusyId(patchId);
     setCheckResult(null);
+    const verb = action === "retry-analysis" ? "Retry" : "Re-analysis";
     try {
       const res = await fetch(CHECK_URL, {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reanalyze", patchId }),
+        body: JSON.stringify({ action, patchId }),
       });
       const data = await res.json();
-      if (!res.ok || data.ok === false) throw new Error(data.error || "Re-analysis failed");
+      if (!res.ok || data.ok === false) throw new Error(data.error || `${verb} failed`);
       if (data.success === false) {
         // A new revision WAS created (for debugging/history), but the
         // actual AI analysis failed -- this must read as a failure, not
         // "re-analysis complete." See functions/api/admin/patch-check.js's
         // handleReanalyze doc comment for the ok-vs-success distinction.
-        setCheckResult({ ok: false, message: `Re-analysis ran but did not produce a usable result (revision ${data.revision}, ${STATUS_LABEL[data.status] || data.status}): ${data.aiError || "unknown error"}. The published version is unchanged.` });
+        setCheckResult({ ok: false, message: `${verb} ran but did not produce a usable result (revision ${data.revision}, ${STATUS_LABEL[data.status] || data.status}): ${data.aiError || "unknown error"}. ${action === "retry-analysis" ? "You can press Retry again." : "The published version is unchanged."}` });
       } else {
-        setCheckResult({ ok: true, message: `Re-analysis complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review. The published version is unchanged until you publish it.` });
+        setCheckResult({ ok: true, message: `${verb} complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review. The published version is unchanged until you publish it.` });
       }
       await loadReports();
       setRefreshToken((t) => t + 1);
     } catch (e) {
-      setLoadError(e.message || "Re-analysis failed.");
+      setLoadError(e.message || `${verb} failed.`);
     } finally {
       setBusyId(null);
     }
@@ -587,6 +606,9 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
               <Radar size={14} className={checking ? "spin" : ""} /> {checking ? "Checking..." : "Check for new patch now"}
             </button>
           </div>
+          <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", marginTop: -8, marginBottom: 12 }}>
+            Looks for a Riot patch newer than the last one processed — it will report "no new patch" if the latest is already known, even if that patch's own analysis failed. To re-run analysis for an existing patch (new or failed), use that report's own Re-analyze / Retry Analysis button below instead.
+          </p>
           {checkResult && (
             <p className={checkResult.ok ? "save-note" : "coach-password-error"} style={{ marginBottom: 16 }}>{checkResult.message}</p>
           )}
