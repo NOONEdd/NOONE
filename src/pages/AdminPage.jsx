@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink } from "lucide-react";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
@@ -109,15 +109,13 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
  *  (publishRevision() with that revision's number, see
  *  patchReportsStore.js) -- there is no separate restore code path,
  *  just a different revision number in the same request. */
-function RevisionHistory({ reportId, onAction, busy }) {
+function RevisionHistory({ reportId, onAction, busy, refreshToken }) {
   const [open, setOpen] = useState(false);
   const [revisions, setRevisions] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
-  async function toggle() {
-    if (open) { setOpen(false); return; }
-    setOpen(true);
-    if (revisions) return;
+  const load = useCallback(async () => {
+    setLoadError(null);
     try {
       const res = await fetch(`${REPORTS_URL}?id=${encodeURIComponent(reportId)}&allRevisions=1`, { credentials: "same-origin" });
       const data = await res.json();
@@ -126,11 +124,24 @@ function RevisionHistory({ reportId, onAction, busy }) {
     } catch (e) {
       setLoadError(e.message || "Couldn't load revision history.");
     }
-  }
+  }, [reportId]);
+
+  // Fetches when first expanded, and re-fetches whenever any action
+  // completes anywhere in the admin panel WHILE this panel is open
+  // (restoring an older revision from right here being the main case --
+  // without this, the list would keep showing the pre-restore state
+  // indefinitely, since nothing else prompts a re-fetch once it's
+  // already open).
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!open) return;
+    if (!mounted.current) { mounted.current = true; load(); return; }
+    load();
+  }, [open, refreshToken, load]);
 
   return (
     <div className="revision-history">
-      <button type="button" className="btn btn-ghost btn-small" onClick={toggle}>
+      <button type="button" className="btn btn-ghost btn-small" onClick={() => setOpen((v) => !v)}>
         {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />} Revision history
       </button>
       {open && (
@@ -151,7 +162,6 @@ function RevisionHistory({ reportId, onAction, busy }) {
                     onClick={() => {
                       if (window.confirm(`Restore revision ${rev.revision}? This will replace whatever is currently published for this patch.`)) {
                         onAction(reportId, "restore", { revision: rev.revision });
-                        setRevisions(null); // force a fresh reload next time it's opened
                       }
                     }}
                   >
@@ -167,7 +177,7 @@ function RevisionHistory({ reportId, onAction, busy }) {
   );
 }
 
-function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, roster, publishedRevision }) {
+function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, roster, publishedRevision, refreshToken }) {
   const [expanded, setExpanded] = useState(Boolean(initiallyExpanded));
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -368,7 +378,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
             )}
           </div>
 
-          {!isSourceProblem && <RevisionHistory reportId={report.id} onAction={onAction} busy={busy} />}
+          {!isSourceProblem && <RevisionHistory reportId={report.id} onAction={onAction} busy={busy} refreshToken={refreshToken} />}
         </div>
       )}
     </div>
@@ -385,6 +395,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [patchInput, setPatchInput] = useState(currentPatch || "");
 
   useEffect(() => { setPatchInput(currentPatch || ""); }, [currentPatch]);
@@ -460,6 +471,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Action failed");
       await loadReports();
+      setRefreshToken((t) => t + 1);
     } catch (e) {
       setLoadError(e.message || "Action failed.");
     } finally {
@@ -467,6 +479,21 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
     }
   }
 
+  /** ROOT CAUSE of "Re-analyze doesn't appear to do anything": each
+   *  expanded report card's full body is loaded and cached in
+   *  ReportCardLoader's own local state (`full`), keyed by report id.
+   *  Re-analyze doesn't change that id -- it's still the same patch --
+   *  so React reuses the SAME component instance (same `key`) after
+   *  loadReports() refreshes the summary list, and that instance's
+   *  already-set `full` state is untouched by a prop update. The card
+   *  kept rendering revision 1's cached content forever, even though
+   *  revision 2 was correctly created on the server the whole time
+   *  (confirmed independently via the backend test suite in tests/
+   *  patchIntelReanalyze.test.mjs, which talks to the real handlers
+   *  directly and has no React tree to go stale in). `refreshToken`
+   *  fixes this generically: every already-loaded card refetches its
+   *  full body whenever ANY action completes, not just the one that was
+   *  acted on -- see ReportCardLoader's effect below. */
   async function handleReanalyze(patchId) {
     setBusyId(patchId);
     setCheckResult(null);
@@ -479,8 +506,17 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.error || "Re-analysis failed");
-      setCheckResult({ ok: true, message: `Re-analysis complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review. The published version is unchanged until you publish it.` });
+      if (data.success === false) {
+        // A new revision WAS created (for debugging/history), but the
+        // actual AI analysis failed -- this must read as a failure, not
+        // "re-analysis complete." See functions/api/admin/patch-check.js's
+        // handleReanalyze doc comment for the ok-vs-success distinction.
+        setCheckResult({ ok: false, message: `Re-analysis ran but did not produce a usable result (revision ${data.revision}, ${STATUS_LABEL[data.status] || data.status}): ${data.aiError || "unknown error"}. The published version is unchanged.` });
+      } else {
+        setCheckResult({ ok: true, message: `Re-analysis complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review. The published version is unchanged until you publish it.` });
+      }
       await loadReports();
+      setRefreshToken((t) => t + 1);
     } catch (e) {
       setLoadError(e.message || "Re-analysis failed.");
     } finally {
@@ -562,7 +598,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
           {reports && reports.length > 0 && (
             <div className="patch-report-list">
               {reports.map((summary) => (
-                <ReportCardLoader key={summary.id} id={summary.id} summary={summary} onAction={handleAction} onReanalyze={handleReanalyze} busy={busyId === summary.id} roster={{ champions, items, runes }} />
+                <ReportCardLoader key={summary.id} id={summary.id} summary={summary} onAction={handleAction} onReanalyze={handleReanalyze} busy={busyId === summary.id} roster={{ champions, items, runes }} refreshToken={refreshToken} />
               ))}
             </div>
           )}
@@ -577,12 +613,11 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
  *  listAllReports) -- this fetches the ONE full report body lazily,
  *  only for whichever card the admin actually expands, rather than the
  *  list view pulling every report's full analysis up front. */
-function ReportCardLoader({ id, summary, onAction, onReanalyze, busy, roster }) {
+function ReportCardLoader({ id, summary, onAction, onReanalyze, busy, roster, refreshToken }) {
   const [full, setFull] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  async function ensureLoaded() {
-    if (full || loading) return;
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${REPORTS_URL}?id=${encodeURIComponent(id)}`, { credentials: "same-origin" });
@@ -591,7 +626,25 @@ function ReportCardLoader({ id, summary, onAction, onReanalyze, busy, roster }) 
     } finally {
       setLoading(false);
     }
+  }, [id]);
+
+  function ensureLoaded() {
+    if (full || loading) return;
+    load();
   }
+
+  // Re-fetches this card's full body after any mutation completes
+  // elsewhere in the admin panel (see handleAction/handleReanalyze's
+  // refreshToken bump in the parent) -- but ONLY if this card is
+  // already expanded/loaded. Skipped on first mount (refreshToken
+  // starts at 0 and this card may not even be loaded yet) so a
+  // page-load doesn't trigger a redundant extra fetch on top of
+  // ensureLoaded's own.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    if (full) load();
+  }, [refreshToken, load]);
 
   if (!full) {
     return (
@@ -606,5 +659,5 @@ function ReportCardLoader({ id, summary, onAction, onReanalyze, busy, roster }) 
       </div>
     );
   }
-  return <ReportCard report={full} onAction={onAction} onReanalyze={onReanalyze} busy={busy} initiallyExpanded roster={roster} publishedRevision={summary.publishedRevision} />;
+  return <ReportCard report={full} onAction={onAction} onReanalyze={onReanalyze} busy={busy} initiallyExpanded roster={roster} publishedRevision={summary.publishedRevision} refreshToken={refreshToken} />;
 }

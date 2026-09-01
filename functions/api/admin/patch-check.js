@@ -39,7 +39,8 @@
 
 import { requireAdminSession, hasValidPatchCheckSecret } from "../../_lib/adminAuth.js";
 import { discoverLatestPatchSlug, fetchAndCacheFullPatchContent, extractPatchNumberFromContent } from "../../_lib/riotFallback.js";
-import { runPatchIntelAnalysis } from "../../_lib/patchIntelligence.js";
+import { runPatchIntelAnalysis, PATCH_INTEL_ENGINE_VERSION } from "../../_lib/patchIntelligence.js";
+import { PATCH_INTEL_MAX_TOKENS } from "../../_lib/config.js";
 import { saveNewReport, saveReanalysisRevision, getLatestReport, getLastKnownSlug, setLastKnownSlug } from "../../_lib/patchReportsStore.js";
 import { sendPatchNotification, sendSourceUnavailableNotification } from "../../_lib/notify.js";
 import { resolveActiveProviderAndModel } from "../../_lib/aiProvider.js";
@@ -64,6 +65,21 @@ function adminReviewUrlFor(request) {
   }
 }
 
+/** A short, safe fingerprint of the fetched patch content -- proves in
+ *  logs that a specific analysis run was given specific source text
+ *  (e.g. "did re-analysis actually get the same Riot content as the
+ *  original run, or something different/truncated/empty") without ever
+ *  logging the content itself. SHA-256 via the runtime's native Web
+ *  Crypto (available in Cloudflare Workers/Pages Functions with no new
+ *  dependency), truncated to 16 hex chars -- collision-proof enough for
+ *  "does this match the earlier logged fingerprint," which is all this
+ *  is for. */
+async function fingerprintContent(content) {
+  const bytes = new TextEncoder().encode(content || "");
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
 /** Shared by both operations: given a specific slug, produce a full
  *  report object (source_unavailable / ai_error / pending_review),
  *  never persisting or notifying anything itself -- callers decide how
@@ -75,9 +91,17 @@ function adminReviewUrlFor(request) {
  *  successful official-source fetch -- a failed fetch returns a
  *  source_unavailable report WITHOUT reaching runPatchIntelAnalysis at
  *  all, same as always. */
-async function analyzePatch({ env, kv, slug, overrides }) {
+async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
   const previousPatch = resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION);
   const contentResult = await fetchAndCacheFullPatchContent(slug, kv);
+  const contentFingerprint = contentResult.found ? await fingerprintContent(contentResult.content) : null;
+
+  logPatchIntelEvent({
+    stage: "content_fetched", slug, ...logContext,
+    found: contentResult.found,
+    contentSource: contentResult.found ? (contentResult.cached ? "cache" : "fresh_fetch") : "unavailable",
+    contentFingerprint, contentLength: contentResult.content ? contentResult.content.length : 0,
+  });
 
   if (!contentResult.found) {
     return {
@@ -106,7 +130,11 @@ async function analyzePatch({ env, kv, slug, overrides }) {
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 
   const { provider: aiProvider, model: aiModel } = resolveActiveProviderAndModel(env);
+  const startedAt = Date.now();
+  logPatchIntelEvent({ stage: "analysis_start", slug, ...logContext, provider: aiProvider, model: aiModel, maxTokens: PATCH_INTEL_MAX_TOKENS, engineVersion: PATCH_INTEL_ENGINE_VERSION, startedAt: new Date(startedAt).toISOString() });
+
   const analysis = await runPatchIntelAnalysis({ env, patchContent: contentResult.content, championRoster, itemRoster, runeRoster });
+  const durationMs = Date.now() - startedAt;
 
   if (!analysis.ok) {
     // logDetail never contains an API key, password, or session token,
@@ -114,7 +142,7 @@ async function analyzePatch({ env, kv, slug, overrides }) {
     // a parse-error message -- safe for both Cloudflare's Function logs
     // AND the report's own adminNotes (so the failure reason is visible
     // directly in the Admin UI without needing separate log access).
-    logPatchIntelEvent({ stage: "analysis_failed", slug, provider: aiProvider, model: aiModel, code: analysis.code, detail: analysis.logDetail, maxTokens: analysis.maxTokens });
+    logPatchIntelEvent({ stage: "analysis_finish", slug, ...logContext, ok: false, code: analysis.code, detail: analysis.logDetail, provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs });
     return {
       status: "ai_error",
       aiError: analysis.error,
@@ -128,6 +156,7 @@ async function analyzePatch({ env, kv, slug, overrides }) {
         sourceReferences: [contentResult.source].filter(Boolean),
         adminNotes: `[${analysis.code}] ${analysis.error || ""}${analysis.logDetail ? `\n\nDiagnostic detail: ${analysis.logDetail}` : ""}`,
         reviewedBy: null, reviewedAt: null, notifiedAt: null,
+        engineVersion: analysis.engineVersion, contentFingerprint,
       },
     };
   }
@@ -137,7 +166,7 @@ async function analyzePatch({ env, kv, slug, overrides }) {
   // estimate) -- still logged so Cloudflare's logs show what every
   // generation actually requested, just no longer a variable worth
   // treating as diagnostic in itself.
-  logPatchIntelEvent({ stage: "analysis_succeeded", slug, provider: aiProvider, model: aiModel, parseStrategy: analysis.parseStrategy, championChanges: analysis.report.championChanges.length, itemChanges: analysis.report.itemChanges.length, runeChanges: analysis.report.runeChanges.length, systemChanges: analysis.report.systemChanges.length, maxTokens: analysis.maxTokens });
+  logPatchIntelEvent({ stage: "analysis_finish", slug, ...logContext, ok: true, parseStrategy: analysis.parseStrategy, championChanges: analysis.report.championChanges.length, itemChanges: analysis.report.itemChanges.length, runeChanges: analysis.report.runeChanges.length, systemChanges: analysis.report.systemChanges.length, provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs });
 
   return {
     status: "pending_review",
@@ -148,6 +177,7 @@ async function analyzePatch({ env, kv, slug, overrides }) {
       ...analysis.report,
       sourceReferences: [contentResult.source].filter(Boolean),
       adminNotes: "", reviewedBy: null, reviewedAt: null, notifiedAt: null,
+      engineVersion: analysis.engineVersion, contentFingerprint,
     },
   };
 }
@@ -157,7 +187,18 @@ async function analyzePatch({ env, kv, slug, overrides }) {
  *  this). Requires a report to already exist for patchId -- re-analysis
  *  is "generate another revision of a patch Patch Intelligence already
  *  knows about," not a way to sneak a brand-new patch in through a
- *  side door. */
+ *  side door.
+ *
+ *  Response is deliberately explicit about success vs. failure at the
+ *  TOP level (`success`), not just buried in `status` -- a caller that
+ *  only checks HTTP 200 / `ok:true` must never mistake "a new revision
+ *  was recorded, but the AI call inside it failed" for "re-analysis
+ *  produced a usable new analysis." `ok` stays true whenever the
+ *  OPERATION itself completed (a new revision -- possibly a failure
+ *  record -- was successfully created and revision 1 is untouched);
+ *  `success` is specifically "did the new revision actually get a
+ *  fresh, usable AI analysis." Both are always present so neither can
+ *  be misread as the other. */
 async function handleReanalyze(context, body) {
   const { env } = context;
   const kv = env.COACH_KV;
@@ -176,25 +217,50 @@ async function handleReanalyze(context, body) {
   if (!existing) {
     return json({ ok: false, error: `No existing report for patch "${patchId}" -- re-analyze only works on a patch Patch Intelligence has already generated at least once.` }, 404);
   }
+  const currentRevision = existing.revision || 1;
 
-  const overrides = await fetchOverrides(kv);
-  const result = await analyzePatch({ env, kv, slug: patchId, overrides });
+  let result;
+  try {
+    const overrides = await fetchOverrides(kv);
+    result = await analyzePatch({ env, kv, slug: patchId, overrides, logContext: { action: "reanalyze", currentRevision } });
+  } catch (err) {
+    // Belt-and-braces: analyzePatch/its dependencies are written to
+    // catch their own failures and return a status, never throw -- but
+    // if something unexpected still does throw (a bug, an unhandled
+    // edge case), this must still produce a real, visible error instead
+    // of a bare 500 with no detail, and MUST NOT touch anything already
+    // published (nothing above this point has written anything).
+    logPatchIntelEvent({ stage: "reanalyze_unexpected_error", slug: patchId, action: "reanalyze", currentRevision, error: String(err && err.message || err) });
+    return json({ ok: false, success: false, action: "reanalyze", patchId, error: `Unexpected error during re-analysis: ${err && err.message ? err.message : String(err)}` }, 500);
+  }
 
   const revision = await saveReanalysisRevision(kv, patchId, result.report);
   if (revision === null) {
-    return json({ ok: false, error: "Failed to save the new revision." }, 500);
+    return json({ ok: false, success: false, action: "reanalyze", patchId, error: "Failed to save the new revision." }, 500);
   }
 
   // Deliberately NOT calling setLastKnownSlug and NOT calling
   // sendPatchNotification/sendSourceUnavailableNotification anywhere in
   // this function -- this is not a newly discovered patch, so neither
-  // of those normal-detection side effects apply. The new revision is
-  // pending_review (or ai_error/source_unavailable on failure) either
-  // way; whatever revision was already published for this id is
-  // completely untouched by everything above -- saveReanalysisRevision
-  // carries publishedRevision forward unchanged, and analyzePatch never
-  // writes to any existing revision's key at all, only the new one's.
-  return json({ ok: true, reanalyzed: true, patchId, revision, status: result.status, report: { ...result.report, revision } });
+  // of those normal-detection side effects apply. Whatever revision was
+  // already published for this id is completely untouched by
+  // everything above -- saveReanalysisRevision carries publishedRevision
+  // forward unchanged, and analyzePatch never writes to any EXISTING
+  // revision's key at all, only the brand new one's.
+  const success = result.status === "pending_review";
+  return json({
+    ok: true,
+    success,
+    action: "reanalyze",
+    patchId,
+    previousRevision: currentRevision,
+    revision,
+    status: result.status,
+    engineVersion: result.report.engineVersion || null,
+    contentFingerprint: result.report.contentFingerprint || null,
+    report: { ...result.report, revision },
+    ...(result.aiError ? { aiError: result.aiError, aiErrorCode: result.aiErrorCode } : {}),
+  });
 }
 
 export async function onRequestPost(context) {
@@ -247,7 +313,7 @@ export async function onRequestPost(context) {
   }
 
   const overrides = await fetchOverrides(kv);
-  const result = await analyzePatch({ env, kv, slug: latestSlug, overrides });
+  const result = await analyzePatch({ env, kv, slug: latestSlug, overrides, logContext: { action: "detect", trigger } });
 
   await saveNewReport(kv, result.report);
 

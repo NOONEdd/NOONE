@@ -36,6 +36,16 @@ const SEVERITY_VALUES = ["Low", "Medium", "High"];
 const CONFIDENCE_VALUES = ["Low", "Medium", "High"];
 const TYPE_VALUES = ["Buff", "Nerf", "Adjustment"];
 
+// TEMPORARY diagnostic marker -- proves, independent of anything the UI
+// shows, that a given report/log line was produced by THIS analysis
+// code, not an older deployed version or a stale cached result. Bumped
+// whenever runPatchIntelAnalysis's actual behavior changes; returned in
+// every result (success AND failure) and threaded through to the
+// Cloudflare Function logs and the /api/admin/patch-check response
+// (functions/api/admin/patch-check.js), never silently swallowed.
+// Remove once Re-analyze's correctness is no longer in question.
+export const PATCH_INTEL_ENGINE_VERSION = "reanalyze-v2";
+
 const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOONEdd Academy, a Wild Rift Support coaching site. Your only input is the official Wild Rift patch notes text provided below, plus a snapshot of the Academy's current Support-relevant champion/item/rune roster and their CURRENT tiers. Your job is to extract and structure whatever in this specific patch matters to SUPPORT players -- not to rewrite the patch notes in full, and not to invent anything the patch notes don't actually say.
 
 HARD RULES -- follow these strictly:
@@ -484,6 +494,7 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       error: result.error,
       logDetail: result.logDetail,
       maxTokens: PATCH_INTEL_MAX_TOKENS,
+      engineVersion: PATCH_INTEL_ENGINE_VERSION,
     };
   }
 
@@ -505,6 +516,7 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       error: `The AI analyst's response was cut off before it finished (hit the ${PATCH_INTEL_MAX_TOKENS}-token hard maximum) -- this patch has more Support-relevant changes than the current ceiling allows.`,
       logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}.`,
       maxTokens: PATCH_INTEL_MAX_TOKENS,
+      engineVersion: PATCH_INTEL_ENGINE_VERSION,
     };
   }
 
@@ -516,6 +528,7 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       error: "The AI analyst didn't return valid JSON for this patch.",
       logDetail: `All parse strategies failed (raw, fenced, bounded-extraction). finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Raw reply (first 500 chars): ${JSON.stringify((result.reply || "").slice(0, 500))}`,
       maxTokens: PATCH_INTEL_MAX_TOKENS,
+      engineVersion: PATCH_INTEL_ENGINE_VERSION,
     };
   }
 
@@ -527,8 +540,9 @@ export async function runPatchIntelAnalysis({ env, patchContent, championRoster,
       error: "The AI analyst's response didn't match the expected report shape.",
       logDetail: `Parsed via "${parseResult.strategy}" strategy but the shape was unusable: ${JSON.stringify(parseResult.parsed).slice(0, 300)}`,
       maxTokens: PATCH_INTEL_MAX_TOKENS,
+      engineVersion: PATCH_INTEL_ENGINE_VERSION,
     };
   }
 
-  return { ok: true, report: normalized, parseStrategy: parseResult.strategy, maxTokens: PATCH_INTEL_MAX_TOKENS };
+  return { ok: true, report: normalized, parseStrategy: parseResult.strategy, maxTokens: PATCH_INTEL_MAX_TOKENS, engineVersion: PATCH_INTEL_ENGINE_VERSION };
 }
