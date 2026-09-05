@@ -51,7 +51,21 @@ const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOO
 HARD RULES -- follow these strictly:
 1. FACTS vs. ANALYSIS -- keep these separate and never blur them. The official patch notes text below is the ONLY source of "what changed" -- every reported change must be traceable to it. "whatChanged"/"previousValue"/"newValue" are FACTS: they describe the actual change, straight from the text. "Support impact," "gameplay/build/rune/matchup implications," and "recommended tier action" are your ANALYSIS, clearly reasoned FROM that fact -- but never invent a change, a number, a mechanic, or a champion/item/rune that isn't actually in the text. If you are not sure something is really in the text, leave it out rather than guessing. Do not infer an old/new value the text doesn't explicitly give you.
 2. If the patch notes contain no changes relevant to Support, return empty arrays. A quiet patch producing a short, mostly-empty report is the CORRECT output -- do not manufacture relevance or pad the report to seem thorough.
-3. Only report changes that are actually relevant to Support play. Skip changes to non-Support-relevant champions/items/runes entirely -- do not include an entry just because a name was mentioned in the patch notes if it has no real bearing on Support.
+3. Only report changes that are relevant to Support play.
+
+For items, do NOT determine Support relevance from the item's category alone.
+An item categorized as Physical, Magic, Defense, Attack, etc. may still have legitimate situational value for a Support.
+
+Use ALL available Academy item information (name, category, tier, and info) when judging Support relevance.
+
+An Academy-tracked item is not automatically a Core Support item.
+Distinguish between:
+- Core: commonly and directly relevant to Support builds.
+- Viable: a legitimate Support option in meaningful situations.
+- Situational: relevant only for specific Support champions, matchups, strategies, or unusual builds.
+- None: genuinely irrelevant to Support gameplay.
+
+If a changed item is Academy-tracked and its effect can meaningfully affect a Support build, matchup, strategy, or Support champion, it may be reported as Situational or Viable even if it is not a conventional Support item.
 4. ONE ENTRY PER ENTITY -- this is critical. A given champion may appear AT MOST ONCE in championChanges for the whole report, no matter how many of its abilities changed. The same applies to items in itemChanges and runes in runeChanges: at most one entry per item, at most one entry per rune. If Leona's Q, W, and E all changed, that is ONE championChanges entry for Leona, not three. Riot's own patch notes format each ability in its own section -- do NOT mirror that structure into separate entries. Combine every change belonging to the same entity into that one entry's whatChanged/previousValue/newValue, organized with short labels so it stays readable when there are several:
    Passive: ...
    Q: ...
@@ -161,9 +175,11 @@ const REPORT_JSON_SCHEMA = {
 
 function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
   const champLines = championRoster.map((c) => `${c.id}|${c.name}|${c.role}|tier:${c.tier}`).join("\n");
-  const itemLines = itemRoster.map((i) => `${i.id}|${i.name}|${i.category}|tier:${i.tier}`).join("\n");
-  const runeLines = runeRoster.map((r) => `${r.id}|${r.name}|${r.path}|tier:${r.tier}`).join("\n");
-  return `--- Academy champion roster (id|name|role|current tier) ---\n${champLines}\n\n--- Academy item roster (id|name|category|current tier) ---\n${itemLines}\n\n--- Academy rune roster (id|name|path|current tier) ---\n${runeLines}`;
+ const itemLines = itemRoster.map((i) =>
+  `${i.id}|${i.name}|${i.category}|tier:${i.tier}|info:${i.info || ""}`
+).join("\n");
+  const runeLines = runeRoster.map((r) => `${r.id}|${r.name}|${r.path}|tier:${r.tier}|info:${r.info || ""}`).join("\n");
+  return `--- Academy champion roster (id|name|role|current tier) ---\n${champLines}\n\n--- Academy item roster (id|name|category|current tier|info) ---\n${itemLines}\n\n--- Academy rune roster (id|name|path|current tier|info) ---\n${runeLines}`;
 }
 
 /** Deterministic, bounded extraction of the first complete top-level
