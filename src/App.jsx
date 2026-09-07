@@ -29,7 +29,8 @@ export default function App() {
   // -- one shared merge implementation, not two that can drift apart.
   // Only recompute when the actual override data changes — not on every
   // App render (menu open/close, route changes, editMode toggling, etc.
-  // all used to force a full re-map of all 34/71/50 entries for no reason).
+  // all used to force a full re-map of every champion/item/rune entry for
+  // no reason).
   const champions = useMemo(() => CHAMPIONS.map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id])), [overrides.champions]);
   // Academy-covered subset (src/data/champions.js's isAcademyCovered) --
   // for surfaces that represent "Champions Nyx NOONEdd Academy covers"

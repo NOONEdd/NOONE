@@ -13,7 +13,7 @@
  *
  * If you skip the path, it defaults to a folder called "raw-images" in the
  * project root — so you can also just dump everything into
- * Nyx NOONE dd-academy/raw-images/ and run:
+ * Nyx NOONEdd-academy/raw-images/ and run:
  *   node scripts/organize-images.js
  *
  * WHAT IT DOES:

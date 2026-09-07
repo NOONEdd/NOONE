@@ -77,7 +77,7 @@ async function fetchWithTimeout(url) {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { "User-Agent": "VanguardAcademyCoach/1.0 (+https://noone-3vf.pages.dev)" },
+      headers: { "User-Agent": "NyxNOONEddAcademyCoach/1.0 (+https://noone-3vf.pages.dev)" },
     });
     return response;
   } catch {

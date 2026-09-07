@@ -5,7 +5,7 @@
 //
 // SETUP (one-time, in the Cloudflare dashboard):
 //   1. Workers & Pages → KV → Create a namespace (call it whatever you like,
-//      e.g. "vanguard-coach-data")
+//      e.g. "academy-coach-data")
 //   2. Workers & Pages → your Pages project → Settings → Functions →
 //      KV namespace bindings → Add binding
 //        Variable name:  COACH_KV        (must match exactly, used below)

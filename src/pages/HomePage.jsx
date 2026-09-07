@@ -5,6 +5,16 @@ import { ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
 import { FeatureCard } from "../components/Layout.jsx";
 import RankChip from "../components/RankChip.jsx";
 import { IconGem } from "../components/icons.jsx";
+import { ITEMS } from "../data/items.js";
+import { RUNES } from "../data/runes.js";
+
+// Home-page stat pills use a conservative "rounded down to the nearest ten,
+// plus a +" marketing style (e.g. "80+ Items") rather than the exact count,
+// matching this section's existing display convention. Flooring means the
+// claim is never an overstatement even as items/runes are added over time.
+function roundedDownTen(count) {
+  return Math.floor(count / 10) * 10;
+}
 
 export default function HomePage({ champions }) {
   useHeroParallax();
@@ -42,11 +52,11 @@ export default function HomePage({ champions }) {
             </button>
           </div>
           <div className="hero-stats">
-            <div className="stat"><span className="stat-num">34</span><span className="stat-label">Champions Covered</span></div>
+            <div className="stat"><span className="stat-num">{champions.length}</span><span className="stat-label">Champions Covered</span></div>
             <div className="stat-divider" />
-            <div className="stat"><span className="stat-num">70+</span><span className="stat-label">Items Tracked</span></div>
+            <div className="stat"><span className="stat-num">{roundedDownTen(ITEMS.length)}+</span><span className="stat-label">Items Tracked</span></div>
             <div className="stat-divider" />
-            <div className="stat"><span className="stat-num">50+</span><span className="stat-label">Runes Tracked</span></div>
+            <div className="stat"><span className="stat-num">{roundedDownTen(RUNES.length)}+</span><span className="stat-label">Runes Tracked</span></div>
           </div>
         </div>
       </header>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const STORAGE_KEY = "vanguard-coach-overrides";
+const STORAGE_KEY = "academy-coach-overrides";
 const API_URL = "/api/coach-overrides";
 const LOGIN_URL = "/api/admin/login";
 const LOGOUT_URL = "/api/admin/logout";

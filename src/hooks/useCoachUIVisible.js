@@ -23,7 +23,7 @@ import { useEffect, useState } from "react";
 // need to add it again on that device. Change COACH_UI_REVEAL_PARAM to
 // anything you like if you'd rather it not be the word "coach".
 const COACH_UI_REVEAL_PARAM = "coach";
-const COACH_UI_STORAGE_KEY = "vanguardCoachUIUnlocked";
+const COACH_UI_STORAGE_KEY = "academyCoachUIUnlocked";
 
 export function useCoachUIVisible() {
   const [visible, setVisible] = useState(() => {
