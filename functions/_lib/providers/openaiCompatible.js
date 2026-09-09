@@ -111,18 +111,88 @@ export async function callOpenAICompatible({ apiKey, model, maxTokens, systemPro
     };
   }
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => "");
-    return {
-      ok: false,
-      status: response.status === 429 ? 429 : response.status >= 500 ? 502 : response.status,
-      code: response.status === 429 ? "provider_rate_limited" : "provider_error",
-      error: response.status === 429
-        ? "The AI provider is busy right now. Try again in a minute."
-        : "The AI provider had a problem answering that. Try again in a moment.",
-      logDetail: `openai-compatible provider (${baseUrl}) responded ${response.status}: ${errText.slice(0, 500)}`,
-    };
+ if (!response.ok) {
+  const errText = await response.text().catch(() => "");
+
+  let providerError = null;
+
+  try {
+    providerError = JSON.parse(errText);
+  } catch {
+    // Provider returned non-JSON error text.
   }
+
+  const errorObject =
+    providerError && typeof providerError.error === "object"
+      ? providerError.error
+      : providerError;
+
+  const providerMessage =
+    errorObject && typeof errorObject.message === "string"
+      ? errorObject.message
+      : typeof errorObject === "string"
+        ? errorObject
+        : errText;
+
+  const providerType =
+    errorObject && typeof errorObject.type === "string"
+      ? errorObject.type
+      : undefined;
+
+  const providerCode =
+    errorObject && typeof errorObject.code === "string"
+      ? errorObject.code
+      : undefined;
+
+  const providerParam =
+    errorObject && typeof errorObject.param === "string"
+      ? errorObject.param
+      : undefined;
+
+  // Safe diagnostics — never log API keys, prompts, or user messages.
+  console.error("[AI_PROVIDER_ERROR]", {
+    provider: "openai-compatible",
+    baseUrl: (() => {
+      try {
+        const url = new URL(baseUrl);
+        url.search = "";
+        return url.toString().replace(/\/$/, "");
+      } catch {
+        return "[invalid-url]";
+      }
+    })(),
+    status: response.status,
+    model,
+    maxTokens,
+    temperature:
+      env && env.AI_TEMPERATURE !== undefined
+        ? Number(env.AI_TEMPERATURE)
+        : undefined,
+    responseFormatRequested: Boolean(jsonSchema),
+    providerType,
+    providerCode,
+    providerParam,
+    providerMessage: String(providerMessage || "").slice(0, 1000),
+  });
+
+  return {
+    ok: false,
+    status: response.status === 429
+      ? 429
+      : response.status >= 500
+        ? 502
+        : response.status,
+    code: response.status === 429
+      ? "provider_rate_limited"
+      : "provider_error",
+    error: response.status === 429
+      ? "The AI provider is busy right now. Try again in a minute."
+      : "The AI provider had a problem answering that. Try again in a moment.",
+    logDetail:
+      `openai-compatible provider (${baseUrl}) responded ${response.status}: ` +
+      `${String(providerMessage || errText || "unknown provider error").slice(0, 1000)}`,
+  };
+}
 
   let data;
   try {
@@ -150,18 +220,57 @@ export async function callOpenAICompatible({ apiKey, model, maxTokens, systemPro
   const truncated = data && data.choices && data.choices[0] && data.choices[0].finish_reason === "length";
   const finishReason = data && data.choices && data.choices[0] ? data.choices[0].finish_reason : undefined;
 
-  if (!reply || typeof reply !== "string") {
-    return {
-      ok: false,
-      status: 502,
-      code: truncated ? "truncated_output" : "empty_reply",
-      error: truncated
-        ? "The AI provider's response was cut off before it finished (hit the output token limit)."
-        : "The AI provider didn't return an answer. Try again.",
-      logDetail: `openai-compatible response had no choices[0].message.content (finish_reason: ${finishReason}): ${JSON.stringify(data).slice(0, 300)}`,
-      truncated,
-    };
-  }
+ if (!reply || typeof reply !== "string") {
+  const choice = data && Array.isArray(data.choices)
+    ? data.choices[0]
+    : undefined;
 
+  const message = choice && choice.message
+    ? choice.message
+    : undefined;
+
+  console.error("[AI_PROVIDER_EMPTY_REPLY]", {
+    provider: "openai-compatible",
+    model,
+    maxTokens,
+    finishReason,
+    choiceCount: Array.isArray(data && data.choices)
+      ? data.choices.length
+      : 0,
+    messageKeys: message && typeof message === "object"
+      ? Object.keys(message)
+      : [],
+    hasContent: Boolean(
+      message &&
+      Object.prototype.hasOwnProperty.call(message, "content")
+    ),
+    contentType: message ? typeof message.content : undefined,
+    hasReasoning: Boolean(
+      message &&
+      (
+        message.reasoning ||
+        message.reasoning_content
+      )
+    ),
+    hasRefusal: Boolean(
+      message &&
+      message.refusal
+    ),
+  });
+
+  return {
+    ok: false,
+    status: 502,
+    code: truncated ? "truncated_output" : "empty_reply",
+    error: truncated
+      ? "The AI provider's response was cut off before it finished (hit the output token limit)."
+      : "The AI provider didn't return an answer. Try again.",
+    logDetail:
+      `openai-compatible response had no choices[0].message.content ` +
+      `(finish_reason: ${finishReason}, model: ${model}, ` +
+      `choice_count: ${Array.isArray(data && data.choices) ? data.choices.length : 0})`,
+    truncated,
+  };
+}
   return { ok: true, reply, truncated, finishReason };
 }
