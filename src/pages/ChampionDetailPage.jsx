@@ -22,13 +22,15 @@ export default function ChampionDetailPage({
   const accent = ROLE_COLORS[champion.role];
   const badgeDark = champion.tier === "Unranked" ? "#aab0d4" : "#04050c";
   const portraitPaths = candidatePaths(`c:${champion.id}`);
-  const builds = champion.builds || [
-  {
-    name: "Default",
-    items: champion.items,
-    runes: champion.runes
-  }
-];
+  // NOTE: must check .length, not just truthiness -- resolveEffectiveChampion()
+  // (src/lib/effectiveData.js) always sets `builds` to an array (defaulting to
+  // `[]` when a champion has no populated `builds` yet), and `[] || fallback`
+  // never falls through in JS since an empty array is truthy. This now matches
+  // the same non-empty check functions/_lib/extractChampionContext.js already
+  // uses for the exact same fallback on the AI Coach side.
+  const builds = champion.builds && champion.builds.length > 0
+    ? champion.builds
+    : [{ name: "Default", items: champion.items, runes: champion.runes }];
 
 const currentBuild = builds[selectedBuild];
   return (

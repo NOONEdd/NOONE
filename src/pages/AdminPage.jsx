@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink, Download, Database } from "lucide-react";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
+import { planBuildTypeMigration, verifyAllEntriesTyped } from "../lib/buildTypeClassifier.js";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 const CONFIDENCE_COLOR = { Low: "var(--text-dimmer)", Medium: "var(--text-dim)", High: "var(--cyan)" };
@@ -403,7 +404,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
   );
 }
 
-export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStatus, patchVerification, champions, items, runes }) {
+export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStatus, patchVerification, champions, items, runes, overrides, updateOverride }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [loginError, setLoginError] = useState(null);
   const [verifying, setVerifying] = useState(false);
@@ -417,6 +418,93 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
   const [patchInput, setPatchInput] = useState(currentPatch || "");
 
   useEffect(() => { setPatchInput(currentPatch || ""); }, [currentPatch]);
+
+  // ---- Core/Situational KV migration (see src/lib/buildTypeClassifier.js
+  // for the classification rule itself) -------------------------------
+  // `validChampionIds` distinguishes a real champion queued for
+  // normalization from a stale/orphaned override key (e.g. a capitalization
+  // mismatch) -- derived from the same `champions` roster already passed
+  // into this page, no new data source.
+  const validChampionIds = useMemo(() => new Set((champions || []).map((c) => c.id)), [champions]);
+  const [migrationPlan, setMigrationPlan] = useState(null); // Preview result -- never written
+  const [migrationApplyResult, setMigrationApplyResult] = useState(null);
+  const [migrationVerification, setMigrationVerification] = useState(null);
+  const [migrationBusy, setMigrationBusy] = useState(false);
+  const [backupAcknowledged, setBackupAcknowledged] = useState(false);
+  const [showBackupJson, setShowBackupJson] = useState(false);
+  const [backupCopied, setBackupCopied] = useState(false);
+
+  function handlePreviewMigration() {
+    // Pure read: planBuildTypeMigration never calls updateOverride and never
+    // mutates `overrides` -- Preview performs zero writes by construction.
+    setMigrationPlan(planBuildTypeMigration(overrides.champions, validChampionIds));
+    setMigrationApplyResult(null);
+    setMigrationVerification(null);
+    setBackupAcknowledged(false);
+    setShowBackupJson(false);
+  }
+
+  function backupJsonText() {
+    return JSON.stringify({ champions: overrides.champions }, null, 2);
+  }
+  function handleDownloadBackup() {
+    const blob = new Blob([backupJsonText()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `coach-overrides-champions-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  function handleCopyBackup() {
+    navigator.clipboard?.writeText(backupJsonText()).then(() => {
+      setBackupCopied(true);
+      setTimeout(() => setBackupCopied(false), 2500);
+    });
+  }
+
+  function handleApplyMigration() {
+    setMigrationBusy(true);
+    // Recomputed fresh against the CURRENT live overrides -- never trusts
+    // the Preview snapshot, so Apply is always correct even if something
+    // else changed overrides between Preview and this click.
+    const plan = planBuildTypeMigration(overrides.champions, validChampionIds);
+
+    // Only champions with an actual change are ever in plan.champions (see
+    // planBuildTypeMigration's `anyChanged` check) -- an already-migrated
+    // champion is simply absent here, so a second Apply run performs zero
+    // updateOverride calls, which is what makes this idempotent.
+    for (const c of plan.champions) {
+      updateOverride("champions", c.id, { builds: c.newBuilds });
+    }
+
+    // Verify against exactly the objects just handed to updateOverride.
+    // useCoachOverrides.js's update() is a pure shallow merge
+    // ({...prev.champions[id], ...patch}) with no further transform of
+    // `builds`, so overrides.champions[id].builds will equal c.newBuilds
+    // verbatim once React re-renders -- checking these objects directly,
+    // right now, is equivalent to re-reading post-write state and avoids
+    // a render-timing race.
+    const merged = { ...overrides.champions };
+    for (const c of plan.champions) {
+      merged[c.id] = { ...merged[c.id], builds: c.newBuilds };
+    }
+    const invalid = verifyAllEntriesTyped(merged, validChampionIds);
+
+    setMigrationApplyResult({
+      changedChampions: plan.champions.length,
+      itemsChanged: plan.totals.itemsChanged,
+      runesChanged: plan.totals.runesChanged,
+      changedEntries: plan.totals.itemsChanged + plan.totals.runesChanged,
+      coreCount: plan.totals.coreCount,
+      situationalCount: plan.totals.situationalCount,
+      staleKeys: plan.staleKeys,
+      writesQueued: plan.champions.length,
+    });
+    setMigrationVerification({ invalid });
+    setMigrationPlan(null);
+    setMigrationBusy(false);
+  }
 
   const loadReports = useCallback(async () => {
     try {
@@ -597,6 +685,113 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <h3>Core/Situational data migration</h3>
+          </div>
+          <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", marginTop: -8, marginBottom: 12 }}>
+            One-time fix for champions whose Coach Mode build overrides predate the Core/Situational badge
+            feature. Adds a <code>type</code> to any item/rune entry that's missing one — tag, name, note,
+            order, and every other field are left exactly as they are. Nothing here runs automatically; it
+            only writes to KV when you click Apply below, and only for champions that actually need it.
+          </p>
+
+          <div className="admin-migration-actions">
+            <button type="button" className="btn btn-primary btn-small" onClick={handlePreviewMigration} disabled={migrationBusy}>
+              <Radar size={14} /> Preview migration
+            </button>
+            {migrationApplyResult && (
+              <button type="button" className="btn btn-ghost btn-small" onClick={handlePreviewMigration}>
+                <RefreshCw size={14} /> Preview again
+              </button>
+            )}
+          </div>
+
+          {migrationPlan && (
+            <div className="admin-migration-summary">
+              <h4>Preview — nothing has been written</h4>
+              <p className="patch-entry-line">
+                Champions affected: <b>{migrationPlan.champions.length}</b> · Item entries to type: <b>{migrationPlan.totals.itemsChanged}</b> · Rune entries to type: <b>{migrationPlan.totals.runesChanged}</b> · Core: <b>{migrationPlan.totals.coreCount}</b> · Situational: <b>{migrationPlan.totals.situationalCount}</b>
+              </p>
+              {migrationPlan.staleKeys.length > 0 && (
+                <p className="patch-entry-line" style={{ color: "var(--gold)" }}>
+                  <AlertTriangle size={13} /> Stale/unreachable champion key(s) — left untouched: {migrationPlan.staleKeys.map((s) => `${s.id} (${s.buildCount} entries)`).join(", ")}
+                </p>
+              )}
+              {migrationPlan.champions.length === 0 ? (
+                <p className="storage-note">Every champion already has valid types on every entry — nothing to change. (Expected if this has already run.)</p>
+              ) : (
+                <>
+                  <div className="admin-migration-table-wrap">
+                    <table className="admin-migration-table">
+                      <thead><tr><th>Champion</th><th>Items</th><th>Runes</th><th>Core</th><th>Situational</th></tr></thead>
+                      <tbody>
+                        {migrationPlan.champions.map((c) => (
+                          <tr key={c.id}><td>{c.id}</td><td>{c.itemsChanged}</td><td>{c.runesChanged}</td><td>{c.coreCount}</td><td>{c.situationalCount}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="admin-migration-backup">
+                    <h4><Database size={14} /> Save a backup before applying</h4>
+                    <p className="patch-entry-line">
+                      This is the exact champion override data currently live in KV, before anything changes.
+                      Save it somewhere — this migration is additive and never deletes data, but the export
+                      itself is the actual safety net here, not a promise.
+                    </p>
+                    <div className="admin-migration-actions">
+                      <button type="button" className="btn btn-ghost btn-small" onClick={handleDownloadBackup}><Download size={14} /> Download backup JSON</button>
+                      <button type="button" className="btn btn-ghost btn-small" onClick={handleCopyBackup}><Send size={14} /> Copy JSON</button>
+                      <button type="button" className="btn btn-ghost btn-small" onClick={() => setShowBackupJson((v) => !v)}>{showBackupJson ? "Hide" : "Show"} raw JSON</button>
+                      {backupCopied && <span className="save-note">Copied.</span>}
+                    </div>
+                    {showBackupJson && (
+                      <textarea readOnly className="admin-migration-backup-json" value={backupJsonText()} onFocus={(e) => e.target.select()} />
+                    )}
+                    <label className="admin-migration-ack">
+                      <input type="checkbox" checked={backupAcknowledged} onChange={(e) => setBackupAcknowledged(e.target.checked)} />
+                      I've saved a copy of the current override data.
+                    </label>
+                  </div>
+
+                  <button type="button" className="btn btn-primary btn-small" onClick={handleApplyMigration} disabled={!backupAcknowledged || migrationBusy}>
+                    <CheckCircle2 size={14} /> {migrationBusy ? "Applying…" : `Apply — write ${migrationPlan.champions.length} champion(s)`}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {migrationApplyResult && (
+            <div className="admin-migration-summary">
+              <h4>Apply result</h4>
+              <p className="patch-entry-line">
+                Champions changed: <b>{migrationApplyResult.changedChampions}</b> · Build entries changed: <b>{migrationApplyResult.changedEntries}</b> (items {migrationApplyResult.itemsChanged}, runes {migrationApplyResult.runesChanged}) · Core: <b>{migrationApplyResult.coreCount}</b> · Situational: <b>{migrationApplyResult.situationalCount}</b> · Champion override updates queued: <b>{migrationApplyResult.writesQueued}</b>
+              </p>
+              <p className="patch-entry-line" style={{ color: "var(--text-dimmer)" }}>
+                These went through the same update path (and the same debounced KV sync) as every other Coach Mode edit — no second persistence mechanism was used.
+              </p>
+              {migrationApplyResult.staleKeys.length > 0 && (
+                <p className="patch-entry-line" style={{ color: "var(--gold)" }}>Stale key(s) left untouched: {migrationApplyResult.staleKeys.map((s) => s.id).join(", ")}</p>
+              )}
+              <h4>Verification</h4>
+              {migrationVerification.invalid.length === 0 ? (
+                <p className="save-note"><CheckCircle2 size={13} /> Every processed entry now has a valid type.</p>
+              ) : (
+                <>
+                  <p className="coach-password-error">{migrationVerification.invalid.length} entries still lack a valid type:</p>
+                  <ul className="admin-migration-invalid-list">
+                    {migrationVerification.invalid.map((e, i) => (
+                      <li key={i}>{e.champion} / {e.build} / {e.section}[{e.index}] — {e.name} (tag: {e.tag})</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="admin-panel">

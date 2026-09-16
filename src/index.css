@@ -294,6 +294,15 @@
     background:rgba(255,255,255,.05);overflow:hidden;flex-shrink:0;}
   .build-chip-img{width:100%;height:100%;object-fit:cover;}
   .build-chip-name{font-size:12px;font-weight:600;line-height:1.3;word-break:break-word;}
+  /* CORE / SITUATIONAL badge -- shown directly on the chip (desktop and
+     mobile alike) so the classification never requires opening the item
+     or rune first. Same pill language as .chip-tag/.build-row-tag
+     elsewhere, just sized down (and with a negative top margin to tuck
+     it close under the name) so it doesn't meaningfully grow the card. */
+  .build-chip-type{display:inline-block;margin-top:-2px;font-size:8.5px;font-weight:700;letter-spacing:.6px;
+    text-transform:uppercase;padding:2px 7px;border-radius:999px;white-space:nowrap;line-height:1.4;}
+  .build-chip-type-core{color:var(--cyan);background:rgba(61,240,216,.1);border:1px solid rgba(61,240,216,.35);}
+  .build-chip-type-situational{color:var(--gold);background:rgba(243,201,105,.1);border:1px solid rgba(243,201,105,.35);}
 
   /* CHAMPION MATCHUPS -- structured Hard Against/Good Against/Good With
      relationships (src/components/ChampionMatchups.jsx). Same visual
@@ -454,8 +463,26 @@
 .build-edit-row {
   display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-bottom: 10px;
   border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.02);
+  transition: opacity .15s var(--ease), border-color .15s var(--ease);
 }
+/* Drag state feedback -- see BuildEditor.jsx's drag/dragOver state.
+   .dragging fades the row being picked up; .drag-over-top/-bottom draws
+   a thin insertion line on whichever edge of the hovered row the pointer
+   is closer to, so the drop position is clear before you let go. */
+.build-edit-row.dragging { opacity: .4; }
+.build-edit-row.drag-over-top { border-top: 2px solid var(--cyan); }
+.build-edit-row.drag-over-bottom { border-bottom: 2px solid var(--cyan); }
 .build-edit-row-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.build-edit-drag-handle {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 28px; color: var(--text-dimmer); cursor: grab; touch-action: none;
+}
+.build-edit-drag-handle:hover { color: var(--text-dim); }
+.build-edit-drag-handle:active { cursor: grabbing; }
+.build-edit-reorder-btns { flex-shrink: 0; display: flex; flex-direction: column; margin-right: 2px; }
+.build-edit-reorder-btn { color: var(--text-dimmer); padding: 0 2px; line-height: 1; }
+.build-edit-reorder-btn:hover:not(:disabled) { color: var(--text); }
+.build-edit-reorder-btn:disabled { opacity: .25; cursor: default; }
 .build-edit-row-icon {
   flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px; overflow: hidden;
   display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.05);
@@ -470,6 +497,17 @@
   color: var(--text-dim); font-family: 'Rajdhani'; font-weight: 600; font-size: 12px;
   padding: 7px 10px; border-radius: 8px;
 }
+/* Core/Situational classification control -- explicit two-way toggle so
+   the value is always deliberately set, never inferred from where the
+   row happens to sit in the list (see BuildEditor.jsx's `type` field). */
+.build-edit-type-toggle { flex-shrink: 0; display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.build-edit-type-btn {
+  padding: 6px 10px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--text-dimmer); background: rgba(255,255,255,.02);
+}
+.build-edit-type-btn.core + .build-edit-type-btn.situational { border-left: 1px solid var(--line); }
+.build-edit-type-btn.core.active { color: var(--cyan); background: rgba(61,240,216,.12); }
+.build-edit-type-btn.situational.active { color: var(--gold); background: rgba(243,201,105,.12); }
 .build-edit-note {
   width: 100%; min-height: 56px; resize: vertical; background: rgba(255,255,255,.05);
   border: 1px solid var(--line); color: var(--text-dim); font-family: 'Rajdhani';
@@ -545,6 +583,27 @@
 .admin-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .admin-panel-head h3 { font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 700; }
 .admin-panel .patch-editor-row { margin-bottom: 0; }
+
+/* Core/Situational KV migration panel (src/pages/AdminPage.jsx) --
+   Preview / backup / Apply / verification, all read-only presentation on
+   top of src/lib/buildTypeClassifier.js's pure functions. */
+.admin-migration-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.admin-migration-summary { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.admin-migration-summary h4 { font-family: 'Orbitron', sans-serif; font-size: 12.5px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.admin-migration-table-wrap { overflow-x: auto; margin: 10px 0 16px; }
+.admin-migration-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.admin-migration-table th, .admin-migration-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.admin-migration-table th { color: var(--text-dimmer); font-weight: 600; }
+.admin-migration-table td { color: var(--text-dim); }
+.admin-migration-backup { margin: 14px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.02); }
+.admin-migration-backup-json {
+  width: 100%; min-height: 140px; margin: 10px 0; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: rgba(0,0,0,.25); color: var(--text-dim);
+  font-family: monospace; font-size: 11.5px; resize: vertical;
+}
+.admin-migration-ack { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+.admin-migration-invalid-list { font-size: 12.5px; color: var(--text-dim); padding-left: 18px; }
+.admin-migration-invalid-list li { margin-bottom: 4px; }
 
 /* PATCH INTELLIGENCE reports — shared by the admin review list
    (src/pages/AdminPage.jsx) and the public page

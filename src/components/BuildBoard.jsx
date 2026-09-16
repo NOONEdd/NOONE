@@ -17,6 +17,17 @@ export function ChipIcon({ paths, size = 22 }) {
   return <SmartImage basePath={paths} alt="" className="build-chip-img" onExhausted={() => setFailed(true)} />;
 }
 
+/** Compact CORE/SITUATIONAL badge shown directly on a build chip -- see
+ *  Champion Builds spec: the classification must be visible without
+ *  opening the item/rune, and must come from the entry's own explicit
+ *  `type` field (never inferred from list position). Renders nothing for
+ *  an entry that has no `type` (e.g. hand-typed legacy rows that predate
+ *  this field) rather than guessing a value for it. */
+export function BuildTypeBadge({ type }) {
+  if (type !== "core" && type !== "situational") return null;
+  return <span className={`build-chip-type build-chip-type-${type}`}>{type === "core" ? "Core" : "Situational"}</span>;
+}
+
 /** A single group (e.g. "Items" or "Runes & Spells") of compact, tappable
  *  chips. Spell-combo entries ("Flash + Ignite") expand into one chip per
  *  spell so each spell is independently clickable and shows its own icon. */
@@ -29,7 +40,7 @@ function ChipGroup({ label, entries, _type, activeKey, onSelect }) {
     if (spellNames) {
       spellNames.forEach((n) => {
         const key = `spell:${slugify(n)}`;
-        chips.push({ key, name: n, tag: e.tag, note: e.note, paths: candidatePaths(`s:${slugify(n)}`) });
+        chips.push({ key, name: n, tag: e.tag, type: e.type, note: e.note, paths: candidatePaths(`s:${slugify(n)}`) });
       });
     } else {
       // Prefer an explicit id if the data provides one; otherwise resolve
@@ -55,6 +66,7 @@ function ChipGroup({ label, entries, _type, activeKey, onSelect }) {
           >
             <span className="build-chip-icon"><ChipIcon paths={c.paths} /></span>
             <span className="build-chip-name">{c.name}</span>
+            <BuildTypeBadge type={c.type} />
           </button>
         ))}
       </div>

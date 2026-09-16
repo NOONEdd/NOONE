@@ -9,7 +9,7 @@
 // functions/_lib/aiProvider.js.
 export const DEFAULT_PROVIDER = "anthropic";
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
-export const MAX_TOKENS = 2500;
+export const MAX_TOKENS = 1000;
 
 // The static patch fallback (STATIC_PATCH_VERSION) now lives in
 // src/data/patch.js, alongside champions.js/items.js/runes.js -- it's

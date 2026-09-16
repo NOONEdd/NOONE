@@ -97,7 +97,7 @@ export default function App() {
     // only by navigating here directly (e.g. a bookmark). See
     // src/pages/AdminPage.jsx's top comment and README's "Safe Browsing
     // cleanup" section for why this replaced the old ?coach reveal.
-    content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} champions={champions} items={items} runes={runes} />;
+    content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} champions={champions} items={items} runes={runes} overrides={overrides} updateOverride={updateOverride} />;
   } else {
     content = <HomePage champions={academyChampions} />;
   }
