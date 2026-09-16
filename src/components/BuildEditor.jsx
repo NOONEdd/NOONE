@@ -5,6 +5,7 @@ import { ITEMS } from "../data/items.js";
 import { RUNES } from "../data/runes.js";
 import { ChipIcon } from "./BuildBoard.jsx";
 import ItemRunePicker from "./ItemRunePicker.jsx";
+import { normalizeBuildEntries } from "../lib/buildTypeClassifier.js";
 
 const CATALOG_BY_TYPE = { i: ITEMS, r: RUNES };
 
@@ -182,7 +183,23 @@ export default function BuildEditor({ builds, selectedBuild, onSelectBuild, onCh
   const [dragOver, setDragOver] = useState(null); // { section, index, isAfter } -- current hover target
 
   function updateBuild(patch) {
-    onChangeBuilds(builds.map((b, i) => (i === selectedBuild ? { ...b, ...patch } : b)));
+    onChangeBuilds(
+      builds.map((b, i) => {
+        if (i !== selectedBuild) return b;
+        // Every save is run through the exact same classifier the admin
+        // migration uses (src/lib/buildTypeClassifier.js) -- not just when
+        // a row is added. This is what stops a future champion's static
+        // entries (added without `type`) from getting permanently baked
+        // into a fresh, typeless KV override the first time anyone edits
+        // that build for an unrelated reason (a reorder, a note fix, a
+        // rename). normalizeBuildEntries always preserves an already-valid
+        // `type` untouched -- it only ever fills a gap, never overwrites a
+        // manual Core/Situational choice or reclassifies an already-typed
+        // entry. Same function, same rule, same updateOverride persistence
+        // path below -- nothing new introduced here.
+        return normalizeBuildEntries({ ...b, ...patch }).build;
+      })
+    );
   }
   function updateRow(section, index, newEntry) {
     const list = [...(build[section] || [])];
