@@ -1,6 +1,7 @@
 import { ArrowRight, Play, Swords, Shield, BookOpen } from "lucide-react";
 import { navigate } from "../hooks/useHashRoute.js";
 import { useHeroParallax } from "../hooks/useHeroParallax.js";
+import { useRosterRotation } from "../hooks/useRosterRotation.js";
 import { ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
 import { FeatureCard } from "../components/Layout.jsx";
 import RankChip from "../components/RankChip.jsx";
@@ -16,9 +17,15 @@ function roundedDownTen(count) {
   return Math.floor(count / 10) * 10;
 }
 
+// How many cards the "Full Roster Coverage" teaser shows at once -- this is
+// purely a display cap, never a bound on the roster itself. `champions`
+// (App.jsx's `academyChampions`) is whatever the Academy currently covers,
+// however many that is; useRosterRotation cycles through all of it.
+const ROSTER_TEASER_SIZE = 8;
+
 export default function HomePage({ champions }) {
   useHeroParallax();
-  const teaser = champions.slice(0, 8);
+  const rosterSlots = useRosterRotation(champions, ROSTER_TEASER_SIZE);
 
   return (
     <>
@@ -93,9 +100,11 @@ export default function HomePage({ champions }) {
             <p>If it can hold a lane from the back line, it's in here.</p>
           </div>
           <div className="roster-grid">
-            {teaser.map((c) => (
-              <RankChip key={c.id} id={c.id} name={c.name} tag={c.role} tier={c.tier} note={c.note}
-                icon={ROLE_ICONS[c.role]} accent={ROLE_COLORS[c.role]} clickable _type="c" />
+            {rosterSlots.map((slot, i) => (
+              <div key={i} className={"roster-slot" + (slot.phase === "visible" ? "" : " roster-slot-offstage")}>
+                <RankChip key={slot.champion.id} id={slot.champion.id} name={slot.champion.name} tag={slot.champion.role} tier={slot.champion.tier} note={slot.champion.note}
+                  icon={ROLE_ICONS[slot.champion.role]} accent={ROLE_COLORS[slot.champion.role]} clickable _type="c" />
+              </div>
             ))}
           </div>
           <div className="center-cta">

@@ -123,6 +123,18 @@
 
   /* RANK CHIPS (shared by champions / items / runes) */
   .roster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:18px;}
+  /* Home page's rotating Support roster teaser (src/hooks/useRosterRotation.js).
+     Each slot is a fixed grid cell -- only its content and this opacity/
+     transform pair ever change, so the grid itself never reflows and card
+     dimensions stay stable. `.roster-slot-offstage` is the single "hidden"
+     pose used for both the outgoing and incoming champion; the hook only
+     ever removes it once the new champion is already in place, which is
+     what makes the swap read as one smooth cross-fade instead of a jump. */
+  .roster-slot{transition:opacity .5s var(--ease), transform .5s var(--ease);opacity:1;transform:translateY(0) scale(1);}
+  .roster-slot.roster-slot-offstage{opacity:0;transform:translateY(8px) scale(.97);}
+  @media (prefers-reduced-motion: reduce){
+    .roster-slot{transition:none;}
+  }
   .rank-chip{position:relative;border-radius:16px;cursor:pointer;
     background:linear-gradient(165deg,var(--panel),var(--panel-light));border:1px solid var(--line);
     padding:18px 14px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;
