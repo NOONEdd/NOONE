@@ -10,7 +10,7 @@
 // is tiny, and zero dependence on any specific champion id or count -- all
 // lives in these functions and is fully exercised here.
 
-import { shuffle, initialSlots, drawNext } from '../src/hooks/useRosterRotation.js';
+import { shuffle, initialSlots, drawNext, nextSequentialSlot } from '../src/hooks/useRosterRotation.js';
 
 let pass = 0, fail = 0;
 function check(label, cond, detail) {
@@ -104,6 +104,48 @@ console.log('\n-- drawNext: no simultaneous duplicates, no immediate repeats, ex
   const next = drawNext(queueRef, new Set(), fullIds);
   check('queue reshuffles automatically once exhausted (does not return null forever)', next !== null);
 }
+
+// ---------------------------------------------------------------------
+console.log('\n-- nextSequentialSlot: deterministic 1 -> 2 -> ... -> 8 -> 1 -> ..., never random --');
+{
+  // Drive the exact sequence a live rotation would produce over many
+  // cycles and confirm it's precisely 0,1,2,...,7,0,1,2,... (which is
+  // "Card 1, Card 2, ..., Card 8, Card 1, ..." once displayed 1-indexed).
+  let idx = 0; // matches the hook's initial nextSlotIndexRef.current
+  const observed = [];
+  for (let i = 0; i < 40; i++) { // five full cycles of 8
+    observed.push(idx);
+    idx = nextSequentialSlot(idx, 8);
+  }
+  const expected = [];
+  for (let i = 0; i < 40; i++) expected.push(i % 8);
+  check('40 ticks over an 8-card grid produce exactly 0,1,2,...,7 repeated 5 times',
+    JSON.stringify(observed) === JSON.stringify(expected), observed);
+
+  check('wraps from the last card (index 7) back to the first (index 0)', nextSequentialSlot(7, 8) === 0);
+  check('never skips a position: every step advances by exactly 1 (mod length)',
+    observed.every((v, i) => i === 0 || v === (observed[i - 1] + 1) % 8));
+  check('never repeats a position out of turn: no two consecutive ticks share the same index',
+    observed.every((v, i) => i === 0 || v !== observed[i - 1]));
+}
+{
+  // Same guarantee at other grid sizes -- this must keep working however
+  // many cards are ever visible at once, not just 8.
+  for (const length of [1, 2, 5, 8, 12]) {
+    let idx = 0;
+    const seq = [];
+    for (let i = 0; i < length * 3; i++) {
+      seq.push(idx);
+      idx = nextSequentialSlot(idx, length);
+    }
+    const ok = seq.every((v, i) => v === i % length);
+    check(`length=${length}: three full cycles are exactly 0..${length - 1} repeated`, ok, seq);
+  }
+}
+check('nextSequentialSlot never calls Math.random -- pure arithmetic, verified by source inspection',
+  !nextSequentialSlot.toString().includes('random'));
+check('length <= 0 is handled without throwing (defensive, matches an empty-roster tick being a no-op)',
+  nextSequentialSlot(0, 0) === 0);
 
 // ---------------------------------------------------------------------
 console.log('\n-- Distribution sanity: over many draws, no pathological bias toward one champion --');

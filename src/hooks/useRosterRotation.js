@@ -45,6 +45,18 @@ export function drawNext(queueRef, excludeIds, fullRosterIds) {
   return queueRef.current.shift();
 }
 
+/** Pure step function for the deterministic left-to-right slot cycle: given
+ *  the slot index used on the previous tick, returns the index to use next
+ *  -- 0, 1, 2, ..., length-1, then back to 0. This single function is the
+ *  entire "Card 1 -> Card 2 -> ... -> Card 8 -> Card 1 -> ..." guarantee;
+ *  useRosterRotation just calls it once per tick. No Math.random(), no
+ *  shuffling, nothing roster-dependent -- pure arithmetic on the slot
+ *  count, so it's directly testable without driving the hook's timers. */
+export function nextSequentialSlot(previousIndex, length) {
+  if (length <= 0) return 0;
+  return (previousIndex + 1) % length;
+}
+
 /** Drives the Home page's rotating Support roster teaser (see
  *  src/pages/HomePage.jsx's "Full Roster Coverage" section). Takes the
  *  exact same effective, already-filtered champion list the rest of the
@@ -63,13 +75,17 @@ export function drawNext(queueRef, excludeIds, fullRosterIds) {
  *  `phase` to a CSS class in the caller; see src/index.css's `.roster-slot`
  *  / `.roster-slot-offstage`.
  *
- *  Rotation is a single interval that, each tick, fades exactly one
- *  (excluding whichever slot rotated last, so no single card can be
- *  replaced twice back-to-back) random slot to "hidden", swaps in the next
- *  champion from the shuffled queue once that fade has actually completed,
- *  then fades it back to "visible" -- so at most one card is ever mid-
- *  transition, the other seven stay untouched, and nothing crossfades or
- *  slides as a batch. */
+ *  Rotation is a single interval that, each tick, fades exactly one slot
+ *  to "hidden", swaps in the next champion from the shuffled queue once
+ *  that fade has actually completed, then fades it back to "visible" -- so
+ *  at most one card is ever mid-transition, the other seven stay
+ *  untouched, and nothing crossfades or slides as a batch. WHICH slot
+ *  rotates each tick is a plain sequential counter over slot positions
+ *  (0, 1, 2, ..., visibleCount-1, 0, 1, ...) -- left-to-right, wrapping
+ *  after the last card, never randomized and never re-derived from
+ *  Math.random(). This is deliberately a separate concern from WHICH
+ *  champion fills that slot (still the shuffled, no-repeat-visible draw
+ *  queue below) -- the fixed left-to-right order only governs position. */
 export function useRosterRotation(roster, visibleCount) {
   // Identity for "the current SET of covered champions" -- changes only
   // when a champion is genuinely added to or removed from the roster, not
@@ -85,19 +101,24 @@ export function useRosterRotation(roster, visibleCount) {
   const [slots, setSlots] = useState(() => initialSlots(roster, visibleCount));
   const slotsRef = useRef(slots);
   const queueRef = useRef([]);
-  const lastRotatedRef = useRef(null);
+  // Deterministic left-to-right cycle position: slot 0, then 1, then 2, ...
+  // wrapping back to 0 after the last visible slot. Plain counter, no
+  // randomness -- see the doc comment above.
+  const nextSlotIndexRef = useRef(0);
 
   function commit(next) {
     slotsRef.current = next;
     setSlots(next);
   }
 
-  // A genuine roster change re-seeds the whole teaser from scratch. Guarded
-  // by rosterKey (not the raw `roster` reference), so this does not fire on
+  // A genuine roster change re-seeds the whole teaser from scratch, and
+  // restarts the left-to-right cycle at slot 0 (Card 1) so the sequence is
+  // always predictable from the start of a fresh cycle. Guarded by
+  // rosterKey (not the raw `roster` reference), so this does not fire on
   // every render.
   useEffect(() => {
     queueRef.current = [];
-    lastRotatedRef.current = null;
+    nextSlotIndexRef.current = 0;
     commit(initialSlots(rosterRef.current, visibleCount));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rosterKey, visibleCount]);
@@ -122,10 +143,11 @@ export function useRosterRotation(roster, visibleCount) {
       const current = slotsRef.current;
       if (current.length === 0) return;
 
-      let idx = Math.floor(Math.random() * current.length);
-      if (current.length > 1 && idx === lastRotatedRef.current) {
-        idx = (idx + 1) % current.length; // never re-roll the same card twice in a row
-      }
+      // Fixed left-to-right order: 1 -> 2 -> ... -> visibleCount -> 1 -> ...
+      // No Math.random(), no shuffling, no skipping -- each tick advances
+      // exactly one position from wherever the last tick left off.
+      const idx = nextSlotIndexRef.current;
+      nextSlotIndexRef.current = nextSequentialSlot(idx, current.length);
 
       const visibleIds = new Set(current.map((s) => s.champion?.id).filter(Boolean));
       const nextId = drawNext(queueRef, visibleIds, rosterRef.current.map((c) => c.id));
@@ -133,7 +155,6 @@ export function useRosterRotation(roster, visibleCount) {
       const nextChampion = rosterRef.current.find((c) => c.id === nextId);
       if (!nextChampion) return;
 
-      lastRotatedRef.current = idx;
       commit(slotsRef.current.map((s, i) => (i === idx ? { ...s, phase: "hidden" } : s)));
 
       schedule(() => {
