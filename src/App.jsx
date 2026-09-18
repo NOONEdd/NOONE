@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useHashRoute } from "./hooks/useHashRoute.js";
 import { useCoachOverrides } from "./hooks/useCoachOverrides.js";
 import { CHAMPIONS, isAcademyCovered } from "./data/champions.js";
@@ -11,12 +11,27 @@ import { NavBar, MobileMenu, Footer, BackToTop } from "./components/Layout.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import { ChampionTierListPage, ItemTierListPage, RuneTierListPage } from "./pages/TierListPages.jsx";
 import { GuidesPage, NotFoundPage } from "./pages/GuidesPage.jsx";
-import ChampionDetailPage from "./pages/ChampionDetailPage.jsx";
-import CoachingPage from "./pages/CoachingPage.jsx";
-import AICoachPage from "./pages/AICoachPage.jsx";
-import PatchIntelligencePage from "./pages/PatchIntelligencePage.jsx";
-import AdminPage from "./pages/AdminPage.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+
+// Code-split routes that aren't the common landing path -- these were
+// previously bundled eagerly into the single main chunk (~479KB) that
+// EVERY visitor downloaded and parsed before seeing anything, even if all
+// they wanted was the Home page or a Tier List. Each of these now ships in
+// its own chunk, fetched only the moment someone actually navigates there.
+// ChampionDetailPage's chunk carries BuildEditor/BuildBoard/
+// ChampionMatchups/DecisionTreePanel/ItemRunePicker along with it for free
+// (they're its own static imports), so this also code-splits the whole
+// Build Editor without a separate lazy() for it.
+// HomePage, TierListPages, and GuidesPage stay eager: Home is the default
+// landing route for most visits, and the other two are small, frequently-
+// used core content pages -- splitting them would trade a real, common-path
+// delay for a marginal bundle-size win, which isn't the tradeoff this
+// audit is going for.
+const ChampionDetailPage = lazy(() => import("./pages/ChampionDetailPage.jsx"));
+const CoachingPage = lazy(() => import("./pages/CoachingPage.jsx"));
+const AICoachPage = lazy(() => import("./pages/AICoachPage.jsx"));
+const PatchIntelligencePage = lazy(() => import("./pages/PatchIntelligencePage.jsx"));
+const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
 
 export default function App() {
   const route = useHashRoute();
@@ -106,7 +121,11 @@ export default function App() {
     <div className="app-root">
       <NavBar currentPage={route.page} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
       {menuOpen && <MobileMenu onNavigate={() => setMenuOpen(false)} />}
-      <main><ErrorBoundary resetKey={JSON.stringify(route)}>{content}</ErrorBoundary></main>
+      <main>
+        <ErrorBoundary resetKey={JSON.stringify(route)}>
+          <Suspense fallback={<div className="route-loading" aria-hidden="true" />}>{content}</Suspense>
+        </ErrorBoundary>
+      </main>
       <Footer />
       <BackToTop />
     </div>

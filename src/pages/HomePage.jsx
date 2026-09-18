@@ -23,9 +23,30 @@ function roundedDownTen(count) {
 // however many that is; useRosterRotation cycles through all of it.
 const ROSTER_TEASER_SIZE = 8;
 
+// Owns useRosterRotation's state itself, in its own component, rather than
+// inline in HomePage -- the rotation ticks every 4.2s for as long as the
+// Home page is mounted, and React re-renders start from wherever the
+// changed state actually lives. Keeping that state here means only this
+// small subtree (8 cards) re-renders on each tick; the hero, feature grid,
+// and CTA banner above/below it never re-execute their render just because
+// a roster card faded. No memoization needed to achieve this -- it's a
+// consequence of where the state lives, not a fix applied on top of it.
+function RosterTeaser({ champions }) {
+  const rosterSlots = useRosterRotation(champions, ROSTER_TEASER_SIZE);
+  return (
+    <div className="roster-grid">
+      {rosterSlots.map((slot, i) => (
+        <div key={i} className={"roster-slot" + (slot.phase === "visible" ? "" : " roster-slot-offstage")}>
+          <RankChip key={slot.champion.id} id={slot.champion.id} name={slot.champion.name} tag={slot.champion.role} tier={slot.champion.tier} note={slot.champion.note}
+            icon={ROLE_ICONS[slot.champion.role]} accent={ROLE_COLORS[slot.champion.role]} clickable _type="c" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function HomePage({ champions }) {
   useHeroParallax();
-  const rosterSlots = useRosterRotation(champions, ROSTER_TEASER_SIZE);
 
   return (
     <>
@@ -99,14 +120,7 @@ export default function HomePage({ champions }) {
             <h2>From Enchanters To Off-Meta Flex Picks</h2>
             <p>If it can hold a lane from the back line, it's in here.</p>
           </div>
-          <div className="roster-grid">
-            {rosterSlots.map((slot, i) => (
-              <div key={i} className={"roster-slot" + (slot.phase === "visible" ? "" : " roster-slot-offstage")}>
-                <RankChip key={slot.champion.id} id={slot.champion.id} name={slot.champion.name} tag={slot.champion.role} tier={slot.champion.tier} note={slot.champion.note}
-                  icon={ROLE_ICONS[slot.champion.role]} accent={ROLE_COLORS[slot.champion.role]} clickable _type="c" />
-              </div>
-            ))}
-          </div>
+          <RosterTeaser champions={champions} />
           <div className="center-cta">
             <button className="btn btn-ghost" onClick={() => navigate("/guides")}>View Full Roster <ArrowRight size={15} /></button>
           </div>

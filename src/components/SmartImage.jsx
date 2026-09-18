@@ -1,40 +1,5 @@
 import { useState, useEffect } from "react";
-
-const EXTENSIONS_TO_TRY = ["webp", "jpg", "jpeg", "png", "avif"];
-
-/** Module-level, persists for the life of the page. Once we know which
- *  exact URL works for a given candidate list, every SmartImage anywhere
- *  on the site asking for that same image reuses the answer instantly
- *  instead of re-probing from scratch. Value is the resolved URL, or null
- *  if confirmed missing. */
-const resolutionCache = new Map();
-
-function probeImage(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
-}
-
-async function resolveSrc(candidates) {
-  const urls = [];
-  for (const base of candidates) {
-    for (const ext of EXTENSIONS_TO_TRY) {
-      urls.push(`${base}.${ext}`);
-    }
-  }
-  // Fire every candidate at once instead of awaiting each 404 in turn
-  // before trying the next -- this used to mean any image whose real
-  // filename wasn't the very first guess paid for several sequential
-  // round-trips before showing up, worst felt on mobile. Total wait time
-  // is now roughly the slowest single request, not the sum of all of
-  // them. .find() below still respects the original most-to-least-likely
-  // ordering when picking among whichever ones actually succeeded.
-  const results = await Promise.all(urls.map((url) => probeImage(url).then((ok) => (ok ? url : null))));
-  return results.find((url) => url !== null) || null;
-}
+import { EXTENSIONS_TO_TRY, resolutionCache, resolveSrc } from "../utils/imageResolution.js";
 
 /**
  * Usage:
@@ -45,7 +10,8 @@ async function resolveSrc(candidates) {
  * confirmed not to) -- so the fallback icon underneath never gets covered
  * by a flash of a broken-image state, and the visible <img> only ever gets
  * exactly one, already-known-good src. Resolution happens via a hidden
- * probe, never by letting the real <img> fail and retry.
+ * probe, never by letting the real <img> fail and retry. The actual
+ * extension-probing strategy lives in src/utils/imageResolution.js.
  */
 export default function SmartImage({ basePath, alt, className, onExhausted }) {
   const candidates = Array.isArray(basePath) ? basePath.filter(Boolean) : basePath ? [basePath] : [];

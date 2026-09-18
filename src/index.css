@@ -21,6 +21,13 @@
 
   .wrap{width:100%;max-width:1280px;margin:0 auto;padding:0 24px;}
   .page-section{padding:clamp(60px,9vw,110px) 0;}
+  /* Suspense fallback while a lazy-loaded route chunk (App.jsx) is still
+     being fetched. min-height keeps the page from collapsing to nothing
+     and causing a layout jump when the real content mounts a moment
+     later; transparent background means a fast chunk fetch (the common
+     case -- these are small chunks, not the old single ~479KB bundle)
+     is effectively invisible rather than flashing a visible spinner. */
+  .route-loading{min-height:60vh;}
   .center-cta{text-align:center;margin-top:40px;}
 
   .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;

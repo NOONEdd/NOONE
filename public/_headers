@@ -2,3 +2,18 @@
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+
+# Vite content-hashes every JS/CSS chunk filename (e.g. index-B7x9kP2q.js) --
+# a filename never gets reused for different content, and any real code/style
+# change ships under a brand-new name. That makes these two patterns safe to
+# cache for a full year with `immutable`: a browser that already has
+# index-B7x9kP2q.js never needs to re-request or revalidate it, because the
+# only way its content could ever change is for it to also get a new name.
+# This does NOT cover dist/assets/{champions,items,runes,spells}/*  --
+# those are plain, non-hashed filenames (lulu.webp, eclipse.webp, ...) that
+# CAN be replaced in place with different content, so they intentionally
+# keep Cloudflare's default (revalidate-before-use) caching instead.
+/assets/*.js
+  Cache-Control: public, max-age=31536000, immutable
+/assets/*.css
+  Cache-Control: public, max-age=31536000, immutable
