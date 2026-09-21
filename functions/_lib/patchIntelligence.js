@@ -237,6 +237,59 @@ function buildChangeCandidates(
   const text = String(patchContent || "");
   const normalizedText = normalizeSearchText(text);
 
+  const all = [
+    ...championRoster.map((entity) => ({
+      ...entity,
+      entityType: "champion",
+    })),
+    ...itemRoster.map((entity) => ({
+      ...entity,
+      entityType: "item",
+    })),
+    ...runeRoster.map((entity) => ({
+      ...entity,
+      entityType: "rune",
+    })),
+  ];
+
+  const candidates = [];
+
+  for (const entity of all) {
+    const name = String(entity.name || "").trim();
+
+    if (!name || name.length < 2) continue;
+
+    const normalizedName = normalizeSearchText(name);
+
+    if (!normalizedName) continue;
+
+    /*
+     * Important:
+     * This detector intentionally does NOT try to decide whether
+     * the entity was actually changed.
+     *
+     * Its only job is to detect Academy-tracked entities that are
+     * mentioned anywhere in the official patch text.
+     *
+     * The AI must then verify whether the entity was actually changed
+     * and whether that change is Support-relevant.
+     */
+
+    if (normalizedText.includes(normalizedName)) {
+      candidates.push({
+        entityType: entity.entityType,
+        id: entity.id,
+        name: entity.name,
+        tier: entity.tier,
+      });
+    }
+  }
+
+  return candidates;
+} {
+  const text = String(patchContent || "");
+  const normalizedText = normalizeSearchText(text);
+
   const changeSignal =
     /\b(buffed?|nerfed?|adjusted?|changed?|increased?|decreased?|reduced?|increases?|decreases?|damage|cooldown|mana|health|armor|magic resistance|attack damage|ability power|range|duration|ratio|scaling|cost|shield|heal|healing|movement speed|attack speed|penetration|new value|old value)\b/i;
 
