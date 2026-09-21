@@ -44,14 +44,40 @@ const TYPE_VALUES = ["Buff", "Nerf", "Adjustment"];
 // Cloudflare Function logs and the /api/admin/patch-check response
 // (functions/api/admin/patch-check.js), never silently swallowed.
 // Remove once Re-analyze's correctness is no longer in question.
-export const PATCH_INTEL_ENGINE_VERSION = "reanalyze-v2";
+export const PATCH_INTEL_ENGINE_VERSION = "reanalyze-v3";
 
 const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOONEdd Academy, a Wild Rift Support coaching site. Your only input is the official Wild Rift patch notes text provided below, plus a snapshot of the Academy's current Support-relevant champion/item/rune roster and their CURRENT tiers. Your job is to extract and structure whatever in this specific patch matters to SUPPORT players -- not to rewrite the patch notes in full, and not to invent anything the patch notes don't actually say.
 
 HARD RULES -- follow these strictly:
 1. FACTS vs. ANALYSIS -- keep these separate and never blur them. The official patch notes text below is the ONLY source of "what changed" -- every reported change must be traceable to it. "whatChanged"/"previousValue"/"newValue" are FACTS: they describe the actual change, straight from the text. "Support impact," "gameplay/build/rune/matchup implications," and "recommended tier action" are your ANALYSIS, clearly reasoned FROM that fact -- but never invent a change, a number, a mechanic, or a champion/item/rune that isn't actually in the text. If you are not sure something is really in the text, leave it out rather than guessing. Do not infer an old/new value the text doesn't explicitly give you.
 2. If the patch notes contain no changes relevant to Support, return empty arrays. A quiet patch producing a short, mostly-empty report is the CORRECT output -- do not manufacture relevance or pad the report to seem thorough.
-3. Only report changes that are relevant to Support play.
+3. Only report changes that are relevant to Support play. 3A. MANDATORY ACADEMY COVERAGE -- a deterministic pre-analysis layer
+provides a list of Academy-tracked entities that appear near explicit
+change signals in the official patch text.
+
+You MUST inspect every entity in MANDATORY ACADEMY CHANGE CANDIDATES.
+
+For each candidate:
+- verify from the official patch text whether the entity actually changed;
+- if it changed, determine whether the change is relevant to Support;
+- if Support-relevant, include it in the appropriate championChanges,
+  itemChanges, or runeChanges array;
+- if it changed but is genuinely not Support-relevant, do not include it
+  merely because it is an Academy entity;
+- if the candidate was only mentioned incidentally and did not actually
+  change, do not report it as a change.
+
+IMPORTANT:
+The candidate list is NOT evidence that a change occurred.
+The official patch text remains the ONLY authority for what changed.
+
+However, you MUST NOT silently ignore a candidate that the patch text
+actually changes merely because you consider the entity unusual,
+non-traditional for Support, or outside the conventional Support-item
+category.
+
+For Academy-tracked items in particular, inspect the item's Academy
+name, category, current tier, and info before deciding Support relevance.
 
 For items, do NOT determine Support relevance from the item's category alone.
 An item categorized as Physical, Magic, Defense, Attack, etc. may still have legitimate situational value for a Support.
@@ -74,8 +100,16 @@ If a changed item is Academy-tracked and its effect can meaningfully affect a Su
    R: ...
    Base Stats: ...
    Example whatChanged for a champion with two ability changes: "Q: damage 80/120/160/200 -> 90/130/170/210; cooldown 9/8/7/6s -> 8/7/6/5s. W: armor 20/30/40/50 -> 25/35/45/55." Also avoid duplicate entries for the same entity in recommendedTierChanges -- one recommendation per entity, same rule.
-5. PRESERVE THE NUMBERS -- do not over-summarize. "Leona was buffed" or "Q was buffed" is NOT an acceptable whatChanged/previousValue/newValue -- that describes a category, not the change. Whenever the patch notes give a number, include it: damage, healing, shielding, cooldown, mana/energy cost, range, duration, percentages, ratios, AD/AP scaling, attack speed, movement speed, health, armor, magic resistance, stack counts, thresholds, charges, level scaling -- whatever the text actually specifies, both the OLD value and the NEW value when both are given. "Concise" means cutting repetition and unnecessary prose, NOT cutting factual numbers to save space -- a patch with many changes needs each entry written more economically, not stripped of its actual values. The "type" field (Buff/Nerf/Adjustment) is a classification, never a substitute for describing what actually changed.
-6. Use the Academy roster snapshot below for two things ONLY: (a) judging whether a mentioned champion/item/rune is one Academy actually tracks, and (b) using its ACTUAL CURRENT tier as the "from" side of any recommended tier action -- never guess a current tier that isn't in the snapshot, and never invent a roster entity that isn't listed there.
+5. PRESERVE THE NUMBERS -- do not over-summarize. "Leona was buffed" or "Q was buffed" is NOT an acceptable whatChanged/previousValue/newValue -- that describes a category, not the change. Whenever the patch notes give a number, include it: damage, healing, shielding, cooldown, mana/energy cost, range, duration, percentages, ratios, AD/AP scaling, attack speed, movement speed, health, armor, magic resistance, stack counts, thresholds, charges, level scaling -- whatever the text actually specifies, both the OLD value and the NEW value when both are given. "Concise" means cutting repetition and unnecessary prose, NOT cutting factual numbers to save space -- a patch with many changes needs each entry written more economically, not stripped of its actual values. The "type" field (Buff/Nerf/Adjustment) is a classification, never a substitute for describing what actually changed. 
+6. Use the Academy roster snapshot below for three things ONLY:
+(a) determining whether a mentioned champion/item/rune is actually
+tracked by Academy,
+(b) using its ACTUAL CURRENT tier as the "from" side of any
+recommended tier action, and
+(c) interpreting the MANDATORY ACADEMY CHANGE CANDIDATES section.
+
+Never guess a current tier that isn't in the snapshot, and never invent
+a roster entity that isn't listed there.
 7. You are an analyst/recommender, not the final authority -- a human coach reviews every report before anything about it goes live, and nothing you output is ever applied automatically. Write reasoning a human can quickly judge and disagree with if needed, not reasoning written to sound maximally confident.
 8. impactSeverity and confidence must each be exactly one of "Low", "Medium", "High". type/buffNerfAdjustment must be exactly one of "Buff", "Nerf", "Adjustment". Do not use any other values or casing.
 9. Respond with ONLY one JSON object matching the schema below. No markdown code fences, no prose before or after it, no comments inside it, no trailing commas.
@@ -181,7 +215,153 @@ function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
   const runeLines = runeRoster.map((r) => `${r.id}|${r.name}|${r.path}|tier:${r.tier}|info:${r.info || ""}`).join("\n");
   return `--- Academy champion roster (id|name|role|current tier) ---\n${champLines}\n\n--- Academy item roster (id|name|category|current tier|info) ---\n${itemLines}\n\n--- Academy rune roster (id|name|path|current tier|info) ---\n${runeLines}`;
 }
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[’‘`´]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildChangeCandidates(
+  patchContent,
+  championRoster,
+  itemRoster,
+  runeRoster
+) {
+  const text = String(patchContent || "");
+  const normalizedText = normalizeSearchText(text);
+
+  const changeSignal =
+    /\b(buffed?|nerfed?|adjusted?|changed?|increased?|decreased?|reduced?|increases?|decreases?|damage|cooldown|mana|health|armor|magic resistance|attack damage|ability power|range|duration|ratio|scaling|cost|shield|heal|healing|movement speed|attack speed|penetration|new value|old value)\b/i;
+
+  const all = [
+    ...championRoster.map((entity) => ({
+      ...entity,
+      entityType: "champion",
+    })),
+    ...itemRoster.map((entity) => ({
+      ...entity,
+      entityType: "item",
+    })),
+    ...runeRoster.map((entity) => ({
+      ...entity,
+      entityType: "rune",
+    })),
+  ];
+
+  const candidates = [];
+
+  for (const entity of all) {
+    const name = String(entity.name || "").trim();
+
+    if (!name || name.length < 2) continue;
+
+    const escapedName = escapeRegExp(name);
+    const occurrenceRegex = new RegExp(escapedName, "gi");
+
+    let match;
+
+    while ((match = occurrenceRegex.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 500);
+      const end = Math.min(
+        text.length,
+        match.index + name.length + 500
+      );
+
+      const context = text.slice(start, end);
+
+      if (changeSignal.test(context)) {
+        candidates.push({
+          entityType: entity.entityType,
+          id: entity.id,
+          name: entity.name,
+          tier: entity.tier,
+        });
+
+        break;
+      }
+    }
+
+    const alreadyFound = candidates.some(
+      (candidate) =>
+        candidate.entityType === entity.entityType &&
+        candidate.id === entity.id
+    );
+
+    if (!alreadyFound) {
+      const normalizedName = normalizeSearchText(name);
+
+      if (normalizedName && normalizedText.includes(normalizedName)) {
+        const index = normalizedText.indexOf(normalizedName);
+
+        const start = Math.max(0, index - 500);
+        const end = Math.min(
+          normalizedText.length,
+          index + normalizedName.length + 500
+        );
+
+        const context = normalizedText.slice(start, end);
+
+        if (changeSignal.test(context)) {
+          candidates.push({
+            entityType: entity.entityType,
+            id: entity.id,
+            name: entity.name,
+            tier: entity.tier,
+          });
+        }
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function formatRequiredChangeCandidates(candidates) {
+  if (!candidates.length) {
+    return "No Academy-tracked entity was deterministically identified near an explicit patch-change signal.";
+  }
+
+  const groups = {
+    champion: [],
+    item: [],
+    rune: [],
+  };
+
+  for (const candidate of candidates) {
+    groups[candidate.entityType].push(
+      `${candidate.id}|${candidate.name}|currentTier:${candidate.tier}`
+    );
+  }
+
+  const sections = [];
+
+  if (groups.champion.length) {
+    sections.push(
+      `Champions:\n${groups.champion.join("\n")}`
+    );
+  }
+
+  if (groups.item.length) {
+    sections.push(
+      `Items:\n${groups.item.join("\n")}`
+    );
+  }
+
+  if (groups.rune.length) {
+    sections.push(
+      `Runes:\n${groups.rune.join("\n")}`
+    );
+  }
+
+  return sections.join("\n\n");
+}
 /** Deterministic, bounded extraction of the first complete top-level
  *  JSON object from a string that may have stray text around it (a
  *  model occasionally adding a short preamble or trailing remark
@@ -491,9 +671,50 @@ export function normalizePatchIntelReport(raw, { championRoster, itemRoster, run
  * the trust-hierarchy rule that the AI never runs without real source
  * text to analyze.
  */
-export async function runPatchIntelAnalysis({ env, patchContent, championRoster, itemRoster, runeRoster }) {
-  const rosterSnapshot = formatRosterSnapshot(championRoster, itemRoster, runeRoster);
-  const systemPrompt = `${ANALYST_INSTRUCTIONS}\n\n${rosterSnapshot}\n\n--- Official Wild Rift patch notes (the ONLY source of "what changed" -- analyze this) ---\n${patchContent}`;
+export async function runPatchIntelAnalysis({
+  env,
+  patchContent,
+  championRoster,
+  itemRoster,
+  runeRoster,
+}) {
+  const rosterSnapshot = formatRosterSnapshot(
+    championRoster,
+    itemRoster,
+    runeRoster
+  );
+
+  const requiredEntities = buildChangeCandidates(
+    patchContent,
+    championRoster,
+    itemRoster,
+    runeRoster
+  );
+
+  const requiredEntitiesText =
+    formatRequiredChangeCandidates(requiredEntities);
+
+  console.log(
+    "[PatchIntel][v3] Academy change candidates:",
+    JSON.stringify(requiredEntities, null, 2)
+  );
+
+  const systemPrompt = `${ANALYST_INSTRUCTIONS}
+
+${rosterSnapshot}
+
+--- MANDATORY ACADEMY CHANGE CANDIDATES ---
+These entities were deterministically detected in the official patch
+text near explicit change-related signals.
+
+They are NOT proof that a change occurred.
+You MUST inspect each candidate against the official patch text and
+must not silently skip an actual change.
+
+${requiredEntitiesText}
+
+--- Official Wild Rift patch notes (the ONLY source of "what changed" -- analyze this) ---
+${patchContent}`;
 
   const result = await callAIProvider({
     env,
