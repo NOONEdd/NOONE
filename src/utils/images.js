@@ -114,7 +114,6 @@ const ALIASES = {
   "i:overlords-bloodmail": ["overlord_s_bloodmail", "overlords_bloodmail", "overlord's-bloodmail"],
   "i:wardens-mail": ["warden_s_mail", "wardens_mail", "warden's-mail"],
   "i:glacial-shroud": ["glacial_shroud"],
-  "i:surging-scales": ["surging_scales"],
   "i:executioners-calling": ["80px-executioner_s_calling_wr_item", "executioners_calling", "executioner's-calling"],
   "i:forbidden-idol": ["80px-forbidden_idol_wr_item"],
   "i:oblivion-orb": ["80px-oblivion_orb_wr_item"],
@@ -132,6 +131,10 @@ const ALIASES = {
   "i:void-staff": ["void-staff", "voidstaff"],
   "i:chainlaced-crusher": ["chainlaced-crusher", "chainlacedcrusher"],
   "i:spellslinger's-shoes": ["spellslinger's-shoes", "spellslinger's-shoes"],
+  "i:Whispering-Circlet": ["whispering-circlet", "whisperingcirclet"],
+  "i:Diadem-of-Songs": ["diadem-of-songs", "diademofsongs"],
+  "i:Echoes-of-Helia": ["echoes-of-helia", "echoesofhelia"],
+  "i:legend: haste": ["legend-haste", "legend haste"],
   // Added during the optimization pass below — every one of these is a
   // real, currently-listed item whose actual downloaded image already
   // existed on disk but could never be found: either an apostrophe was

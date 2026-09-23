@@ -432,7 +432,7 @@ export const CHAMPIONS = [
       { tag: "Inspiration", type: "core", name: "Transcendence", note: "gives you more ability haste so that you can use your abilities more often in mid-late game." },
       { tag: "Summoner Spells", type: "core", name: "Flash + Ignite", note: "Flash for the unexpected engage angle that catches the enemy off-guard; Ignite to secure kills after your hook combo lands." },
       { tag: "Rune Swap", type: "situational", name: "Bone Plating (swap for Transcendence)", note: "When the enemy has a one-shot combo or heavy burst in lane. Bone Plating reduces their damage window and keeps you alive through the first rotation of abilities." },
-      { tag: "Rune Swap", type: "situational", name: "Ingenious Hunter (swap for Zombie Ward)", note: "to increase your ability haste and lower your cooldown when you think your damage is enough." },
+      
   ],}], },
     
       // Warden

@@ -57,10 +57,10 @@ const ITEM_IDS = [
   "negatron-cloak","oblivion-orb","oceanids-trident","overlords-bloodmail","plated-steelcaps",
   "rabadons-deathcap","radiant-virtue","randuins-omen","redemption","rylais-crystal-scepter",
   "searing-crown","serpents-fang","serylda-grudge","spectres-cowl","staff-of-flowing-water",
-  "stasis-enchant","stoneplate-enchant","sunfire-aegis","surging-scales","tear-of-the-goddess",
+  "stasis-enchant","stoneplate-enchant","sunfire-aegis","tear-of-the-goddess",
   "the-collector","thornmail","unending-despair","mikael's-blessing","wardens-mail","warmogs-armor",
   "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","spellslinger's-shoes","chainlaced-crusher","armored-advance","armor-crusher-boots","crimson-lucidity",
-  "Stormsurge","Banshee's Veil","Void Staff","Cryptobloom","Bloodletter's Curse","Blackfire Torch","Protobelt","LichBane",
+  "Stormsurge","Banshee's Veil","Void Staff","Cryptobloom","Bloodletter's Curse","Blackfire Torch","Protobelt","LichBane","Whispering-Circlet","Diadem-of-songs","echoes-of-helia",
 ];
 
 const RUNE_IDS = [
@@ -71,7 +71,7 @@ const RUNE_IDS = [
   "hextech-flashtraption","hubris","ice-overlord","ingenious-hunter","ixtali-seedjar","last-stand",
   "legend-bloodline","legend-tenacity","manaflow-band","nimbus-cloak","nullifying-orb","overgrowth",
   "perseverance","phase-rush","relentless-hunter","revitalize","scorch","second-wind","sudden-impact",
-  "summon-aery","transcendence","triumph","tyrant","unshakeable","zombie-ward",
+  "summon-aery","transcendence","triumph","tyrant","unshakeable","zombie-ward","legend-haste",
 ];
 
 const GROUPS = [
