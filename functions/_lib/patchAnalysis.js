@@ -93,11 +93,24 @@ function getBatchRosters({
  *  { ok: true, report, entityVerdicts, parseStrategy } or
  *  { ok: false, code, error, logDetail }. Never throws. */
 async function runOneBatchAttempt({ env, batch, batchIndex, batchTotal, patchTitle, patchIntro, championRoster, itemRoster, runeRoster }) {
-  const batchText = batch.units.map(renderUnit).join("\n\n");
-  const systemPrompt = buildBatchSystemPrompt({
-    batchIndex, batchTotal, patchTitle, patchIntro, batchText,
-    forcedEntities: batch.entities, championRoster, itemRoster, runeRoster,
-  });
+ const batchText = batch.units.map(renderUnit).join("\n\n");
+
+const batchRosters = getBatchRosters({
+  batch,
+  championRoster,
+  itemRoster,
+  runeRoster,
+});
+
+const systemPrompt = buildBatchSystemPrompt({
+  batchIndex,
+  batchTotal,
+  patchTitle,
+  patchIntro,
+  batchText,
+  forcedEntities: batch.entities,
+  ...batchRosters,
+});
 
   const result = await withTimeout(
     callAIProvider({
@@ -177,8 +190,8 @@ async function runBatchWithRetries(ctx, batch, splitDepth) {
       };
     }
     lastFailure = outcome;
-   if (
-  (outcome.code === "truncated_output" || outcome.code === "ai_timeout") &&
+  if (
+  outcome.code === "truncated_output" &&
   batch.units.length > 1 &&
   splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH
 ) {
@@ -186,9 +199,9 @@ async function runBatchWithRetries(ctx, batch, splitDepth) {
 }
   }
 
-  if (
+ if (
   lastFailure &&
-  (lastFailure.code === "truncated_output" || lastFailure.code === "ai_timeout") &&
+  lastFailure.code === "truncated_output" &&
   batch.units.length > 1 &&
   splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH
 ) {
