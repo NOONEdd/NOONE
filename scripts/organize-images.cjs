@@ -59,7 +59,7 @@ const ITEM_IDS = [
   "searing-crown","serpents-fang","serylda-grudge","spectres-cowl","staff-of-flowing-water",
   "stasis-enchant","stoneplate-enchant","sunfire-aegis","tear-of-the-goddess",
   "the-collector","thornmail","unending-despair","veil-enchant","wardens-mail","warmogs-armor",
-  "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","Protobelt","LichBane","Whispering-Circlet","Diadem-of-songs","echoes-of-helia",
+  "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","Protobelt","LichBane","Whispering-Circlet","Diadem-of-songs","echoes-of-helia","mantle-of-the-twelfth-hour",
 ];
 
 const RUNE_IDS = [

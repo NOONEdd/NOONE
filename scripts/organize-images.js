@@ -60,7 +60,7 @@ const ITEM_IDS = [
   "stasis-enchant","stoneplate-enchant","sunfire-aegis","tear-of-the-goddess",
   "the-collector","thornmail","unending-despair","mikael's-blessing","wardens-mail","warmogs-armor",
   "winters-approach","yordle-trap","youmuus-ghostblade","zekes-convergence","spellslinger's-shoes","chainlaced-crusher","armored-advance","armor-crusher-boots","crimson-lucidity",
-  "Stormsurge","Banshee's Veil","Void Staff","Cryptobloom","Bloodletter's Curse","Blackfire Torch","Protobelt","LichBane","Whispering-Circlet","Diadem-of-songs","echoes-of-helia",
+  "Stormsurge","Banshee's Veil","Void Staff","Cryptobloom","Bloodletter's Curse","Blackfire Torch","Protobelt","LichBane","Whispering-Circlet","Diadem-of-songs","echoes-of-helia","mantle-of-the-twelfth-hour",
 ];
 
 const RUNE_IDS = [
