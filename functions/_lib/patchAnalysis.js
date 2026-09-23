@@ -69,7 +69,26 @@ function withTimeout(promise, ms) {
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
+function getBatchRosters({
+  batch,
+  championRoster = [],
+  itemRoster = [],
+  runeRoster = [],
+}) {
+  const entityKeys = new Set(batch.entities || []);
 
+  return {
+    championRoster: championRoster.filter((e) =>
+      entityKeys.has(`champion:${e.id}`)
+    ),
+    itemRoster: itemRoster.filter((e) =>
+      entityKeys.has(`item:${e.id}`)
+    ),
+    runeRoster: runeRoster.filter((e) =>
+      entityKeys.has(`rune:${e.id}`)
+    ),
+  };
+}
 /** One AI call for one batch, no retry. Returns
  *  { ok: true, report, entityVerdicts, parseStrategy } or
  *  { ok: false, code, error, logDetail }. Never throws. */
