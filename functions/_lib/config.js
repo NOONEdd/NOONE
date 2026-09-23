@@ -153,7 +153,7 @@ export const PATCH_INTEL_MAX_BATCHES = 40; // hard bound on the plan; a patch ne
 export const PATCH_INTEL_BATCH_MAX_ATTEMPTS = 3; // attempts per batch (retry on transient errors / invalid output)
 export const PATCH_INTEL_MAX_SPLIT_DEPTH = 3; // a truncated batch is split in half at most this many times (patchAnalysis.js)
 export const PATCH_INTEL_CONCURRENCY = 3; // AI batches in flight at once (patchAnalysis.js's runAllBatches)
-export const PATCH_INTEL_CALL_TIMEOUT_MS = 70000; // stop waiting for one AI call after this (does not cancel the upstream request -- aiProvider.js takes no abort signal)
+export const PATCH_INTEL_CALL_TIMEOUT_MS = 20000; // stop waiting for one AI call after this (does not cancel the upstream request -- aiProvider.js takes no abort signal)
 // No NEW batch call is STARTED after this much wall time in one HTTP
 // request (already-started batches still finish) -- patchAnalysis.js's
 // runAllBatches. KNOWN LIMITATION (see the delivery report): there is no
