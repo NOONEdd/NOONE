@@ -134,7 +134,7 @@ const ALIASES = {
   "i:Whispering-Circlet": ["whispering-circlet", "whisperingcirclet"],
   "i:Diadem-of-Songs": ["diadem-of-songs", "diademofsongs"],
   "i:Echoes-of-Helia": ["echoes-of-helia", "echoesofhelia"],
-  "i:legend:haste": ["legend-Haste", "legend haste"],
+  "i:legend-haste": ["legend-Haste", "legend haste"],
   // Added during the optimization pass below — every one of these is a
   // real, currently-listed item whose actual downloaded image already
   // existed on disk but could never be found: either an apostrophe was
