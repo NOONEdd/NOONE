@@ -143,16 +143,16 @@ export const PATCH_INTEL_SOURCE_FETCH_TIMEOUT_MS = 20000; // Riot's full patch p
 // Batch sizing. Batches are packed from semantic units (a champion /
 // item / rune / subsection block) -- never split mid-change -- so these
 // are targets for packing, not slice offsets.
-export const PATCH_INTEL_BATCH_MAX_CHARS = 18000; // patch text per AI batch (~5K tokens); a unit larger than this is split on change-block boundaries first
-export const PATCH_INTEL_BATCH_MIN_CHARS = 4000; // adjacent tiny batches are merged up to BATCH_MAX_CHARS so small patches don't fan out into many requests
-export const PATCH_INTEL_BATCH_MAX_ENTITIES = 14; // Academy entities detected per batch -- bounds how many verdicts/entries one response must contain
+export const PATCH_INTEL_BATCH_MAX_CHARS = 12000; // patch text per AI batch (~5K tokens); a unit larger than this is split on change-block boundaries first
+export const PATCH_INTEL_BATCH_MIN_CHARS = 2000; // adjacent tiny batches are merged up to BATCH_MAX_CHARS so small patches don't fan out into many requests
+export const PATCH_INTEL_BATCH_MAX_ENTITIES = 8; // Academy entities detected per batch -- bounds how many verdicts/entries one response must contain
 export const PATCH_INTEL_MAX_BATCHES = 40; // hard bound on the plan; a patch needing more is reported as incomplete, not silently thinned out
 
 // Failure handling / pacing. These bound AI calls per revision so a
 // misbehaving provider can never loop.
 export const PATCH_INTEL_BATCH_MAX_ATTEMPTS = 3; // attempts per batch (retry on transient errors / invalid output)
 export const PATCH_INTEL_MAX_SPLIT_DEPTH = 3; // a truncated batch is split in half at most this many times (patchAnalysis.js)
-export const PATCH_INTEL_CONCURRENCY = 3; // AI batches in flight at once (patchAnalysis.js's runAllBatches)
+export const PATCH_INTEL_CONCURRENCY = 2; // AI batches in flight at once (patchAnalysis.js's runAllBatches)
 export const PATCH_INTEL_CALL_TIMEOUT_MS = 20000; // stop waiting for one AI call after this (does not cancel the upstream request -- aiProvider.js takes no abort signal)
 // No NEW batch call is STARTED after this much wall time in one HTTP
 // request (already-started batches still finish) -- patchAnalysis.js's

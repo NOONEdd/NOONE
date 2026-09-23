@@ -158,10 +158,21 @@ async function runBatchWithRetries(ctx, batch, splitDepth) {
       };
     }
     lastFailure = outcome;
-    if (outcome.code === "truncated_output" && batch.units.length > 1 && splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH) break;
+   if (
+  (outcome.code === "truncated_output" || outcome.code === "ai_timeout") &&
+  batch.units.length > 1 &&
+  splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH
+) {
+  break;
+}
   }
 
-  if (lastFailure && lastFailure.code === "truncated_output" && batch.units.length > 1 && splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH) {
+  if (
+  lastFailure &&
+  (lastFailure.code === "truncated_output" || lastFailure.code === "ai_timeout") &&
+  batch.units.length > 1 &&
+  splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH
+) {
     const halves = splitBatchInHalf(batch, ctx.index);
     const parts = [];
     for (const half of halves) parts.push(await runBatchWithRetries(ctx, half, splitDepth + 1));
