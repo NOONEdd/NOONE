@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink, Download, Database } from "lucide-react";
+import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink, Download, Database, Trash2 } from "lucide-react";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
 import { planBuildTypeMigration, verifyAllEntriesTyped } from "../lib/buildTypeClassifier.js";
@@ -25,6 +25,7 @@ const STATUS_LABEL = {
   unpublished: "Unpublished",
   source_unavailable: "Source unavailable",
   ai_error: "Analysis failed",
+  partial_failure: "Incomplete — needs retry",
 };
 
 /** One champion/item/rune/system change entry. Read-only display of the
@@ -204,6 +205,8 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
   const data = editMode && draft ? { ...report, ...draft } : report;
 
   const isSourceProblem = report.status === "source_unavailable" || report.status === "ai_error";
+  const isPartialFailure = report.status === "partial_failure";
+  const coverage = report.analysisCoverage;
 
   return (
     <div className="patch-report-card">
@@ -218,6 +221,22 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
       {expanded && publishedRevision && publishedRevision !== report.revision && (
         <p className="patch-entry-line" style={{ padding: "0 20px" }}>
           <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} /> Revision {publishedRevision} is currently the one shown publicly — this is revision {report.revision}. See revision history below to compare or restore.
+        </p>
+      )}
+
+      {expanded && isPartialFailure && (
+        <p className="patch-entry-line" style={{ padding: "0 20px", color: "var(--gold)" }}>
+          <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} /> This analysis is INCOMPLETE — not every part of the patch could be analyzed (see details below). The content shown reflects only what succeeded. Use Retry Analysis to reprocess the whole patch before publishing.
+        </p>
+      )}
+
+      {expanded && coverage && (
+        <p className="patch-entry-line" style={{ padding: "0 20px", color: "var(--text-dimmer)", fontSize: "0.85em" }}>
+          Coverage: {coverage.batches.succeeded}/{coverage.batches.planned} excerpts analyzed
+          {coverage.batches.failed > 0 ? `, ${coverage.batches.failed} failed` : ""}
+          {coverage.batches.notStarted > 0 ? `, ${coverage.batches.notStarted} not started` : ""}
+          {" · "}{coverage.detectedEntities}/{coverage.totalEntities} Academy entities detected in this patch
+          {coverage.states.unresolved > 0 ? ` · ${coverage.states.unresolved} unresolved` : ""}
         </p>
       )}
 
@@ -334,7 +353,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 <button className="btn btn-ghost btn-small" onClick={() => setEditMode(false)} disabled={busy}>Cancel</button>
               </>
             )}
-            {!editMode && report.status !== "published" && !isSourceProblem && (
+            {!editMode && report.status !== "published" && !isSourceProblem && !isPartialFailure && (
               <>
                 <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => onAction(report.id, "approve")}>
                   <CheckCircle2 size={14} /> Approve
@@ -344,7 +363,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 </button>
               </>
             )}
-            {!editMode && report.status !== "published" && !isSourceProblem && (
+            {!editMode && report.status !== "published" && !isSourceProblem && !isPartialFailure && (
               <span className="patch-publish-group">
                 <label className="save-note" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <input type="checkbox" checked={alsoVerify} onChange={(e) => setAlsoVerify(e.target.checked)} />
@@ -354,6 +373,20 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   <Send size={14} /> Publish
                 </button>
               </span>
+            )}
+            {!editMode && isPartialFailure && (
+              <button
+                className="btn btn-ghost btn-small"
+                style={{ color: "var(--gold)" }}
+                disabled={busy || !report.patch}
+                onClick={() => {
+                  if (window.confirm(`Publish patch ${report.patch || report.id} anyway, even though this analysis is INCOMPLETE (see coverage details above)? The public page will show only the changes that WERE successfully analyzed — anything unresolved will simply be missing, with no indication to visitors that the analysis was incomplete. This is not recommended; Retry Analysis is the better option.`)) {
+                    onAction(report.id, "publish", { alsoMarkVerified: false });
+                  }
+                }}
+              >
+                <Send size={14} /> Publish anyway (incomplete)
+              </button>
             )}
             {!editMode && report.status === "published" && (
               <>
@@ -381,7 +414,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 </button>
               </>
             )}
-            {!editMode && isSourceProblem && (
+            {!editMode && (isSourceProblem || isPartialFailure) && (
               <button
                 className="btn btn-primary btn-small"
                 disabled={busy}
@@ -393,6 +426,21 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 }}
               >
                 <RefreshCw size={14} /> {report.status === "source_unavailable" ? "Retry Source Fetch" : "Retry Analysis"}
+              </button>
+            )}
+            {!editMode && (
+              <button
+                className="btn btn-ghost btn-small"
+                style={{ color: "var(--magenta)" }}
+                disabled={busy}
+                onClick={() => {
+                  const publishedWarning = report.status === "published" ? " This patch is CURRENTLY PUBLISHED — it will disappear from the public Patch Intelligence page immediately." : "";
+                  if (window.confirm(`Permanently delete ALL revisions of patch ${report.patch || report.id}? This cannot be undone.${publishedWarning}`)) {
+                    onAction(report.id, "delete", { confirm: true });
+                  }
+                }}
+              >
+                <Trash2 size={14} /> Delete Patch
               </button>
             )}
           </div>

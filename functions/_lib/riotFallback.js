@@ -38,9 +38,11 @@ import {
   RIOT_FALLBACK_MAX_CHARS,
   RIOT_LATEST_PATCH_META_TTL_SECONDS,
   RIOT_FALLBACK_CONTENT_TTL_SECONDS,
-  PATCH_INTEL_FALLBACK_MAX_CHARS,
+  PATCH_INTEL_SOURCE_MAX_CHARS,
+  PATCH_INTEL_SOURCE_FETCH_TIMEOUT_MS,
 } from "./config.js";
 import { isPatchChangeQuestion, extractExplicitPatchMention } from "./academyCoverage.js";
+import { htmlToStructuredText, SOURCE_TEXT_VERSION } from "./patchText.js";
 
 const RIOT_BASE = "https://wildrift.leagueoflegends.com";
 const RIOT_PATCH_INDEX_URL = `${RIOT_BASE}/en-us/news/tags/patch-notes/`;
@@ -71,9 +73,9 @@ function extractPatchSlugsInOrder(html) {
   return slugs;
 }
 
-async function fetchWithTimeout(url) {
+async function fetchWithTimeout(url, timeoutMs) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), RIOT_FALLBACK_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs || RIOT_FALLBACK_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       signal: controller.signal,
@@ -204,6 +206,22 @@ async function fetchPatchPageText(slug) {
   }
 }
 
+/** Same one fetch as fetchPatchPageText, but returns the raw page HTML
+ *  untouched (no stripping) for Patch Intelligence's structure-preserving
+ *  extractor (patchText.js), and uses its own longer timeout -- Riot's
+ *  full patch page is far larger than the AI-Coach snippet path expects
+ *  and can legitimately take longer than RIOT_FALLBACK_TIMEOUT_MS (5s)
+ *  to arrive. Returns null on any failure -- never throws. */
+async function fetchPatchPageHtml(slug, timeoutMs) {
+  const response = await fetchWithTimeout(patchPageUrl(slug), timeoutMs);
+  if (!response || !response.ok) return null;
+  try {
+    return await response.text();
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAndCachePatchContent(slug, kv) {
   const url = patchPageUrl(slug);
   const cacheKey = `riot-fallback-content:${slug}`;
@@ -238,18 +256,34 @@ async function fetchAndCachePatchContent(slug, kv) {
   return { found: true, content: text, source: url, cached: false };
 }
 
-/** Same idea as fetchAndCachePatchContent above, but for Patch
- *  Intelligence: a MUCH larger cap (PATCH_INTEL_FALLBACK_MAX_CHARS, not
- *  RIOT_FALLBACK_MAX_CHARS) and its OWN cache key, so generating a full
- *  Support-impact analysis never gets short-changed by content that was
- *  already truncated down to chat-answer size for a different caller,
- *  and a visitor's chat question never pulls in the much larger blob
- *  meant for the analyst prompt. Same immutable-once-published long TTL.
- *  Returns { found, content, source } -- found:false on any failure,
- *  never throws. Exported for functions/_lib/patchIntelligence.js. */
+/** Same one-fetch-per-slug idea as fetchAndCachePatchContent above, but
+ *  for Patch Intelligence: its OWN cache key/format, a structure-
+ *  preserving extraction (patchText.js's htmlToStructuredText, not the
+ *  AI-Coach path's line-flattening stripHtmlToText), and its own longer
+ *  fetch timeout.
+ *
+ *  ROOT-CAUSE FIX: this function used to slice the stripped text down to
+ *  PATCH_INTEL_FALLBACK_MAX_CHARS (16000) unconditionally -- a hidden,
+ *  silent truncation that cut off entire categories (items/runes/jungle/
+ *  objectives etc.) for any patch whose notes ran longer than that, with
+ *  the truncated copy then CACHED so re-fetching never recovered the
+ *  rest. It no longer truncates in the normal case: PATCH_INTEL_SOURCE_MAX_CHARS
+ *  is a hard safety ceiling far above any real patch page, and if content
+ *  actually exceeds it, that fact is returned as `truncated: true` /
+ *  `originalLength` so the caller can report analysis_incomplete instead
+ *  of silently proceeding as if nothing was lost.
+ *
+ *  The cache key includes SOURCE_TEXT_VERSION so a cache entry written by
+ *  the old truncating extractor (or an earlier version of this one) is
+ *  never mistaken for current, fully-extracted content -- it's simply a
+ *  cache miss and gets re-fetched.
+ *
+ *  Returns { found, content, source, cached, truncated, originalLength }
+ *  -- found:false on any failure, never throws. Exported for
+ *  functions/_lib/patchIntelligence.js. */
 export async function fetchAndCacheFullPatchContent(slug, kv) {
   const url = patchPageUrl(slug);
-  const cacheKey = `riot-fallback-full-content:${slug}`;
+  const cacheKey = `riot-fallback-full-content:${slug}:${SOURCE_TEXT_VERSION}`;
 
   if (kv) {
     try {
@@ -257,7 +291,14 @@ export async function fetchAndCacheFullPatchContent(slug, kv) {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && typeof parsed.content === "string") {
-          return { found: true, content: parsed.content, source: url, cached: true };
+          return {
+            found: true,
+            content: parsed.content,
+            source: url,
+            cached: true,
+            truncated: !!parsed.truncated,
+            originalLength: typeof parsed.originalLength === "number" ? parsed.originalLength : parsed.content.length,
+          };
         }
       }
     } catch {
@@ -265,19 +306,28 @@ export async function fetchAndCacheFullPatchContent(slug, kv) {
     }
   }
 
-  const fullText = await fetchPatchPageText(slug);
-  if (!fullText) return { found: false, content: null, source: null, cached: false };
-  const text = fullText.slice(0, PATCH_INTEL_FALLBACK_MAX_CHARS);
+  const html = await fetchPatchPageHtml(slug, PATCH_INTEL_SOURCE_FETCH_TIMEOUT_MS);
+  if (!html) return { found: false, content: null, source: null, cached: false, truncated: false, originalLength: 0 };
+
+  const { text: fullText } = htmlToStructuredText(html);
+  if (!fullText) return { found: false, content: null, source: null, cached: false, truncated: false, originalLength: 0 };
+
+  const originalLength = fullText.length;
+  const truncated = originalLength > PATCH_INTEL_SOURCE_MAX_CHARS;
+  const text = truncated ? fullText.slice(0, PATCH_INTEL_SOURCE_MAX_CHARS) : fullText;
 
   if (kv) {
     try {
-      await kv.put(cacheKey, JSON.stringify({ content: text }), { expirationTtl: RIOT_FALLBACK_CONTENT_TTL_SECONDS });
+      // Content is immutable once a patch is published -- long TTL.
+      await kv.put(cacheKey, JSON.stringify({ content: text, truncated, originalLength }), {
+        expirationTtl: RIOT_FALLBACK_CONTENT_TTL_SECONDS,
+      });
     } catch {
       // best-effort cache write
     }
   }
 
-  return { found: true, content: text, source: url, cached: false };
+  return { found: true, content: text, source: url, cached: false, truncated, originalLength };
 }
 
 // Riot's Wild Rift patch-note pages consistently open with a heading

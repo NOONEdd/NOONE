@@ -121,5 +121,51 @@ export const ADMIN_SESSION_COOKIE_NAME = "academy_admin_session";
 // support a verified higher limit, this constant is the one place to
 // raise it.
 export const PATCH_INTEL_MAX_TOKENS = 16384;
-export const PATCH_INTEL_FALLBACK_MAX_CHARS = 16000; // full patch notes text handed to the AI analyst, not the ~4000-char snippet used for a single chat answer
 export const PATCH_REPORTS_INDEX_LIMIT = 100; // caps patch-intel:reports so that one index key can't grow unbounded across years of patches
+
+// ---------------------------------------------------------------------
+// Patch Intelligence multi-stage pipeline (patchText.js / patchParser.js /
+// patchAcademyDetection.js / patchPlanner.js / patchAnalysis.js /
+// patchAggregate.js / patchIntelligence.js).
+//
+// ROOT-CAUSE NOTE: this file used to export PATCH_INTEL_FALLBACK_MAX_CHARS
+// = 16000 and riotFallback.js sliced the whole patch page to that length
+// BEFORE anything else ran (and cached the sliced copy). Real Wild Rift
+// patch notes for a large patch are many times that size, so everything
+// after the first ~16K characters -- typically items, runes, jungle,
+// objectives, turrets, minions, ranked -- never reached the analyst at
+// all and nothing reported it. That constant is gone. Input is now
+// NEVER silently truncated: the only cap left is the hard safety limit
+// below, and hitting it blocks publication instead of being ignored.
+export const PATCH_INTEL_SOURCE_MAX_CHARS = 800000; // hard safety ceiling on the structured patch text; exceeding it is reported (analysis_incomplete), never swallowed
+export const PATCH_INTEL_SOURCE_FETCH_TIMEOUT_MS = 20000; // Riot's full patch page is far larger than the 5s-bounded AI-Coach snippet fetch expects
+
+// Batch sizing. Batches are packed from semantic units (a champion /
+// item / rune / subsection block) -- never split mid-change -- so these
+// are targets for packing, not slice offsets.
+export const PATCH_INTEL_BATCH_MAX_CHARS = 18000; // patch text per AI batch (~5K tokens); a unit larger than this is split on change-block boundaries first
+export const PATCH_INTEL_BATCH_MIN_CHARS = 4000; // adjacent tiny batches are merged up to BATCH_MAX_CHARS so small patches don't fan out into many requests
+export const PATCH_INTEL_BATCH_MAX_ENTITIES = 14; // Academy entities detected per batch -- bounds how many verdicts/entries one response must contain
+export const PATCH_INTEL_MAX_BATCHES = 40; // hard bound on the plan; a patch needing more is reported as incomplete, not silently thinned out
+
+// Failure handling / pacing. These bound AI calls per revision so a
+// misbehaving provider can never loop.
+export const PATCH_INTEL_BATCH_MAX_ATTEMPTS = 3; // attempts per batch (retry on transient errors / invalid output)
+export const PATCH_INTEL_MAX_SPLIT_DEPTH = 3; // a truncated batch is split in half at most this many times (patchAnalysis.js)
+export const PATCH_INTEL_CONCURRENCY = 3; // AI batches in flight at once (patchAnalysis.js's runAllBatches)
+export const PATCH_INTEL_CALL_TIMEOUT_MS = 70000; // stop waiting for one AI call after this (does not cancel the upstream request -- aiProvider.js takes no abort signal)
+// No NEW batch call is STARTED after this much wall time in one HTTP
+// request (already-started batches still finish) -- patchAnalysis.js's
+// runAllBatches. KNOWN LIMITATION (see the delivery report): there is no
+// cross-request "continue" mechanism -- a batch this budget prevented
+// from starting is reported as unresolved (report.status becomes
+// "partial_failure", never silently presented as complete) and the
+// existing Retry Analysis action reprocesses the WHOLE patch from
+// scratch, the same as it always has for any other failure. True
+// resumption (persisting partial pipeline state across requests and
+// continuing just the unfinished batches) was assessed as more
+// complexity/risk than this session could responsibly build and verify
+// in the time available; graceful, honest degradation was chosen over
+// upfront but unverified surface area.
+export const PATCH_INTEL_REQUEST_BUDGET_MS = 25000;
+

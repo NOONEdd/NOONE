@@ -110,6 +110,15 @@ async function kvPutJson(kv, key, value) {
     return false;
   }
 }
+async function kvDelete(kv, key) {
+  if (!kv) return false;
+  try {
+    await kv.delete(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function getLastKnownSlug(kv) {
   if (!kv) return null;
@@ -371,4 +380,46 @@ export async function listPublicReports(kv) {
   return reports
     .filter(Boolean)
     .map(({ adminNotes, reviewedBy, ...publicFields }) => publicFields);
+}
+
+/** Deletes EVERY trace of one patch id: every revision body (including
+ *  the legacy unversioned key, if this patch predates the revision
+ *  system), the revisions pointer, and its entry in the index -- then,
+ *  ONLY if last-known-slug currently equals this exact id, clears that
+ *  too, so a deleted patch is fully forgotten rather than leaving Check
+ *  For New Patch silently convinced it already has this slug handled
+ *  (which would otherwise permanently block re-detecting it). Nothing
+ *  else is ever touched: no other patch's keys, no Academy champion/
+ *  item/rune/decisionTree data, no global config, and never a broader
+ *  KV scan/wipe of any kind -- every key this function deletes is
+ *  either this exact id's own key or (for last-known-slug) verified to
+ *  literally equal this id first.
+ *
+ *  Returns { deleted: boolean, revisionsDeleted: number } -- deleted is
+ *  false (nothing removed) when this id doesn't exist at all, so the
+ *  caller can tell "already gone" from "successfully removed."
+ *  Deliberately NOT touching riotFallback.js's per-slug Riot-content
+ *  cache (riot-fallback-full-content:{slug}:*, riot-fallback-content:
+ *  {slug}) -- that cache holds Riot's own official text, not this
+ *  patch's analysis; it is harmless to leave (a future re-detection of
+ *  the same slug just reuses it, exactly as re-analysis already does
+ *  today) and clearing it would only force a wasted re-fetch. */
+export async function deletePatchCompletely(kv, id) {
+  if (!kv || !id) return { deleted: false, revisionsDeleted: 0 };
+
+  const meta = await getRevisionsMeta(kv, id);
+  if (!meta) return { deleted: false, revisionsDeleted: 0 };
+
+  const revisionNumbers = Array.from({ length: meta.latestRevision }, (_, i) => i + 1);
+  await Promise.all(revisionNumbers.map((rev) => kvDelete(kv, reportKey(id, rev))));
+  await kvDelete(kv, legacyReportKey(id)); // no-op if this patch never had a pre-revision key
+  await kvDelete(kv, revisionsMetaKey(id));
+
+  const index = await getIndex(kv);
+  await putIndex(kv, index.filter((e) => e.id !== id));
+
+  const lastKnown = await getLastKnownSlug(kv);
+  if (lastKnown === id) await kvDelete(kv, LAST_KNOWN_SLUG_KEY);
+
+  return { deleted: true, revisionsDeleted: revisionNumbers.length };
 }

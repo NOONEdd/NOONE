@@ -39,9 +39,9 @@
 
 import { requireAdminSession, hasValidPatchCheckSecret } from "../../_lib/adminAuth.js";
 import { discoverLatestPatchSlug, fetchAndCacheFullPatchContent, extractPatchNumberFromContent } from "../../_lib/riotFallback.js";
-import { runPatchIntelAnalysis, PATCH_INTEL_ENGINE_VERSION } from "../../_lib/patchIntelligence.js";
+import { runPatchIntelAnalysis, PATCH_INTEL_ENGINE_VERSION } from "../../_lib/patchIntelPipeline.js";
 import { PATCH_INTEL_MAX_TOKENS } from "../../_lib/config.js";
-import { saveNewReport, saveReanalysisRevision, getLatestReport, getLastKnownSlug, setLastKnownSlug } from "../../_lib/patchReportsStore.js";
+import { saveNewReport, saveReanalysisRevision, updateReportRevision, getLatestReport, getLastKnownSlug, setLastKnownSlug } from "../../_lib/patchReportsStore.js";
 import { sendPatchNotification, sendSourceUnavailableNotification } from "../../_lib/notify.js";
 import { resolveActiveProviderAndModel } from "../../_lib/aiProvider.js";
 import { fetchOverrides } from "../../_lib/kv.js";
@@ -101,6 +101,10 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
     found: contentResult.found,
     contentSource: contentResult.found ? (contentResult.cached ? "cache" : "fresh_fetch") : "unavailable",
     contentFingerprint, contentLength: contentResult.content ? contentResult.content.length : 0,
+    // Additive since the riotFallback.js truncation-root-cause fix: a
+    // safety-ceiling truncation is now a rare, explicitly logged event
+    // instead of the silent, always-on behavior it used to be.
+    sourceTruncated: Boolean(contentResult.truncated), sourceOriginalLength: contentResult.originalLength || 0,
   });
 
   if (!contentResult.found) {
@@ -135,6 +139,24 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
 
   const analysis = await runPatchIntelAnalysis({ env, patchContent: contentResult.content, championRoster, itemRoster, runeRoster });
   const durationMs = Date.now() - startedAt;
+  const pipelineLogFields = analysis.pipelineStats
+    ? {
+        parsedUnits: analysis.pipelineStats.parsedUnits?.units,
+        parseQuality: analysis.pipelineStats.parsedUnits?.quality,
+        categoryCounts: analysis.pipelineStats.categoryCounts,
+        planBatches: analysis.pipelineStats.plan?.batches,
+        planUnassignedUnits: analysis.pipelineStats.plan?.unassignedUnits,
+        batchesAttempted: analysis.pipelineStats.batchesAttempted,
+        batchesNotStarted: analysis.pipelineStats.batchesNotStarted,
+        // retry/split diagnostics (spec section 23) -- totalAttempts
+        // counts every AI call made across every batch/split-half this
+        // run, so a patch that needed a lot of retrying is visible in
+        // the logs even when it ultimately succeeded.
+        totalAttempts: analysis.pipelineStats.retryStats?.totalAttempts,
+        batchesSplit: analysis.pipelineStats.retryStats?.batchesSplit,
+        maxAttemptsForOneBatch: analysis.pipelineStats.retryStats?.maxAttemptsForOneBatch,
+      }
+    : {};
 
   if (!analysis.ok) {
     // logDetail never contains an API key, password, or session token,
@@ -142,7 +164,7 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
     // a parse-error message -- safe for both Cloudflare's Function logs
     // AND the report's own adminNotes (so the failure reason is visible
     // directly in the Admin UI without needing separate log access).
-    logPatchIntelEvent({ stage: "analysis_finish", slug, ...logContext, ok: false, code: analysis.code, detail: analysis.logDetail, provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs });
+    logPatchIntelEvent({ stage: "analysis_finish", slug, ...logContext, ok: false, code: analysis.code, detail: analysis.logDetail, provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs, ...pipelineLogFields });
     return {
       status: "ai_error",
       aiError: analysis.error,
@@ -162,11 +184,70 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {} }) {
   }
 
   // maxTokens is now always the same fixed PATCH_INTEL_MAX_TOKENS ceiling
-  // (functions/_lib/patchIntelligence.js no longer computes a per-patch
-  // estimate) -- still logged so Cloudflare's logs show what every
-  // generation actually requested, just no longer a variable worth
+  // per AI call (functions/_lib/patchAnalysis.js no longer computes a
+  // per-patch estimate) -- still logged so Cloudflare's logs show what
+  // every generation actually requested, just no longer a variable worth
   // treating as diagnostic in itself.
-  logPatchIntelEvent({ stage: "analysis_finish", slug, ...logContext, ok: true, parseStrategy: analysis.parseStrategy, championChanges: analysis.report.championChanges.length, itemChanges: analysis.report.itemChanges.length, runeChanges: analysis.report.runeChanges.length, systemChanges: analysis.report.systemChanges.length, provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs });
+  logPatchIntelEvent({
+    stage: "analysis_finish", slug, ...logContext, ok: true, complete: analysis.complete,
+    parseStrategy: analysis.parseStrategy,
+    championChanges: analysis.report.championChanges.length, itemChanges: analysis.report.itemChanges.length,
+    runeChanges: analysis.report.runeChanges.length, systemChanges: analysis.report.systemChanges.length,
+    // Academy entity coverage (spec section 23's "per-entity detected ->
+    // changed -> relevant -> included trace"): states is the summary
+    // every run gets; the full per-entity `entities` array is only
+    // logged when the run is INCOMPLETE, since that's when knowing
+    // exactly which named entities ended up unresolved actually matters
+    // for triage -- logging it unconditionally would mean a normal
+    // clean 9-batch patch prints ~170 entity rows to the log for no
+    // reason every single time.
+    coverageDetected: `${analysis.report.analysisCoverage?.detectedEntities ?? "?"}/${analysis.report.analysisCoverage?.totalEntities ?? "?"}`,
+    coverageStates: analysis.report.analysisCoverage?.states,
+    ...(analysis.complete ? {} : {
+      coverageFailures: analysis.report.analysisCoverage?.failures,
+      coverageUnresolvedEntities: (analysis.report.analysisCoverage?.entities || []).filter((e) => e.state === "unresolved" || e.state === "detected_unknown"),
+    }),
+    provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs, ...pipelineLogFields,
+  });
+
+  // HARD RULE (spec: never let a report with unresolved sections look
+  // like a clean, complete analysis): analysis.complete is false when
+  // any batch permanently failed after its retries/splits, or the
+  // wall-clock budget stopped some batches from ever being attempted,
+  // or the batch-count cap left some units unplanned entirely.
+  // championChanges/itemChanges/etc still reflect everything that DID
+  // successfully analyze (nothing already-succeeded is thrown away),
+  // but the report's own status makes the gap impossible to miss: it is
+  // never saved as "pending_review" (which reads as a normal, complete
+  // report ready for a simple approve/reject) -- a human has to look at
+  // report.analysisCoverage (batches.failed/notStarted, unresolvedUnits,
+  // states.unresolved) specifically, and Retry Analysis reprocesses the
+  // whole patch from scratch, same mechanism a full ai_error already
+  // used before this pipeline existed.
+  if (!analysis.complete) {
+    const coverage = analysis.report.analysisCoverage;
+    const failureLines = (coverage?.failures || []).map((f) => `  - ${f.batchId} (${f.unitIds.join(",")}): [${f.code}] ${f.error}`).join("\n");
+    const notes = [
+      `Analysis completed for part of this patch, but NOT all of it -- do not treat this as a finished review.`,
+      `Batches: ${coverage?.batches.succeeded ?? "?"} succeeded, ${coverage?.batches.failed ?? 0} failed, ${coverage?.batches.notStarted ?? 0} never started (time budget), out of ${coverage?.batches.planned ?? "?"} planned.`,
+      coverage?.states.unresolved ? `${coverage.states.unresolved} Academy entities are unresolved (mentioned in the patch, but never successfully analyzed).` : null,
+      failureLines ? `Failed batches:\n${failureLines}` : null,
+      `Use Retry Analysis to reprocess this patch from scratch.`,
+    ].filter(Boolean).join("\n");
+
+    return {
+      status: "partial_failure",
+      report: {
+        id: slug, patch: patchNumber, patchNumberSource, previousPatch,
+        status: "partial_failure", generatedAt: new Date().toISOString(),
+        sourceUrl: contentResult.source, sourceAvailable: true, aiProvider, aiModel,
+        ...analysis.report,
+        sourceReferences: [contentResult.source].filter(Boolean),
+        adminNotes: notes, reviewedBy: null, reviewedAt: null, notifiedAt: null,
+        engineVersion: analysis.engineVersion, contentFingerprint,
+      },
+    };
+  }
 
   return {
     status: "pending_review",
@@ -335,9 +416,31 @@ export async function onRequestPost(context) {
   }
 
   const overrides = await fetchOverrides(kv);
+
+  // ROOT-CAUSE FIX (data-loss bug found during the pipeline audit, not
+  // something the original spec called out): a report can already exist
+  // for `latestSlug` even though last-known-slug never advanced to it --
+  // this happens whenever the FIRST detection attempt for a patch failed
+  // (ai_error / source_unavailable), since last-known-slug is only ever
+  // advanced below on a successful (pending_review) result. If a LATER
+  // "check for new patch" run (e.g. the next scheduled cron tick) then
+  // re-detects that same still-not-yet-confirmed slug, calling
+  // saveNewReport() unconditionally would reset this patch's revision
+  // pointer straight back to {latestRevision:1, publishedRevision:null}
+  // -- silently discarding every later revision, INCLUDING a currently
+  // published one an admin already reviewed and approved via Retry
+  // Analysis, with no warning to anyone. Checking for an existing report
+  // first and routing to the same upsert saveReanalysisRevision() uses
+  // (rather than ever re-running saveNewReport on an id that isn't
+  // actually new) makes that impossible: nothing this endpoint does can
+  // ever destroy a revision that already exists.
+  const existingForSlug = await getLatestReport(kv, latestSlug);
   const result = await analyzePatch({ env, kv, slug: latestSlug, overrides, logContext: { action: "detect", trigger } });
 
-  await saveNewReport(kv, result.report);
+  const revision = existingForSlug
+    ? await saveReanalysisRevision(kv, latestSlug, result.report)
+    : (await saveNewReport(kv, result.report)) ? 1 : null;
+  result.report.revision = revision;
 
   if (result.status === "pending_review") {
     // Only advance last-known-slug (and only send the normal new-patch
@@ -348,9 +451,14 @@ export async function onRequestPost(context) {
     // patch that was never actually analyzed.
     await setLastKnownSlug(kv, latestSlug);
     const notifyResult = await sendPatchNotification({ env, report: result.report, patch: result.report.patch, previousPatch: result.report.previousPatch, adminReviewUrl });
-    if (notifyResult.sent) {
+    if (notifyResult.sent && revision) {
+      // Persist notifiedAt onto the SAME revision that was just created,
+      // via the revision-targeted updater -- never saveNewReport/
+      // saveReanalysisRevision again here, since either would mint yet
+      // another revision (or, for saveNewReport, re-trigger the exact
+      // reset this fix exists to prevent) just to record one timestamp.
       result.report.notifiedAt = new Date().toISOString();
-      await saveNewReport(kv, result.report);
+      await updateReportRevision(kv, latestSlug, revision, { notifiedAt: result.report.notifiedAt });
     }
   } else if (trigger === "scheduled") {
     await sendSourceUnavailableNotification({ env, previousPatch: result.report.previousPatch, adminReviewUrl });

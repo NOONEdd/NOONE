@@ -1,16 +1,30 @@
-// Patch Intelligence's AI analysis step. Turns one fetched official
-// patch page (functions/_lib/riotFallback.js's fetchAndCacheFullPatchContent)
-// into a structured, Support-focused report -- called ONLY from
-// functions/api/admin/patch-check.js, and ONLY after a genuinely new
-// patch has already been detected there (see that file for the
-// dedup/no-new-patch short-circuit; this module never runs speculatively).
+// Patch Intelligence's AI analysis PRIMITIVES: the analyst prompt rules,
+// the JSON schema, and the parse/normalize layer that turns one AI
+// response into a report the rest of the app can trust.
+//
+// This file no longer runs the pipeline itself -- functions/_lib/
+// patchIntelPipeline.js is the orchestrator (parse -> plan -> analyze
+// every batch -> aggregate), and functions/_lib/patchAnalysis.js is what
+// actually calls the AI for one batch, using buildBatchSystemPrompt()
+// and BATCH_REPORT_JSON_SCHEMA below. Splitting it this way (rather than
+// one file that both defines the prompt AND drives the whole pipeline,
+// which was this file's previous shape) avoids a circular import:
+// patchAnalysis.js needs the primitives here, and the orchestrator needs
+// patchAnalysis.js -- keeping "the prompt/schema/normalize contract" and
+// "the pipeline that drives it" in different files means neither has to
+// import the other. functions/api/admin/patch-check.js only ever imports
+// from patchIntelPipeline.js now; nothing outside this file's own
+// directory imports patchIntelligence.js directly except that pipeline
+// and patchAnalysis.js, and the regression test that checks
+// normalizePatchIntelReport's merge behavior directly.
 //
 // Reuses functions/_lib/aiProvider.js's callAIProvider() -- the SAME
-// provider-agnostic dispatcher functions/api/coach.js uses. This file
-// does not know or care whether that resolves to Anthropic or an
-// OpenAI-compatible provider; switching AI_PROVIDER/AI_BASE_URL/AI_MODEL
-// changes both AI Coach chat AND Patch Intelligence analysis together,
-// with no code change here (see README's provider-setup section).
+// provider-agnostic dispatcher functions/api/coach.js uses (called from
+// patchAnalysis.js, not here). This file does not know or care whether
+// that resolves to Anthropic or an OpenAI-compatible provider; switching
+// AI_PROVIDER/AI_BASE_URL/AI_MODEL changes both AI Coach chat AND Patch
+// Intelligence analysis together, with no code change here (see
+// README's provider-setup section).
 //
 // Trust hierarchy this module exists to enforce (see the top-level spec
 // this feature was built from): official Riot text is the ONLY source
@@ -22,8 +36,6 @@
 // that only ever touches the patch-number/verification fields, never
 // champion/item/rune content (see that file's comment for exactly why).
 
-import { PATCH_INTEL_MAX_TOKENS } from "./config.js";
-import { callAIProvider } from "./aiProvider.js";
 // The SAME free-text-name -> Academy-entity resolver the rest of the
 // site already uses (src/components/BuildBoard.jsx, BuildList.jsx,
 // BuildEditor.jsx, ItemRunePicker.jsx for Coach Mode build/rune names;
@@ -31,53 +43,34 @@ import { callAIProvider } from "./aiProvider.js";
 // see resolveEntityId() below for why Patch Intelligence no longer
 // keeps its own copy of this matching logic.
 import { findCanonicalId } from "../../src/utils/images.js";
+import { SOURCE_TEXT_VERSION } from "./patchText.js";
+import { PARSER_VERSION } from "./patchParser.js";
+import { PLANNER_VERSION } from "./patchPlanner.js";
 
 const SEVERITY_VALUES = ["Low", "Medium", "High"];
 const CONFIDENCE_VALUES = ["Low", "Medium", "High"];
 const TYPE_VALUES = ["Buff", "Nerf", "Adjustment"];
 
-// TEMPORARY diagnostic marker -- proves, independent of anything the UI
-// shows, that a given report/log line was produced by THIS analysis
-// code, not an older deployed version or a stale cached result. Bumped
-// whenever runPatchIntelAnalysis's actual behavior changes; returned in
-// every result (success AND failure) and threaded through to the
-// Cloudflare Function logs and the /api/admin/patch-check response
-// (functions/api/admin/patch-check.js), never silently swallowed.
-// Remove once Re-analyze's correctness is no longer in question.
-export const PATCH_INTEL_ENGINE_VERSION = "reanalyze-v3";
+// Diagnostic marker -- proves, independent of anything the UI shows,
+// that a given report/log line was produced by THIS pipeline shape, not
+// an older deployed version or a stale cached result. Composed from
+// every pipeline stage's own version constant so that changing any ONE
+// stage (a new extraction rule in patchText.js, a new splitting rule in
+// patchParser.js, a new packing rule in patchPlanner.js, or the batch
+// prompt/schema right here) automatically changes the whole engine
+// version -- there is no separate number to remember to bump by hand.
+// Returned in every result (success AND failure) and threaded through
+// to the Cloudflare Function logs and the /api/admin/patch-check
+// response, never silently swallowed.
+const BATCH_PROMPT_VERSION = "batch-v1";
+export const PATCH_INTEL_ENGINE_VERSION = `pipeline-v3+${SOURCE_TEXT_VERSION}+${PARSER_VERSION}+${PLANNER_VERSION}+${BATCH_PROMPT_VERSION}`;
 
-const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOONEdd Academy, a Wild Rift Support coaching site. Your only input is the official Wild Rift patch notes text provided below, plus a snapshot of the Academy's current Support-relevant champion/item/rune roster and their CURRENT tiers. Your job is to extract and structure whatever in this specific patch matters to SUPPORT players -- not to rewrite the patch notes in full, and not to invent anything the patch notes don't actually say.
+const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOONEdd Academy, a Wild Rift Support coaching site. Your input is ONE EXCERPT of the official Wild Rift patch notes (a large patch is analyzed in several excerpts, each handed to you separately -- see the batch context above this block for which one this is), plus a snapshot of the Academy's current Support-relevant champion/item/rune roster and their CURRENT tiers. Your job is to extract and structure whatever in THIS EXCERPT matters to SUPPORT players -- not to rewrite the patch notes in full, and not to invent anything the text doesn't actually say, and not to assume anything about content that isn't in front of you.
 
 HARD RULES -- follow these strictly:
 1. FACTS vs. ANALYSIS -- keep these separate and never blur them. The official patch notes text below is the ONLY source of "what changed" -- every reported change must be traceable to it. "whatChanged"/"previousValue"/"newValue" are FACTS: they describe the actual change, straight from the text. "Support impact," "gameplay/build/rune/matchup implications," and "recommended tier action" are your ANALYSIS, clearly reasoned FROM that fact -- but never invent a change, a number, a mechanic, or a champion/item/rune that isn't actually in the text. If you are not sure something is really in the text, leave it out rather than guessing. Do not infer an old/new value the text doesn't explicitly give you.
 2. If the patch notes contain no changes relevant to Support, return empty arrays. A quiet patch producing a short, mostly-empty report is the CORRECT output -- do not manufacture relevance or pad the report to seem thorough.
-3. Only report changes that are relevant to Support play. 3A. MANDATORY ACADEMY COVERAGE -- a deterministic pre-analysis layer
-provides a list of Academy-tracked entities that appear near explicit
-change signals in the official patch text.
-
-You MUST inspect every entity in MANDATORY ACADEMY CHANGE CANDIDATES.
-
-For each candidate:
-- verify from the official patch text whether the entity actually changed;
-- if it changed, determine whether the change is relevant to Support;
-- if Support-relevant, include it in the appropriate championChanges,
-  itemChanges, or runeChanges array;
-- if it changed but is genuinely not Support-relevant, do not include it
-  merely because it is an Academy entity;
-- if the candidate was only mentioned incidentally and did not actually
-  change, do not report it as a change.
-
-IMPORTANT:
-The candidate list is NOT evidence that a change occurred.
-The official patch text remains the ONLY authority for what changed.
-
-However, you MUST NOT silently ignore a candidate that the patch text
-actually changes merely because you consider the entity unusual,
-non-traditional for Support, or outside the conventional Support-item
-category.
-
-For Academy-tracked items in particular, inspect the item's Academy
-name, category, current tier, and info before deciding Support relevance.
+3. Only report changes that are relevant to Support play.
 
 For items, do NOT determine Support relevance from the item's category alone.
 An item categorized as Physical, Magic, Defense, Attack, etc. may still have legitimate situational value for a Support.
@@ -100,31 +93,25 @@ If a changed item is Academy-tracked and its effect can meaningfully affect a Su
    R: ...
    Base Stats: ...
    Example whatChanged for a champion with two ability changes: "Q: damage 80/120/160/200 -> 90/130/170/210; cooldown 9/8/7/6s -> 8/7/6/5s. W: armor 20/30/40/50 -> 25/35/45/55." Also avoid duplicate entries for the same entity in recommendedTierChanges -- one recommendation per entity, same rule.
-5. PRESERVE THE NUMBERS -- do not over-summarize. "Leona was buffed" or "Q was buffed" is NOT an acceptable whatChanged/previousValue/newValue -- that describes a category, not the change. Whenever the patch notes give a number, include it: damage, healing, shielding, cooldown, mana/energy cost, range, duration, percentages, ratios, AD/AP scaling, attack speed, movement speed, health, armor, magic resistance, stack counts, thresholds, charges, level scaling -- whatever the text actually specifies, both the OLD value and the NEW value when both are given. "Concise" means cutting repetition and unnecessary prose, NOT cutting factual numbers to save space -- a patch with many changes needs each entry written more economically, not stripped of its actual values. The "type" field (Buff/Nerf/Adjustment) is a classification, never a substitute for describing what actually changed. 
-6. Use the Academy roster snapshot below for three things ONLY:
-(a) determining whether a mentioned champion/item/rune is actually
-tracked by Academy,
-(b) using its ACTUAL CURRENT tier as the "from" side of any
-recommended tier action, and
-(c) interpreting the MANDATORY ACADEMY CHANGE CANDIDATES section.
-
-Never guess a current tier that isn't in the snapshot, and never invent
-a roster entity that isn't listed there.
+5. PRESERVE THE NUMBERS -- do not over-summarize. "Leona was buffed" or "Q was buffed" is NOT an acceptable whatChanged/previousValue/newValue -- that describes a category, not the change. Whenever the patch notes give a number, include it: damage, healing, shielding, cooldown, mana/energy cost, range, duration, percentages, ratios, AD/AP scaling, attack speed, movement speed, health, armor, magic resistance, stack counts, thresholds, charges, level scaling -- whatever the text actually specifies, both the OLD value and the NEW value when both are given. "Concise" means cutting repetition and unnecessary prose, NOT cutting factual numbers to save space -- a patch with many changes needs each entry written more economically, not stripped of its actual values. The "type" field (Buff/Nerf/Adjustment) is a classification, never a substitute for describing what actually changed.
+6. Use the Academy roster snapshot below for two things ONLY: (a) judging whether a mentioned champion/item/rune is one Academy actually tracks, and (b) using its ACTUAL CURRENT tier as the "from" side of any recommended tier action -- never guess a current tier that isn't in the snapshot, and never invent a roster entity that isn't listed there.
 7. You are an analyst/recommender, not the final authority -- a human coach reviews every report before anything about it goes live, and nothing you output is ever applied automatically. Write reasoning a human can quickly judge and disagree with if needed, not reasoning written to sound maximally confident.
 8. impactSeverity and confidence must each be exactly one of "Low", "Medium", "High". type/buffNerfAdjustment must be exactly one of "Buff", "Nerf", "Adjustment". Do not use any other values or casing.
 9. Respond with ONLY one JSON object matching the schema below. No markdown code fences, no prose before or after it, no comments inside it, no trailing commas.
 10. Write for MAXIMUM USEFUL INFORMATION PER TOKEN, not maximum length -- this report needs to be scannable in a couple of minutes, not exhaustive, but "scannable" is about cutting prose and repetition, never about cutting the actual numbers (see rule 5). Specifically:
    - "supportImpact" and "reasoning": one short, decision-oriented sentence each -- state the conclusion, not the full chain of thought behind it.
    - Every other implications field: a compact phrase, or the literal string "None." if genuinely not applicable -- never restate information already given in another field of the same entry.
+11. COVERAGE -- you are given a list of "entities to address" below: Academy champions/items/runes a deterministic scan found mentioned somewhere in YOUR excerpt. For EVERY one of them, add exactly one entry to "entityVerdicts" (in addition to a full championChanges/itemChanges/runeChanges entry if it changed and is Support-relevant): "detected" is normally true (the scan already found it; set false only if you believe the scan matched a name that isn't really about this entity, e.g. a skin title reusing a champion's name), "changed" is true only if the patch text actually describes a change to it, "supportRelevant" is only meaningful when changed is true. This lets a genuinely quiet mention (a champion's name appearing only in a skin list, an item mentioned only as a comparison) be recorded as "seen, nothing changed" instead of just silently absent from the report. Do not add entityVerdicts entries for anything NOT in the "entities to address" list.
 
 JSON SCHEMA (every field required; use empty string/array when a field genuinely doesn't apply, never omit the key):
 {
-  "supportMetaAnalysis": string (2-4 sentences: what this patch means for Support play overall, or "No Support-relevant changes in this patch." if that's genuinely true),
+  "supportMetaAnalysis": string (2-4 sentences: what THIS EXCERPT means for Support play, or "No Support-relevant changes in this excerpt." if that's genuinely true),
   "championChanges": [ { "championName": string, "whatChanged": string, "previousValue": string, "newValue": string, "type": "Buff"|"Nerf"|"Adjustment", "supportImpact": string, "impactSeverity": "Low"|"Medium"|"High", "gameplayImplications": string, "buildImplications": string, "runeImplications": string, "matchupImplications": string, "tierListActionNeeded": boolean, "recommendedTierAction": string (e.g. "S -> A", or "No change"), "reasoning": string, "confidence": "Low"|"Medium"|"High" } ],
   "itemChanges": [ { "itemName": string, "whatChanged": string, "previousValue": string, "newValue": string, "type": "Buff"|"Nerf"|"Adjustment", "supportImpact": string, "impactSeverity": "Low"|"Medium"|"High", "championsAffected": string[], "gameplayImplications": string, "buildImplications": string, "runeImplications": string, "matchupImplications": string, "tierListActionNeeded": boolean, "recommendedTierAction": string, "reasoning": string, "confidence": "Low"|"Medium"|"High" } ],
   "runeChanges": [ { "runeName": string, "whatChanged": string, "previousValue": string, "newValue": string, "type": "Buff"|"Nerf"|"Adjustment", "supportImpact": string, "impactSeverity": "Low"|"Medium"|"High", "championsAffected": string[], "gameplayImplications": string, "buildImplications": string, "runeImplications": string, "matchupImplications": string, "tierListActionNeeded": boolean, "recommendedTierAction": string, "reasoning": string, "confidence": "Low"|"Medium"|"High" } ],
   "systemChanges": [ { "area": string (one of "Roaming","Vision","Laning","Peel","Engage","Scaling","Teamfight","Summoner Spells","Objectives","Other"), "whatChanged": string, "supportImpact": string, "impactSeverity": "Low"|"Medium"|"High", "championsAffected": string[], "gameplayImplications": string, "reasoning": string, "confidence": "Low"|"Medium"|"High" } ],
-  "recommendedTierChanges": [ { "entityType": "champion"|"item"|"rune", "entityName": string, "from": string, "to": string, "reasoning": string, "confidence": "Low"|"Medium"|"High" } ]
+  "recommendedTierChanges": [ { "entityType": "champion"|"item"|"rune", "entityName": string, "from": string, "to": string, "reasoning": string, "confidence": "Low"|"Medium"|"High" } ],
+  "entityVerdicts": [ { "name": string (must exactly match one "entities to address" name), "detected": boolean, "changed": boolean, "supportRelevant": boolean } ]
 }`;
 
 // JSON-Schema mirror of the prose schema above, for providers that
@@ -194,6 +181,17 @@ const RECOMMENDED_TIER_CHANGE_SCHEMA = {
   required: ["entityType", "entityName", "from", "to", "reasoning", "confidence"],
 };
 
+const ENTITY_VERDICT_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    detected: { type: "boolean" },
+    changed: { type: "boolean" },
+    supportRelevant: { type: "boolean" },
+  },
+  required: ["name", "detected", "changed", "supportRelevant"],
+};
+
 const REPORT_JSON_SCHEMA = {
   type: "object",
   properties: {
@@ -207,7 +205,23 @@ const REPORT_JSON_SCHEMA = {
   required: ["supportMetaAnalysis", "championChanges", "itemChanges", "runeChanges", "systemChanges", "recommendedTierChanges"],
 };
 
-function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
+// Per-batch schema: everything REPORT_JSON_SCHEMA has, plus the
+// entityVerdicts coverage array (see ANALYST_INSTRUCTIONS rule 11).
+// REQUIRED for providers with real schema enforcement (Anthropic's
+// forced tool-use validates server-side, so a real call is genuinely
+// forced to fill this in) -- but normalizeEntityVerdicts() below is
+// still defensive about a missing/malformed array regardless, both for
+// providers that don't enforce `required` (OpenAI-compatible's
+// response_format is "valid JSON", not schema-checked) and so an older
+// or hand-built response never hard-fails analysis just for omitting a
+// field that only feeds the coverage manifest, never the report itself.
+export const BATCH_REPORT_JSON_SCHEMA = {
+  type: "object",
+  properties: { ...REPORT_JSON_SCHEMA.properties, entityVerdicts: { type: "array", items: ENTITY_VERDICT_SCHEMA } },
+  required: [...REPORT_JSON_SCHEMA.required, "entityVerdicts"],
+};
+
+export function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
   const champLines = championRoster.map((c) => `${c.id}|${c.name}|${c.role}|tier:${c.tier}`).join("\n");
  const itemLines = itemRoster.map((i) =>
   `${i.id}|${i.name}|${i.category}|tier:${i.tier}|info:${i.info || ""}`
@@ -215,206 +229,24 @@ function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
   const runeLines = runeRoster.map((r) => `${r.id}|${r.name}|${r.path}|tier:${r.tier}|info:${r.info || ""}`).join("\n");
   return `--- Academy champion roster (id|name|role|current tier) ---\n${champLines}\n\n--- Academy item roster (id|name|category|current tier|info) ---\n${itemLines}\n\n--- Academy rune roster (id|name|path|current tier|info) ---\n${runeLines}`;
 }
-function normalizeSearchText(value) {
-  return String(value || "")
-    .normalize("NFKC")
-    .replace(/[’‘`´]/g, "'")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+
+/** Builds ONE batch's full system prompt: the analyst rules, this
+ *  batch's position in the whole patch, the excerpt itself, the full
+ *  Academy roster (kept full-size, not filtered down to this batch's
+ *  entities -- see patchAnalysis.js's doc comment for why), and the
+ *  explicit "entities to address" list rule 11 requires a verdict for.
+ *  A KNOWN, DELIBERATE cost tradeoff: sending the whole roster + the
+ *  full rule text on every batch (rather than only once per patch)
+ *  multiplies fixed prompt overhead by the batch count -- accepted
+ *  because reliability on large patches was the entire reason this
+ *  pipeline exists; see the delivery report's "cost tradeoff" note. */
+export function buildBatchSystemPrompt({ batchIndex, batchTotal, patchTitle, patchIntro, batchText, forcedEntities, championRoster, itemRoster, runeRoster }) {
+  const rosterSnapshot = formatRosterSnapshot(championRoster, itemRoster, runeRoster);
+  const entityList = (forcedEntities || []).map((e) => `${e.name} (${e.type})`).join("\n") || "(none detected in this excerpt)";
+  const batchContext = `--- Batch context ---\nThis is excerpt ${batchIndex} of ${batchTotal} from patch "${patchTitle || "(untitled)"}". You can see ONLY the excerpt below -- other excerpts cover the rest of the patch and are analyzed separately, then combined deterministically (not by you). Do not assume something didn't change in the patch overall just because it isn't in this excerpt; only report on what IS in front of you.\n${patchIntro ? `\nPatch intro (context only, already covered by its own excerpt if relevant): ${patchIntro.slice(0, 600)}\n` : ""}\n--- Entities to address in entityVerdicts (found by a deterministic scan of THIS excerpt) ---\n${entityList}`;
+  return `${ANALYST_INSTRUCTIONS}\n\n${batchContext}\n\n${rosterSnapshot}\n\n--- Official Wild Rift patch notes excerpt (the ONLY source of "what changed" in this batch -- analyze this) ---\n${batchText}`;
 }
 
-function escapeRegExp(value) {
-  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function buildChangeCandidates(
-  patchContent,
-  championRoster,
-  itemRoster,
-  runeRoster
-) {
-  const text = String(patchContent || "");
-  const normalizedText = normalizeSearchText(text);
-
-  const all = [
-    ...championRoster.map((entity) => ({
-      ...entity,
-      entityType: "champion",
-    })),
-    ...itemRoster.map((entity) => ({
-      ...entity,
-      entityType: "item",
-    })),
-    ...runeRoster.map((entity) => ({
-      ...entity,
-      entityType: "rune",
-    })),
-  ];
-
-  const candidates = [];
-
-  for (const entity of all) {
-    const name = String(entity.name || "").trim();
-
-    if (!name || name.length < 2) continue;
-
-    const normalizedName = normalizeSearchText(name);
-
-    if (!normalizedName) continue;
-
-    /*
-     * Important:
-     * This detector intentionally does NOT try to decide whether
-     * the entity was actually changed.
-     *
-     * Its only job is to detect Academy-tracked entities that are
-     * mentioned anywhere in the official patch text.
-     *
-     * The AI must then verify whether the entity was actually changed
-     * and whether that change is Support-relevant.
-     */
-
-    if (normalizedText.includes(normalizedName)) {
-      candidates.push({
-        entityType: entity.entityType,
-        id: entity.id,
-        name: entity.name,
-        tier: entity.tier,
-      });
-    }
-  }
-
-  return candidates;
-} {
-  const text = String(patchContent || "");
-  const normalizedText = normalizeSearchText(text);
-
-  const changeSignal =
-    /\b(buffed?|nerfed?|adjusted?|changed?|increased?|decreased?|reduced?|increases?|decreases?|damage|cooldown|mana|health|armor|magic resistance|attack damage|ability power|range|duration|ratio|scaling|cost|shield|heal|healing|movement speed|attack speed|penetration|new value|old value)\b/i;
-
-  const all = [
-    ...championRoster.map((entity) => ({
-      ...entity,
-      entityType: "champion",
-    })),
-    ...itemRoster.map((entity) => ({
-      ...entity,
-      entityType: "item",
-    })),
-    ...runeRoster.map((entity) => ({
-      ...entity,
-      entityType: "rune",
-    })),
-  ];
-
-  const candidates = [];
-
-  for (const entity of all) {
-    const name = String(entity.name || "").trim();
-
-    if (!name || name.length < 2) continue;
-
-    const escapedName = escapeRegExp(name);
-    const occurrenceRegex = new RegExp(escapedName, "gi");
-
-    let match;
-
-    while ((match = occurrenceRegex.exec(text)) !== null) {
-      const start = Math.max(0, match.index - 500);
-      const end = Math.min(
-        text.length,
-        match.index + name.length + 500
-      );
-
-      const context = text.slice(start, end);
-
-      if (changeSignal.test(context)) {
-        candidates.push({
-          entityType: entity.entityType,
-          id: entity.id,
-          name: entity.name,
-          tier: entity.tier,
-        });
-
-        break;
-      }
-    }
-
-    const alreadyFound = candidates.some(
-      (candidate) =>
-        candidate.entityType === entity.entityType &&
-        candidate.id === entity.id
-    );
-
-    if (!alreadyFound) {
-      const normalizedName = normalizeSearchText(name);
-
-      if (normalizedName && normalizedText.includes(normalizedName)) {
-        const index = normalizedText.indexOf(normalizedName);
-
-        const start = Math.max(0, index - 500);
-        const end = Math.min(
-          normalizedText.length,
-          index + normalizedName.length + 500
-        );
-
-        const context = normalizedText.slice(start, end);
-
-        if (changeSignal.test(context)) {
-          candidates.push({
-            entityType: entity.entityType,
-            id: entity.id,
-            name: entity.name,
-            tier: entity.tier,
-          });
-        }
-      }
-    }
-  }
-
-  return candidates;
-}
-
-function formatRequiredChangeCandidates(candidates) {
-  if (!candidates.length) {
-    return "No Academy-tracked entity was deterministically identified near an explicit patch-change signal.";
-  }
-
-  const groups = {
-    champion: [],
-    item: [],
-    rune: [],
-  };
-
-  for (const candidate of candidates) {
-    groups[candidate.entityType].push(
-      `${candidate.id}|${candidate.name}|currentTier:${candidate.tier}`
-    );
-  }
-
-  const sections = [];
-
-  if (groups.champion.length) {
-    sections.push(
-      `Champions:\n${groups.champion.join("\n")}`
-    );
-  }
-
-  if (groups.item.length) {
-    sections.push(
-      `Items:\n${groups.item.join("\n")}`
-    );
-  }
-
-  if (groups.rune.length) {
-    sections.push(
-      `Runes:\n${groups.rune.join("\n")}`
-    );
-  }
-
-  return sections.join("\n\n");
-}
 /** Deterministic, bounded extraction of the first complete top-level
  *  JSON object from a string that may have stray text around it (a
  *  model occasionally adding a short preamble or trailing remark
@@ -474,7 +306,7 @@ function extractFirstJsonObject(text) {
  *  comment). Returns { parsed, strategy } on success, null if every
  *  strategy failed -- the caller treats null as a hard failure, never a
  *  reason to guess at a repair. */
-function parseAIJson(rawReply) {
+export function parseAIJson(rawReply) {
   const trimmed = (rawReply || "").trim();
 
   try {
@@ -587,7 +419,7 @@ function normalizeChangeEntry(entry, { withChampionsAffected }) {
  *  that must never be silently dropped -- see HARD RULE 5); every other
  *  field keeps the first entry's value, and championsAffected (items/
  *  runes only) is unioned rather than overwritten. */
-function mergeDuplicateEntities(entries, idField, nameField) {
+export function mergeDuplicateEntities(entries, idField, nameField) {
   const merged = [];
   const indexByKey = new Map();
   const join = (a, b) => [a, b].map((s) => (s || "").trim()).filter(Boolean).join(" ");
@@ -618,7 +450,7 @@ function mergeDuplicateEntities(entries, idField, nameField) {
  *  that shape has no whatChanged/previousValue/newValue to concatenate
  *  (just from/to/reasoning), so a duplicate recommendation for the same
  *  entity is simply dropped (first one kept) rather than merged. */
-function dedupeByEntity(entries, idField, nameField) {
+export function dedupeByEntity(entries, idField, nameField) {
   const seen = new Set();
   const result = [];
   for (const entry of entries) {
@@ -691,148 +523,39 @@ export function normalizePatchIntelReport(raw, { championRoster, itemRoster, run
   };
 }
 
-/**
- * Runs the full analysis: builds the analyst prompt from the fetched
- * patch text + Academy roster snapshot, calls the active AI provider
- * (requesting native structured output when the provider supports it --
- * see aiProvider.js) with maxTokens ALWAYS SET TO THE FIXED
- * PATCH_INTEL_MAX_TOKENS CEILING -- no per-patch estimate, no heuristic
- * derived from mentioned-entity count or patch-content length. This
- * file previously computed an adaptive per-patch budget
- * (estimatePatchIntelTokenBudget(), clamped between a MIN floor and the
- * MAX ceiling) specifically to avoid "wasting" budget on a quiet patch
- * -- but an estimate that runs LOW is exactly the failure mode that
- * caused real truncated reports in production (stop_reason
- * "max_tokens" well below the hard ceiling), so the estimator is gone,
- * not tuned. A quiet patch still naturally produces a short response
- * and costs about the same regardless of the requested ceiling; a
- * heavy patch can now use as much of that ceiling as it actually needs
- * every time, not just when an estimate happened to guess high enough.
- * functions/_lib/aiProvider.js and the AI Coach chat path at
- * functions/api/coach.js are untouched by this -- coach.js still passes
- * its own separate, fixed MAX_TOKENS constant (config.js), same as
- * always; this function has always been the only caller that ever
- * touched PATCH_INTEL_MAX_TOKENS, and still is.
- *
- * Returns one of:
- *   { ok: true, report: {...normalized fields above...}, parseStrategy, maxTokens }
- *   { ok: false, code: "ai_error" | "truncated_output" | "ai_invalid_output", error, logDetail, maxTokens }
- * Never throws. Never called with fabricated patch content -- the
- * caller (functions/api/admin/patch-check.js) only invokes this after a
- * successful official-source fetch; a failed fetch produces a
- * "source_unavailable" report WITHOUT ever reaching this function, per
- * the trust-hierarchy rule that the AI never runs without real source
- * text to analyze.
- */
-export async function runPatchIntelAnalysis({
-  env,
-  patchContent,
-  championRoster,
-  itemRoster,
-  runeRoster,
-}) {
-  const rosterSnapshot = formatRosterSnapshot(
-    championRoster,
-    itemRoster,
-    runeRoster
-  );
-
-  const requiredEntities = buildChangeCandidates(
-    patchContent,
-    championRoster,
-    itemRoster,
-    runeRoster
-  );
-
-  const requiredEntitiesText =
-    formatRequiredChangeCandidates(requiredEntities);
-
-  console.log(
-    "[PatchIntel][v3] Academy change candidates:",
-    JSON.stringify(requiredEntities, null, 2)
-  );
-
-  const systemPrompt = `${ANALYST_INSTRUCTIONS}
-
-${rosterSnapshot}
-
---- MANDATORY ACADEMY CHANGE CANDIDATES ---
-These entities were deterministically detected in the official patch
-text near explicit change-related signals.
-
-They are NOT proof that a change occurred.
-You MUST inspect each candidate against the official patch text and
-must not silently skip an actual change.
-
-${requiredEntitiesText}
-
---- Official Wild Rift patch notes (the ONLY source of "what changed" -- analyze this) ---
-${patchContent}`;
-
-  const result = await callAIProvider({
-    env,
-    systemPrompt,
-    messages: [{ role: "user", content: "Analyze this patch now and return ONLY the JSON object described in your instructions." }],
-    maxTokens: PATCH_INTEL_MAX_TOKENS,
-    jsonSchema: REPORT_JSON_SCHEMA,
-  });
-
-  if (!result.ok) {
-    return {
-      ok: false,
-      code: result.code === "truncated_output" ? "truncated_output" : "ai_error",
-      error: result.error,
-      logDetail: result.logDetail,
-      maxTokens: PATCH_INTEL_MAX_TOKENS,
-      engineVersion: PATCH_INTEL_ENGINE_VERSION,
-    };
+/** Normalizes the AI's entityVerdicts array against THIS batch's own
+ *  forced entity list (see ANALYST_INSTRUCTIONS rule 11): matches each
+ *  verdict to a forced entity by exact name, and for anything the AI
+ *  omitted entirely, records it honestly as "detected [by the
+ *  deterministic scan], no AI verdict" (changed/supportRelevant: null)
+ *  rather than assuming either answer -- the coverage manifest
+ *  (patchAggregate.js) is what turns null into a visible, honest gap
+ *  instead of a silently-assumed "nothing happened." An entry whose
+ *  name doesn't match anything on the forced list is dropped: the
+ *  prompt tells the model never to invent one, and an unmatched name
+ *  isn't attributable to a real planned entity anyway. */
+export function normalizeEntityVerdicts(raw, forcedEntities) {
+  const byName = new Map((forcedEntities || []).map((e) => [e.name.trim().toLowerCase(), e]));
+  const seen = new Set();
+  const verdicts = [];
+  for (const v of Array.isArray(raw) ? raw : []) {
+    if (!v || typeof v !== "object") continue;
+    const entity = byName.get(str(v.name).trim().toLowerCase());
+    if (!entity || seen.has(entity.key)) continue;
+    seen.add(entity.key);
+    verdicts.push({
+      key: entity.key,
+      type: entity.type,
+      id: entity.id,
+      name: entity.name,
+      detected: typeof v.detected === "boolean" ? v.detected : true,
+      changed: typeof v.changed === "boolean" ? v.changed : null,
+      supportRelevant: typeof v.supportRelevant === "boolean" ? v.supportRelevant : null,
+    });
   }
-
-  // Checked BEFORE attempting to parse -- a truncated reply is
-  // deterministically not valid JSON (it was cut off mid-object), so
-  // there's no point running it through the parser just to get a
-  // confusing generic "invalid JSON" error; this gives a specific,
-  // actionable one instead. Since every request already uses the fixed
-  // hard ceiling, a truncation now unambiguously means the patch
-  // genuinely produced more output than the ceiling allows -- it can no
-  // longer mean "the estimate for this patch happened to guess too
-  // low" (there is no estimate anymore). See providers/anthropic.js /
-  // providers/openaiCompatible.js for how `truncated` is computed from
-  // the provider's own stop/finish reason.
-  if (result.truncated) {
-    return {
-      ok: false,
-      code: "truncated_output",
-      error: `The AI analyst's response was cut off before it finished (hit the ${PATCH_INTEL_MAX_TOKENS}-token hard maximum) -- this patch has more Support-relevant changes than the current ceiling allows.`,
-      logDetail: `finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Reply tail (last 300 chars): ${JSON.stringify((result.reply || "").slice(-300))}.`,
-      maxTokens: PATCH_INTEL_MAX_TOKENS,
-      engineVersion: PATCH_INTEL_ENGINE_VERSION,
-    };
+  for (const entity of forcedEntities || []) {
+    if (seen.has(entity.key)) continue;
+    verdicts.push({ key: entity.key, type: entity.type, id: entity.id, name: entity.name, detected: true, changed: null, supportRelevant: null });
   }
-
-  const parseResult = parseAIJson(result.reply);
-  if (!parseResult) {
-    return {
-      ok: false,
-      code: "ai_invalid_output",
-      error: "The AI analyst didn't return valid JSON for this patch.",
-      logDetail: `All parse strategies failed (raw, fenced, bounded-extraction). finishReason: ${result.finishReason}. Reply length: ${(result.reply || "").length} chars. Raw reply (first 500 chars): ${JSON.stringify((result.reply || "").slice(0, 500))}`,
-      maxTokens: PATCH_INTEL_MAX_TOKENS,
-      engineVersion: PATCH_INTEL_ENGINE_VERSION,
-    };
-  }
-
-  const normalized = normalizePatchIntelReport(parseResult.parsed, { championRoster, itemRoster, runeRoster });
-  if (!normalized) {
-    return {
-      ok: false,
-      code: "ai_invalid_output",
-      error: "The AI analyst's response didn't match the expected report shape.",
-      logDetail: `Parsed via "${parseResult.strategy}" strategy but the shape was unusable: ${JSON.stringify(parseResult.parsed).slice(0, 300)}`,
-      maxTokens: PATCH_INTEL_MAX_TOKENS,
-      engineVersion: PATCH_INTEL_ENGINE_VERSION,
-    };
-  }
-
-  return { ok: true, report: normalized, parseStrategy: parseResult.strategy, maxTokens: PATCH_INTEL_MAX_TOKENS, engineVersion: PATCH_INTEL_ENGINE_VERSION };
+  return verdicts;
 }

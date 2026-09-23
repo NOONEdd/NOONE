@@ -14,13 +14,15 @@
 //         `?id=<slug>&allRevisions=1` -> every revision for that patch,
 //         oldest first (listRevisionsForPatch) -- powers the Admin
 //         revision-history view.
-// POST -> six admin actions: approve / reject / edit / publish (the
+// POST -> seven admin actions: approve / reject / edit / publish (the
 //         original four, now revision-aware -- `revision` in the body
 //         is optional, defaults to that patch's latest) / unpublish
 //         (new) / restore (new -- "if practical" per spec; just
 //         publishRevision() with an older revision number, no separate
-//         code path). Every action requires a valid admin session --
-//         there is no path here an unauthenticated request can reach.
+//         code path) / delete (new -- irreversibly removes every
+//         revision of one patch; requires confirm:true, see below).
+//         Every action requires a valid admin session -- there is no
+//         path here an unauthenticated request can reach.
 //
 // "publish" (and "restore", which is the same underlying operation) are
 // the ONLY actions in this whole feature that can ever touch PUBLIC
@@ -37,7 +39,7 @@
 // AI suggested."
 
 import { requireAdminSession } from "../../_lib/adminAuth.js";
-import { listAllReports, getReportRevision, getLatestReport, listRevisionsForPatch, updateReportRevision, publishRevision, unpublishReport } from "../../_lib/patchReportsStore.js";
+import { listAllReports, getReportRevision, getLatestReport, listRevisionsForPatch, updateReportRevision, publishRevision, unpublishReport, deletePatchCompletely } from "../../_lib/patchReportsStore.js";
 import { fetchOverrides } from "../../_lib/kv.js";
 
 const KEY = "coach-overrides"; // matches functions/api/coach-overrides.js exactly -- see that file for why
@@ -107,6 +109,22 @@ export async function onRequestPost(context) {
     return json({ ok: true, report: updated });
   }
 
+  if (action === "delete") {
+    // Irreversible -- every revision of this ONE patch is gone for
+    // good, so this requires an explicit confirm:true in the body (the
+    // Admin UI pairs this with its own window.confirm() before ever
+    // sending it) rather than firing on a bare {action:"delete"}.
+    // deletePatchCompletely() only ever touches this exact id's own
+    // keys (see patchReportsStore.js) -- never Academy champion/item/
+    // rune/decisionTree data, never another patch, never a KV scan.
+    if (body?.confirm !== true) {
+      return json({ error: "Deleting a patch requires confirm:true in the request body." }, 400);
+    }
+    const result = await deletePatchCompletely(kv, id);
+    if (!result.deleted) return json({ error: "No report with that id." }, 404);
+    return json({ ok: true, id, revisionsDeleted: result.revisionsDeleted });
+  }
+
   const revision = await resolveTargetRevision(kv, id, requestedRevision);
   if (!revision) return json({ error: "No report with that id." }, 404);
 
@@ -165,7 +183,7 @@ export async function onRequestPost(context) {
     return json({ ok: true, report: updated, markedVerified: shouldMarkVerified && Boolean(updated.patch) });
   }
 
-  return json({ error: `Unknown action "${action}". Expected one of: edit, approve, reject, publish, unpublish, restore.` }, 400);
+  return json({ error: `Unknown action "${action}". Expected one of: edit, approve, reject, publish, unpublish, restore, delete.` }, 400);
 }
 
 export async function onRequestOptions() {
