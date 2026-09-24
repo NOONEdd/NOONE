@@ -42,6 +42,7 @@ function removeLeadingComments(source) {
       result = result
         .slice(lineComment[0].length)
         .trimStart();
+
       continue;
     }
 
@@ -51,6 +52,7 @@ function removeLeadingComments(source) {
       result = result
         .slice(blockComment[0].length)
         .trimStart();
+
       continue;
     }
 
@@ -77,6 +79,30 @@ function removeFinalSemicolon(source) {
   return trimmed;
 }
 
+/**
+ * Normalize Academy KV datasets.
+ *
+ * Supported formats:
+ *
+ * export const DATA = [
+ *   {...},
+ *   {...},
+ * ];
+ *
+ * OR:
+ *
+ * [
+ *   {...},
+ *   {...}
+ * ]
+ *
+ * OR:
+ *
+ * {...},
+ * {...}
+ *
+ * Also repairs the known champions-data trailing "]]" issue.
+ */
 function normalizeDatasetSource(raw) {
   if (typeof raw !== "string") {
     throw new Error("KV value is not a string");
@@ -89,13 +115,14 @@ function normalizeDatasetSource(raw) {
   }
 
   /*
-   * Handle:
+   * First handle the normal exported-array format.
+   *
+   * Example:
    *
    * export const CHAMPIONS = [
    *   ...
    * ];
    */
-
   const exportMatch = source.match(
     /export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*\[/
   );
@@ -115,26 +142,42 @@ function normalizeDatasetSource(raw) {
       .trim();
 
     /*
-     * Fix the actual problem in champions-data:
+     * Remove a trailing semicolon first.
      *
-     *   ]]
-     *
-     * at the end of the KV value.
+     * Example:
+     * ]]
+     * ;
      */
-    extracted = extracted.replace(
-      /\]\]\s*$/,
-      "]"
-    );
+    extracted = extracted
+      .replace(/;\s*$/, "")
+      .trim();
 
     /*
-     * Remove a trailing semicolon:
+     * IMPORTANT:
      *
-     * ];
+     * champions-data currently ends with:
+     *
+     *   ],
+     *  },
+     * ]]
+     *
+     * The final "]]" contains one extra closing bracket.
+     *
+     * Keep removing extra trailing ] characters until the
+     * array has only one final closing bracket.
      */
-    extracted = extracted.replace(
-      /;\s*$/,
-      ""
-    ).trim();
+    while (extracted.endsWith("]]")) {
+      extracted = extracted
+        .slice(0, -1)
+        .trim();
+    }
+
+    /*
+     * Final safety cleanup for semicolon after bracket.
+     */
+    extracted = extracted
+      .replace(/;\s*$/, "")
+      .trim();
 
     if (
       !extracted.startsWith("[") ||
@@ -148,18 +191,34 @@ function normalizeDatasetSource(raw) {
     return extracted;
   }
 
+  /*
+   * Handle files that start with comments before the data.
+   */
   source = removeLeadingComments(source);
+
+  /*
+   * Handle:
+   *
+   * export const DATA = ...
+   */
   source = removeExportDeclaration(source);
+
   source = source.trim();
+
+  /*
+   * Remove final semicolon.
+   */
   source = removeFinalSemicolon(source);
 
   /*
-   * Handle extra closing bracket even without export.
+   * Repair the same trailing extra-bracket problem even
+   * when there is no export declaration.
    */
-  source = source.replace(
-    /\]\]\s*$/,
-    "]"
-  );
+  while (source.endsWith("]]")) {
+    source = source
+      .slice(0, -1)
+      .trim();
+  }
 
   /*
    * Already an array.
@@ -182,7 +241,7 @@ function normalizeDatasetSource(raw) {
   }
 
   /*
-   * Object fragment.
+   * Raw comma-separated objects.
    */
   return `[${source}]`;
 }
@@ -208,6 +267,11 @@ function parseAcademyDataset(raw, datasetName) {
     const message =
       error?.message || String(error);
 
+    /*
+     * JSON5 normally reports:
+     *
+     * JSON5: invalid character ']' at 1271:2
+     */
     const match =
       message.match(/at (\d+):(\d+)/);
 
@@ -523,7 +587,7 @@ export async function onRequestGet(context) {
     },
 
     meta: {
-      version: "academy-data-v5",
+      version: "academy-data-v6",
       generatedAt: new Date().toISOString(),
     },
   });
