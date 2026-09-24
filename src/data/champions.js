@@ -1118,7 +1118,7 @@ export const CHAMPIONS = [
     },],
   },
    { id: "hwei", name: "hwei", role: "Off-Meta-flex", tier: "A", blurb: "Hwei can work as a utility-focused support who provides strong poke, zone control, crowd control, and teamfight pressure. His versatile abilities allow him to control space, set up fights, peel for allies, and punish enemies who overextend." },
-    { Builds: [],},
+    
   
   // ---- Full Wild Rift roster expansion (Phase 3, Champion Matchups redesign) ----
   // Added so the Matchup picker can select ANY current Wild Rift champion, not just
