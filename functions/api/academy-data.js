@@ -1,4 +1,3 @@
-```js
 import JSON5 from "json5";
 
 const KEYS = {
@@ -24,57 +23,9 @@ function json(data, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Cache-Control": "no-store",
     },
   });
-}
-
-function stripBom(source) {
-  return source.replace(/^\uFEFF/, "");
-}
-
-function removeLeadingComments(source) {
-  let result = source.trim();
-
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-
-    const lineComment = result.match(/^\/\/[^\n]*(?:\n|$)/);
-
-    if (lineComment) {
-      result = result.slice(lineComment[0].length).trimStart();
-      changed = true;
-      continue;
-    }
-
-    const blockComment = result.match(/^\/\*[\s\S]*?\*\//);
-
-    if (blockComment) {
-      result = result.slice(blockComment[0].length).trimStart();
-      changed = true;
-    }
-  }
-
-  return result;
-}
-
-function removeExportDeclaration(source) {
-  return source.replace(
-    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
-    ""
-  );
-}
-
-function removeFinalSemicolon(source) {
-  const trimmed = source.trim();
-
-  if (trimmed.endsWith(";")) {
-    return trimmed.slice(0, -1).trim();
-  }
-
-  return trimmed;
 }
 
 function normalizeDatasetSource(raw) {
@@ -82,84 +33,124 @@ function normalizeDatasetSource(raw) {
     throw new Error("KV value is not a string");
   }
 
-  let source = stripBom(raw).trim();
+  let source = raw
+    .replace(/^\uFEFF/, "")
+    .trim();
 
   if (!source) {
     throw new Error("KV value is empty");
   }
 
   /*
-   * Handle files such as:
+   * Handles:
    *
-   * // comment
+   * // comments
    * export const CHAMPIONS = [
    *   {...},
    *   {...},
    * ];
-   *
-   * We search for the export declaration anywhere in the source
-   * because comments may appear before it.
    */
+
   const exportMatch = source.match(
     /export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*\[/
   );
 
   if (exportMatch) {
-    const arrayStart = source.indexOf("[", exportMatch.index);
+    const arrayStart = source.indexOf(
+      "[",
+      exportMatch.index
+    );
+
     let arrayEnd = source.lastIndexOf("]");
 
     if (
-      arrayStart !== -1 &&
-      arrayEnd !== -1 &&
-      arrayEnd > arrayStart
+      arrayStart === -1 ||
+      arrayEnd === -1 ||
+      arrayEnd <= arrayStart
     ) {
-      /*
-       * Some existing champions-data content has an accidental
-       * extra closing bracket at the very end:
-       *
-       *   },
-       * ]]
-       *
-       * Convert that to:
-       *
-       *   },
-       * ]
-       */
-      if (
-        arrayEnd === source.length - 1 &&
-        source.charAt(arrayEnd - 1) === "]"
-      ) {
-        arrayEnd -= 1;
-      }
-
-      return source.slice(arrayStart, arrayEnd + 1);
+      throw new Error(
+        "Could not locate complete array"
+      );
     }
+
+    /*
+     * Your champions-data currently ends with:
+     *
+     * ]]
+     *
+     * Remove only the extra final bracket.
+     */
+    if (
+      source.slice(arrayEnd - 1, arrayEnd + 1) === "]]"
+    ) {
+      arrayEnd -= 1;
+    }
+
+    return source.slice(
+      arrayStart,
+      arrayEnd + 1
+    );
   }
 
   /*
-   * Remove comments and export syntax if the source did not
-   * match the exported-array case above.
+   * Remove leading comments.
    */
-  source = removeLeadingComments(source);
-  source = removeExportDeclaration(source);
+  while (true) {
+    const lineComment =
+      source.match(/^\/\/[^\n]*(?:\n|$)/);
+
+    if (lineComment) {
+      source = source
+        .slice(lineComment[0].length)
+        .trimStart();
+
+      continue;
+    }
+
+    const blockComment =
+      source.match(/^\/\*[\s\S]*?\*\//);
+
+    if (blockComment) {
+      source = source
+        .slice(blockComment[0].length)
+        .trimStart();
+
+      continue;
+    }
+
+    break;
+  }
+
+  /*
+   * Remove export declaration if present.
+   */
+  source = source.replace(
+    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
+    ""
+  );
+
   source = source.trim();
-  source = removeFinalSemicolon(source);
 
   /*
-   * Handle an array with an accidental extra closing bracket:
-   *
-   *   [...]
-   *   ]]
+   * Remove final semicolon.
    */
-  if (
-    source.startsWith("[") &&
-    source.endsWith("]]")
-  ) {
-    source = source.slice(0, -1).trim();
+  if (source.endsWith(";")) {
+    source = source
+      .slice(0, -1)
+      .trim();
   }
 
   /*
-   * Already a complete array.
+   * Handle accidental extra closing bracket.
+   */
+  if (source.endsWith("]]")) {
+    source = source
+      .slice(0, -1)
+      .trim();
+  }
+
+  /*
+   * Already an array.
    */
   if (
     source.startsWith("[") &&
@@ -169,7 +160,7 @@ function normalizeDatasetSource(raw) {
   }
 
   /*
-   * A single object.
+   * Single object.
    */
   if (
     source.startsWith("{") &&
@@ -179,61 +170,60 @@ function normalizeDatasetSource(raw) {
   }
 
   /*
-   * Otherwise treat the source as an object fragment and wrap it.
+   * Object fragment.
    */
   return `[${source}]`;
 }
 
-function parseAcademyDataset(raw, datasetName) {
+function parseDataset(raw, name) {
   try {
-    const normalized = normalizeDatasetSource(raw);
+    const normalized =
+      normalizeDatasetSource(raw);
 
-    const parsed = JSON5.parse(normalized);
+    const parsed =
+      JSON5.parse(normalized);
 
     if (!Array.isArray(parsed)) {
       throw new Error(
-        `Expected an array but received ${typeof parsed}`
+        `Expected array, received ${typeof parsed}`
       );
     }
 
     return parsed;
   } catch (error) {
-    let diagnostic = "";
-
-    const errorMessage = String(
-      error?.message || error
-    );
+    const message =
+      error?.message || String(error);
 
     /*
-     * JSON5 errors usually contain:
-     *
-     *   at 1271:2
-     *
-     * Use that location to return a small section of the
-     * normalized source for debugging.
+     * Include parser context when JSON5 gives
+     * a line/column.
      */
-    const match = errorMessage.match(
-      /at (\d+):(\d+)/
-    );
+    let context = "";
+
+    const match =
+      message.match(/at (\d+):(\d+)/);
 
     if (match) {
-      const errorLine = Number(match[1]);
-
       try {
-        const normalized = normalizeDatasetSource(raw);
-        const lines = normalized.split("\n");
+        const lineNumber =
+          Number(match[1]);
 
-        const start = Math.max(
-          0,
-          errorLine - 4
-        );
+        const normalized =
+          normalizeDatasetSource(raw);
 
-        const end = Math.min(
-          lines.length,
-          errorLine + 3
-        );
+        const lines =
+          normalized.split("\n");
 
-        diagnostic = lines
+        const start =
+          Math.max(0, lineNumber - 3);
+
+        const end =
+          Math.min(
+            lines.length,
+            lineNumber + 2
+          );
+
+        context = lines
           .slice(start, end)
           .map(
             (line, index) =>
@@ -241,14 +231,14 @@ function parseAcademyDataset(raw, datasetName) {
           )
           .join("\n");
       } catch {
-        // Keep the original parser error if diagnostics fail.
+        context = "";
       }
     }
 
     throw new Error(
-      `${datasetName}: ${errorMessage}${
-        diagnostic
-          ? `\n\nContext around error:\n${diagnostic}`
+      `${name}: ${message}${
+        context
+          ? `\n\nContext around error:\n${context}`
           : ""
       }`
     );
@@ -258,7 +248,7 @@ function parseAcademyDataset(raw, datasetName) {
 async function readDataset(
   kv,
   key,
-  datasetName
+  name
 ) {
   if (!kv) {
     return {
@@ -272,7 +262,8 @@ async function readDataset(
   }
 
   try {
-    const raw = await kv.get(key);
+    const raw =
+      await kv.get(key);
 
     if (
       raw === null ||
@@ -289,10 +280,8 @@ async function readDataset(
       };
     }
 
-    const data = parseAcademyDataset(
-      raw,
-      datasetName
-    );
+    const data =
+      parseDataset(raw, name);
 
     return {
       ok: true,
@@ -326,9 +315,8 @@ async function readOverrides(kv) {
   }
 
   try {
-    const raw = await kv.get(
-      KEYS.overrides
-    );
+    const raw =
+      await kv.get(KEYS.overrides);
 
     if (
       raw === null ||
@@ -343,41 +331,44 @@ async function readOverrides(kv) {
       };
     }
 
-    const parsed = JSON.parse(raw);
-
-    const data = {
-      ...EMPTY_OVERRIDES,
-      ...parsed,
-
-      champions:
-        parsed?.champions &&
-        typeof parsed.champions === "object"
-          ? parsed.champions
-          : {},
-
-      items:
-        parsed?.items &&
-        typeof parsed.items === "object"
-          ? parsed.items
-          : {},
-
-      runes:
-        parsed?.runes &&
-        typeof parsed.runes === "object"
-          ? parsed.runes
-          : {},
-
-      decisionTrees:
-        parsed?.decisionTrees &&
-        typeof parsed.decisionTrees === "object"
-          ? parsed.decisionTrees
-          : {},
-    };
+    const parsed =
+      JSON.parse(raw);
 
     return {
       ok: true,
       source: "kv",
-      data,
+      data: {
+        ...EMPTY_OVERRIDES,
+        ...parsed,
+
+        champions:
+          parsed?.champions &&
+          typeof parsed.champions ===
+            "object"
+            ? parsed.champions
+            : {},
+
+        items:
+          parsed?.items &&
+          typeof parsed.items ===
+            "object"
+            ? parsed.items
+            : {},
+
+        runes:
+          parsed?.runes &&
+          typeof parsed.runes ===
+            "object"
+            ? parsed.runes
+            : {},
+
+        decisionTrees:
+          parsed?.decisionTrees &&
+          typeof parsed.decisionTrees ===
+            "object"
+            ? parsed.decisionTrees
+            : {},
+      },
       error: null,
     };
   } catch (error) {
@@ -392,7 +383,7 @@ async function readOverrides(kv) {
   }
 }
 
-function getObjectCount(value) {
+function objectCount(value) {
   if (
     !value ||
     typeof value !== "object"
@@ -403,15 +394,18 @@ function getObjectCount(value) {
   return Object.keys(value).length;
 }
 
-export async function onRequestGet(context) {
-  const kv = context.env.COACH_KV;
+export async function onRequestGet(
+  context
+) {
+  const kv =
+    context.env.COACH_KV;
 
   const [
-    championsResult,
-    itemsResult,
-    runesResult,
-    spellsResult,
-    overridesResult,
+    champions,
+    items,
+    runes,
+    spells,
+    overrides,
   ] = await Promise.all([
     readDataset(
       kv,
@@ -444,37 +438,19 @@ export async function onRequestGet(context) {
     success: true,
 
     data: {
-      champions:
-        championsResult.data,
-
-      items:
-        itemsResult.data,
-
-      runes:
-        runesResult.data,
-
-      spells:
-        spellsResult.data,
-
-      overrides:
-        overridesResult.data,
+      champions: champions.data,
+      items: items.data,
+      runes: runes.data,
+      spells: spells.data,
+      overrides: overrides.data,
     },
 
     sources: {
-      champions:
-        championsResult.source,
-
-      items:
-        itemsResult.source,
-
-      runes:
-        runesResult.source,
-
-      spells:
-        spellsResult.source,
-
-      overrides:
-        overridesResult.source,
+      champions: champions.source,
+      items: items.source,
+      runes: runes.source,
+      spells: spells.source,
+      overrides: overrides.source,
     },
 
     diagnostics: {
@@ -482,114 +458,78 @@ export async function onRequestGet(context) {
         Boolean(kv),
 
       champions: {
-        ok:
-          championsResult.ok,
-
-        source:
-          championsResult.source,
-
-        count:
-          championsResult.count,
-
-        error:
-          championsResult.error,
+        ok: champions.ok,
+        source: champions.source,
+        count: champions.count,
+        error: champions.error,
       },
 
       items: {
-        ok:
-          itemsResult.ok,
-
-        source:
-          itemsResult.source,
-
-        count:
-          itemsResult.count,
-
-        error:
-          itemsResult.error,
+        ok: items.ok,
+        source: items.source,
+        count: items.count,
+        error: items.error,
       },
 
       runes: {
-        ok:
-          runesResult.ok,
-
-        source:
-          runesResult.source,
-
-        count:
-          runesResult.count,
-
-        error:
-          runesResult.error,
+        ok: runes.ok,
+        source: runes.source,
+        count: runes.count,
+        error: runes.error,
       },
 
       spells: {
-        ok:
-          spellsResult.ok,
-
-        source:
-          spellsResult.source,
-
-        count:
-          spellsResult.count,
-
-        error:
-          spellsResult.error,
+        ok: spells.ok,
+        source: spells.source,
+        count: spells.count,
+        error: spells.error,
       },
 
       overrides: {
-        ok:
-          overridesResult.ok,
-
-        source:
-          overridesResult.source,
+        ok: overrides.ok,
+        source: overrides.source,
 
         champions:
-          getObjectCount(
-            overridesResult.data?.champions
+          objectCount(
+            overrides.data?.champions
           ),
 
         items:
-          getObjectCount(
-            overridesResult.data?.items
+          objectCount(
+            overrides.data?.items
           ),
 
         runes:
-          getObjectCount(
-            overridesResult.data?.runes
+          objectCount(
+            overrides.data?.runes
           ),
 
         decisionTrees:
-          getObjectCount(
-            overridesResult.data?.decisionTrees
+          objectCount(
+            overrides.data?.decisionTrees
           ),
 
         patch:
-          overridesResult.data?.patch ||
-          null,
+          overrides.data?.patch || null,
 
         verifiedPatch:
-          overridesResult.data
-            ?.verifiedPatch ||
+          overrides.data?.verifiedPatch ||
           null,
 
         patchStatus:
-          overridesResult.data
-            ?.patchStatus ||
+          overrides.data?.patchStatus ||
           null,
 
         error:
-          overridesResult.error,
+          overrides.error,
       },
     },
 
     meta: {
       version:
-        "academy-data-v4-bracket-fix",
-
+        "academy-data-v4",
       generatedAt:
         new Date().toISOString(),
     },
   });
 }
-```
