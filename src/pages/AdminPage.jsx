@@ -226,7 +226,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
 
       {expanded && isPartialFailure && (
         <p className="patch-entry-line" style={{ padding: "0 20px", color: "var(--gold)" }}>
-          <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} /> This analysis is INCOMPLETE — not every part of the patch could be analyzed (see details below). The content shown reflects only what succeeded. Use Retry Analysis to reprocess the whole patch before publishing.
+          <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} /> This analysis is INCOMPLETE — not every part of the patch could be analyzed (see details below). The content shown reflects only what succeeded. Use Retry Analysis to resolve the remaining unresolved sections before publishing.
         </p>
       )}
 

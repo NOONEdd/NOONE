@@ -46,6 +46,7 @@ import { findCanonicalId } from "../../src/utils/images.js";
 import { SOURCE_TEXT_VERSION } from "./patchText.js";
 import { PARSER_VERSION } from "./patchParser.js";
 import { PLANNER_VERSION } from "./patchPlanner.js";
+import { DETECTOR_VERSION } from "./patchChangeDetector.js";
 
 const SEVERITY_VALUES = ["Low", "Medium", "High"];
 const CONFIDENCE_VALUES = ["Low", "Medium", "High"];
@@ -62,8 +63,8 @@ const TYPE_VALUES = ["Buff", "Nerf", "Adjustment"];
 // Returned in every result (success AND failure) and threaded through
 // to the Cloudflare Function logs and the /api/admin/patch-check
 // response, never silently swallowed.
-const BATCH_PROMPT_VERSION = "batch-v1";
-export const PATCH_INTEL_ENGINE_VERSION = `pipeline-v3+${SOURCE_TEXT_VERSION}+${PARSER_VERSION}+${PLANNER_VERSION}+${BATCH_PROMPT_VERSION}`;
+const BATCH_PROMPT_VERSION = "batch-v2";
+export const PATCH_INTEL_ENGINE_VERSION = `pipeline-v4+${SOURCE_TEXT_VERSION}+${PARSER_VERSION}+${DETECTOR_VERSION}+${PLANNER_VERSION}+${BATCH_PROMPT_VERSION}`;
 
 const ANALYST_INSTRUCTIONS = `You are the Patch Intelligence analyst for Nyx NOONEdd Academy, a Wild Rift Support coaching site. Your input is ONE EXCERPT of the official Wild Rift patch notes (a large patch is analyzed in several excerpts, each handed to you separately -- see the batch context above this block for which one this is), plus a snapshot of the Academy's current Support-relevant champion/item/rune roster and their CURRENT tiers. Your job is to extract and structure whatever in THIS EXCERPT matters to SUPPORT players -- not to rewrite the patch notes in full, and not to invent anything the text doesn't actually say, and not to assume anything about content that isn't in front of you.
 
@@ -102,6 +103,7 @@ If a changed item is Academy-tracked and its effect can meaningfully affect a Su
    - "supportImpact" and "reasoning": one short, decision-oriented sentence each -- state the conclusion, not the full chain of thought behind it.
    - Every other implications field: a compact phrase, or the literal string "None." if genuinely not applicable -- never restate information already given in another field of the same entry.
 11. COVERAGE -- you are given a list of "entities to address" below: Academy champions/items/runes a deterministic scan found mentioned somewhere in YOUR excerpt. For EVERY one of them, add exactly one entry to "entityVerdicts" (in addition to a full championChanges/itemChanges/runeChanges entry if it changed and is Support-relevant): "detected" is normally true (the scan already found it; set false only if you believe the scan matched a name that isn't really about this entity, e.g. a skin title reusing a champion's name), "changed" is true only if the patch text actually describes a change to it, "supportRelevant" is only meaningful when changed is true. This lets a genuinely quiet mention (a champion's name appearing only in a skin list, an item mentioned only as a comparison) be recorded as "seen, nothing changed" instead of just silently absent from the report. Do not add entityVerdicts entries for anything NOT in the "entities to address" list.
+12. AUTHORITATIVE DETERMINISTIC FACTS -- for some entities, a deterministic system has ALREADY extracted the exact old/new values straight from the patch text before this excerpt ever reached you (see "--- Deterministic facts already established ---" below, when present). Those facts are authoritative and FINAL -- you are not responsible for rediscovering them, must never contradict them, and may leave that entity's whatChanged/previousValue/newValue as empty strings once the given facts already cover the numeric change; put your effort into supportImpact/gameplayImplications/buildImplications/etc for that entity instead. If the entity ALSO has a genuinely separate prose-only change the given facts don't cover (e.g. "Q now also slows briefly" alongside a numeric cooldown change already given), you may add that to whatChanged, but never restate or alter a number already supplied. An entity that is NOT listed there has no deterministic facts at all -- write whatChanged/previousValue/newValue yourself from the excerpt, exactly as you always have.
 
 JSON SCHEMA (every field required; use empty string/array when a field genuinely doesn't apply, never omit the key):
 {
@@ -231,20 +233,46 @@ export function formatRosterSnapshot(championRoster, itemRoster, runeRoster) {
 }
 
 /** Builds ONE batch's full system prompt: the analyst rules, this
- *  batch's position in the whole patch, the excerpt itself, the full
- *  Academy roster (kept full-size, not filtered down to this batch's
- *  entities -- see patchAnalysis.js's doc comment for why), and the
- *  explicit "entities to address" list rule 11 requires a verdict for.
- *  A KNOWN, DELIBERATE cost tradeoff: sending the whole roster + the
- *  full rule text on every batch (rather than only once per patch)
- *  multiplies fixed prompt overhead by the batch count -- accepted
- *  because reliability on large patches was the entire reason this
- *  pipeline exists; see the delivery report's "cost tradeoff" note. */
-export function buildBatchSystemPrompt({ batchIndex, batchTotal, patchTitle, patchIntro, batchText, forcedEntities, championRoster, itemRoster, runeRoster }) {
+ *  batch's position in the whole patch, the excerpt itself, the
+ *  Academy roster NARROWED to this batch's own detected entities (see
+ *  patchAnalysis.js's getBatchRosters -- correctly matching on each
+ *  entity's `key` since the 2026-09-23 refactor; sending the full
+ *  Academy-wide roster on every batch was the exact fixed-overhead
+ *  multiplication the token-budget work below was built to remove, and
+ *  a batch's analyst only ever needs (a) confirmation an entity is
+ *  Academy-tracked -- already established by "entities to address"
+ *  below, independent of the roster snapshot -- and (b) that entity's
+ *  own current tier/info, which the narrowed snapshot still carries in
+ *  full), the explicit "entities to address" list rule 11 requires a
+ *  verdict for, and -- new in the same refactor -- any deterministic
+ *  facts already established for this batch's entities (see rule 12
+ *  above and patchChangeDetector.js), so the analyst is told what's
+ *  already known rather than asked to re-derive it. */
+export function buildBatchSystemPrompt({ batchIndex, batchTotal, patchTitle, patchIntro, batchText, forcedEntities, championRoster, itemRoster, runeRoster, deterministicFacts }) {
   const rosterSnapshot = formatRosterSnapshot(championRoster, itemRoster, runeRoster);
   const entityList = (forcedEntities || []).map((e) => `${e.name} (${e.type})`).join("\n") || "(none detected in this excerpt)";
-  const batchContext = `--- Batch context ---\nThis is excerpt ${batchIndex} of ${batchTotal} from patch "${patchTitle || "(untitled)"}". You can see ONLY the excerpt below -- other excerpts cover the rest of the patch and are analyzed separately, then combined deterministically (not by you). Do not assume something didn't change in the patch overall just because it isn't in this excerpt; only report on what IS in front of you.\n${patchIntro ? `\nPatch intro (context only, already covered by its own excerpt if relevant): ${patchIntro.slice(0, 600)}\n` : ""}\n--- Entities to address in entityVerdicts (found by a deterministic scan of THIS excerpt) ---\n${entityList}`;
+  const factsBlock = formatDeterministicFactsBlock(deterministicFacts, forcedEntities);
+  const batchContext = `--- Batch context ---\nThis is excerpt ${batchIndex} of ${batchTotal} from patch "${patchTitle || "(untitled)"}". You can see ONLY the excerpt below -- other excerpts cover the rest of the patch and are analyzed separately, then combined deterministically (not by you). Do not assume something didn't change in the patch overall just because it isn't in this excerpt; only report on what IS in front of you.\n${patchIntro ? `\nPatch intro (context only, already covered by its own excerpt if relevant): ${patchIntro.slice(0, 600)}\n` : ""}\n--- Entities to address in entityVerdicts (found by a deterministic scan of THIS excerpt) ---\n${entityList}${factsBlock}`;
   return `${ANALYST_INSTRUCTIONS}\n\n${batchContext}\n\n${rosterSnapshot}\n\n--- Official Wild Rift patch notes excerpt (the ONLY source of "what changed" in this batch -- analyze this) ---\n${batchText}`;
+}
+
+/** Renders the "--- Deterministic facts already established ---" block
+ *  rule 12 refers to, one line per entity that has any -- entities with
+ *  none are simply absent from this block (rule 12 already covers that
+ *  case: "not listed there" means "figure it out yourself, as before").
+ *  Returns "" (no block at all) when there's nothing to show, so a
+ *  batch with no deterministic facts renders an identical prompt to
+ *  before this feature existed. */
+function formatDeterministicFactsBlock(deterministicFacts, forcedEntities) {
+  if (!deterministicFacts || deterministicFacts.size === 0) return "";
+  const nameByKey = new Map((forcedEntities || []).map((e) => [e.key, e.name]));
+  const lines = [];
+  for (const [key, facts] of deterministicFacts) {
+    const name = nameByKey.get(key) || key;
+    lines.push(`${name}: ${facts.whatChanged}`);
+  }
+  if (!lines.length) return "";
+  return `\n\n--- Deterministic facts already established (see HARD RULE 12 -- authoritative, do not rediscover or contradict) ---\n${lines.join("\n")}`;
 }
 
 /** Deterministic, bounded extraction of the first complete top-level

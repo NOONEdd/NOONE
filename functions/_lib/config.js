@@ -148,6 +148,23 @@ export const PATCH_INTEL_BATCH_MIN_CHARS = 2000; // adjacent tiny batches are me
 export const PATCH_INTEL_BATCH_MAX_ENTITIES = 8; // Academy entities detected per batch -- bounds how many verdicts/entries one response must contain
 export const PATCH_INTEL_MAX_BATCHES = 40; // hard bound on the plan; a patch needing more is reported as incomplete, not silently thinned out
 
+// Deterministic-first relevance gate (patchPlanner.js). A unit with NO
+// deterministically-detected Academy entity (patchAcademyDetection.js)
+// is only sent to AI at all if its patchParser.js `category` is in this
+// list -- these are the categories that can still carry a genuine,
+// entity-less Support-relevant change (a general system/economy shift,
+// an objective-timer change, a map-wide value) worth an AI request even
+// with no champion/item/rune named. Everything else with zero detected
+// entities (nongameplay, bugfixes, appendix, marksmen/jungle/minions/
+// turrets/other/preamble with no tracked entity mentioned) is reported
+// as IGNORED in diagnostics and never billed to AI -- a unit WITH a
+// detected entity is always eligible regardless of category; this list
+// only governs the entity-less case. Reviewed and approved as the
+// default 2026-09-23; adjust here (one place) if a real patch run's
+// diagnostics show something genuinely Support-relevant getting
+// gated out.
+export const PATCH_INTEL_RELEVANT_NO_ENTITY_CATEGORIES = ["champions", "items", "runes", "systems", "objectives", "map"];
+
 // Failure handling / pacing. These bound AI calls per revision so a
 // misbehaving provider can never loop.
 export const PATCH_INTEL_BATCH_MAX_ATTEMPTS = 3; // attempts per batch (retry on transient errors / invalid output)
@@ -159,13 +176,15 @@ export const PATCH_INTEL_CALL_TIMEOUT_MS = 20000; // stop waiting for one AI cal
 // runAllBatches. KNOWN LIMITATION (see the delivery report): there is no
 // cross-request "continue" mechanism -- a batch this budget prevented
 // from starting is reported as unresolved (report.status becomes
-// "partial_failure", never silently presented as complete) and the
-// existing Retry Analysis action reprocesses the WHOLE patch from
-// scratch, the same as it always has for any other failure. True
-// resumption (persisting partial pipeline state across requests and
-// continuing just the unfinished batches) was assessed as more
-// complexity/risk than this session could responsibly build and verify
-// in the time available; graceful, honest degradation was chosen over
-// upfront but unverified surface area.
+// "partial_failure", never silently presented as complete), and the
+// existing Retry Analysis action (2026-09-23 refactor) targets exactly
+// those unresolved entities on its next run instead of reprocessing the
+// whole patch -- see functions/api/admin/patch-check.js's
+// onlyEntityKeys/mergeTargetedRetry. True resumption (persisting partial
+// pipeline state across requests and continuing just the unfinished
+// batches, rather than re-planning from the cached source text and
+// diffing against the previous revision's coverage) was assessed as
+// more complexity/risk than was worth building for a gap the targeted
+// retry already closes in practice.
 export const PATCH_INTEL_REQUEST_BUDGET_MS = 25000;
 

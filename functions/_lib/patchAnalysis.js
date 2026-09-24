@@ -23,8 +23,10 @@
 //      report). Once the budget is spent, no NEW batch call is started;
 //      anything not yet started is reported as unresolved (never
 //      silently dropped -- see patchAggregate.js), and the admin's
-//      existing Retry Analysis action reprocesses everything from
-//      scratch, same as it always has for a single failed AI call.
+//      existing Retry Analysis action targets exactly those unresolved
+//      entities on its next run (functions/api/admin/patch-check.js's
+//      onlyEntityKeys/mergeTargetedRetry) rather than re-spending AI
+//      calls on whatever already succeeded.
 //
 // A batch that still can't succeed after all of the above is reported
 // as a genuine failure for its unit(s) -- never silently skipped, never
@@ -42,6 +44,7 @@ import {
   normalizePatchIntelReport,
   normalizeEntityVerdicts,
 } from "./patchIntelligence.js";
+import { overlayDeterministicFacts } from "./patchChangeDetector.js";
 import {
   PATCH_INTEL_MAX_TOKENS,
   PATCH_INTEL_BATCH_MAX_ATTEMPTS,
@@ -51,7 +54,7 @@ import {
   PATCH_INTEL_REQUEST_BUDGET_MS,
 } from "./config.js";
 
-export const ANALYSIS_VERSION = "analysis-v1";
+export const ANALYSIS_VERSION = "analysis-v2";
 
 /** Races one AI call against PATCH_INTEL_CALL_TIMEOUT_MS. This does NOT
  *  cancel the underlying request -- aiProvider.js's adapters take no
@@ -69,13 +72,34 @@ function withTimeout(promise, ms) {
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
+/** Narrows the full Academy roster down to just this batch's own
+ *  detected entities, for the prompt's roster snapshot (see
+ *  buildBatchSystemPrompt's doc comment in patchIntelligence.js) --
+ *  NOT for id resolution, which always uses the full, un-narrowed
+ *  roster (normalizePatchIntelReport below is called with the original
+ *  championRoster/itemRoster/runeRoster, never this narrowed result),
+ *  since an AI response can legitimately name an Academy entity that
+ *  wasn't in this batch's own deterministic detection.
+ *
+ *  BUG FIX (2026-09-23 refactor): `batch.entities` is an array of
+ *  entity OBJECTS ({ key, type, id, name, ... } -- see
+ *  patchPlanner.js), not key strings. The previous version of this
+ *  function built `new Set(batch.entities)` and then tested
+ *  `entityKeys.has(\`champion:${e.id}\`)\` -- a Set of objects tested
+ *  for string membership, which can never match. That silently made
+ *  EVERY batch's roster snapshot empty (contradicting this file's own
+ *  intent and the doc comment that used to sit above
+ *  buildBatchSystemPrompt claiming the roster was deliberately kept
+ *  full-size), for as long as this function existed. Building the key
+ *  set from `e.key` (already `${type}:${id}`, exactly matching the
+ *  strings tested below) is the fix. */
 function getBatchRosters({
   batch,
   championRoster = [],
   itemRoster = [],
   runeRoster = [],
 }) {
-  const entityKeys = new Set(batch.entities || []);
+  const entityKeys = new Set((batch.entities || []).map((e) => e.key));
 
   return {
     championRoster: championRoster.filter((e) =>
@@ -109,6 +133,7 @@ const systemPrompt = buildBatchSystemPrompt({
   patchIntro,
   batchText,
   forcedEntities: batch.entities,
+  deterministicFacts: batch.entityFacts,
   ...batchRosters,
 });
 
@@ -165,8 +190,20 @@ const systemPrompt = buildBatchSystemPrompt({
     };
   }
 
+  // Deterministic facts win over whatever the AI wrote for the SAME
+  // entity's whatChanged/previousValue/newValue (rule 12 asks it not to
+  // restate them, but this overlay makes that non-negotiable rather
+  // than trusting the model to have actually left them blank/faithful).
+  // Only touches entries the AI already decided to CREATE -- an entity
+  // with no deterministic facts (a prose-only change the regex layer in
+  // patchChangeDetector.js's extractDeterministicFacts never matches)
+  // keeps whatever the AI itself wrote, unchanged. Never applied inside
+  // normalizePatchIntelReport itself -- see that function's own doc
+  // comment for why it has to stay usable standalone.
+  const withFacts = overlayDeterministicFacts(normalized, batch.entityFacts);
+
   const entityVerdicts = normalizeEntityVerdicts(parseResult.parsed.entityVerdicts, batch.entities);
-  return { ok: true, report: normalized, entityVerdicts, parseStrategy: parseResult.strategy };
+  return { ok: true, report: withFacts, entityVerdicts, parseStrategy: parseResult.strategy };
 }
 
 /** Runs one batch to completion: bounded same-batch retries, then --
@@ -205,7 +242,7 @@ async function runBatchWithRetries(ctx, batch, splitDepth) {
   batch.units.length > 1 &&
   splitDepth < PATCH_INTEL_MAX_SPLIT_DEPTH
 ) {
-    const halves = splitBatchInHalf(batch, ctx.index);
+    const halves = splitBatchInHalf(batch, ctx.index, ctx.itemRoster);
     const parts = [];
     for (const half of halves) parts.push(await runBatchWithRetries(ctx, half, splitDepth + 1));
     const ok = parts.every((p) => p.ok);
