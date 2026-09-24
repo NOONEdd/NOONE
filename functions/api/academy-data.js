@@ -523,7 +523,7 @@ export async function onRequestGet(context) {
     },
 
     meta: {
-      version: "academy-data-v5",
+      version: "academy-daسta-v5",
       generatedAt: new Date().toISOString(),
     },
   });
