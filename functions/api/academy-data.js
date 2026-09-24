@@ -250,7 +250,11 @@ function parseAcademyDataset(raw, datasetName) {
   try {
     const normalized =
       normalizeDatasetSource(raw);
-
+      
+console.log(
+  `[ACADEMY DEBUG] ${datasetName} normalized ending:`,
+  normalized.slice(-300)
+);
     const parsed =
       JSON5.parse(normalized);
 
