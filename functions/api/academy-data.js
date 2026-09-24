@@ -169,15 +169,19 @@ function removeLeadingComments(source) {
  *    ];
  */
 function normalizeDatasetSource(raw) {
-  if (typeof raw !== "string") {
-    throw new Error("KV value is not a string");
-  }
+ if (
+  source.startsWith("[") &&
+  source.endsWith("]]")
+) {
+  return source.slice(0, -1);
+}
 
-  let source = stripBom(raw).trim();
-
-  if (!source) {
-    throw new Error("KV value is empty");
-  }
+if (
+  source.startsWith("[") &&
+  source.endsWith("]")
+) {
+  return source;
+}
 
   /*
    * First try to detect a complete exported array even when
