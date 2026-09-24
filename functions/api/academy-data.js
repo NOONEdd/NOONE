@@ -276,12 +276,37 @@ function parseAcademyDataset(raw, datasetName) {
 
     return parsed;
   } catch (error) {
+    let diagnostic = "";
+
+    const match = String(error?.message || "").match(
+      /at (\d+):(\d+)/
+    );
+
+    if (match) {
+      const errorLine = Number(match[1]);
+      const lines = normalizeDatasetSource(raw).split("\n");
+
+      const start = Math.max(0, errorLine - 4);
+      const end = Math.min(lines.length, errorLine + 3);
+
+      diagnostic = lines
+        .slice(start, end)
+        .map(
+          (line, index) =>
+            `${start + index + 1}: ${line}`
+        )
+        .join("\n");
+    }
+
     throw new Error(
-      `${datasetName}: ${error?.message || String(error)}`
+      `${datasetName}: ${error?.message || String(error)}${
+        diagnostic
+          ? `\n\nContext around error:\n${diagnostic}`
+          : ""
+      }`
     );
   }
 }
-
 /*
  * Read a normal Academy dataset from KV.
  */
