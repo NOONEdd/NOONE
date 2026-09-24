@@ -1,3 +1,4 @@
+```js
 import JSON5 from "json5";
 
 const KEYS = {
@@ -28,93 +29,10 @@ function json(data, status = 200) {
   });
 }
 
-/*
- * Removes a UTF-8 BOM if one exists.
- */
 function stripBom(source) {
   return source.replace(/^\uFEFF/, "");
 }
 
-/*
- * Detect and remove JavaScript export declarations.
- *
- * Supports:
- *
- * export const CHAMPIONS = [...]
- * export let CHAMPIONS = [...]
- * export var CHAMPIONS = [...]
- *
- * Also supports comments before the export declaration.
- */
-function removeExportDeclaration(source) {
-  return source.replace(
-    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
-    ""
-  );
-}
-
-/*
- * Remove a final JavaScript semicolon.
- */
-function removeFinalSemicolon(source) {
-  const trimmed = source.trim();
-
-  if (trimmed.endsWith(";")) {
-    return trimmed.slice(0, -1).trim();
-  }
-
-  return trimmed;
-}
-
-/*
- * Find whether the source is already a complete array.
- *
- * Important:
- * We do NOT simply check startsWith("[") because the
- * champions-data file may begin with comments.
- */
-function extractCompleteArray(source) {
-  const text = source.trim();
-
-  const firstBracket = text.indexOf("[");
-  const lastBracket = text.lastIndexOf("]");
-
-  if (
-    firstBracket !== -1 &&
-    lastBracket !== -1 &&
-    lastBracket > firstBracket
-  ) {
-    const before = text.slice(0, firstBracket).trim();
-
-    /*
-     * If everything before the first [ is only comments,
-     * or an export declaration has already been removed,
-     * this is probably a complete array.
-     */
-    if (
-      before === "" ||
-      /^\/\/[\s\S]*$/m.test(before) ||
-      /^\/\*[\s\S]*\*\/$/.test(before)
-    ) {
-      return text.slice(firstBracket, lastBracket + 1);
-    }
-  }
-
-  return null;
-}
-
-/*
- * Remove leading comments only.
- *
- * This is specifically needed because champions-data may look like:
- *
- * // Enchanter
- * // ...
- * export const CHAMPIONS = [
- *
- * JSON5 itself understands comments, but the export declaration
- * must be removed first.
- */
 function removeLeadingComments(source) {
   let result = source.trim();
 
@@ -123,7 +41,6 @@ function removeLeadingComments(source) {
   while (changed) {
     changed = false;
 
-    // Line comment
     const lineComment = result.match(/^\/\/[^\n]*(?:\n|$)/);
 
     if (lineComment) {
@@ -132,7 +49,6 @@ function removeLeadingComments(source) {
       continue;
     }
 
-    // Block comment
     const blockComment = result.match(/^\/\*[\s\S]*?\*\//);
 
     if (blockComment) {
@@ -144,55 +60,45 @@ function removeLeadingComments(source) {
   return result;
 }
 
-/*
- * Normalize Academy datasets into valid JSON5.
- *
- * Supported formats:
- *
- * 1. [
- *      { ... },
- *      { ... }
- *    ]
- *
- * 2. export const CHAMPIONS = [
- *      { ... },
- *      { ... }
- *    ];
- *
- * 3. // Enchanter
- *    { ... },
- *    { ... },
- *
- * 4. // Enchanter
- *    export const CHAMPIONS = [
- *      { ... }
- *    ];
- */
-function normalizeDatasetSource(raw) {
- if (
-  source.startsWith("[") &&
-  source.endsWith("]]")
-) {
-  return source.slice(0, -1);
+function removeExportDeclaration(source) {
+  return source.replace(
+    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
+    ""
+  );
 }
 
-if (
-  source.startsWith("[") &&
-  source.endsWith("]")
-) {
-  return source;
+function removeFinalSemicolon(source) {
+  const trimmed = source.trim();
+
+  if (trimmed.endsWith(";")) {
+    return trimmed.slice(0, -1).trim();
+  }
+
+  return trimmed;
 }
+
+function normalizeDatasetSource(raw) {
+  if (typeof raw !== "string") {
+    throw new Error("KV value is not a string");
+  }
+
+  let source = stripBom(raw).trim();
+
+  if (!source) {
+    throw new Error("KV value is empty");
+  }
 
   /*
-   * First try to detect a complete exported array even when
-   * comments exist before the export declaration.
+   * Handle files such as:
    *
-   * Example:
-   *
-   * // Enchanter
+   * // comment
    * export const CHAMPIONS = [
-   *   ...
+   *   {...},
+   *   {...},
    * ];
+   *
+   * We search for the export declaration anywhere in the source
+   * because comments may appear before it.
    */
   const exportMatch = source.match(
     /export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*\[/
@@ -200,37 +106,60 @@ if (
 
   if (exportMatch) {
     const arrayStart = source.indexOf("[", exportMatch.index);
-
-    const arrayEnd = source.lastIndexOf("]");
+    let arrayEnd = source.lastIndexOf("]");
 
     if (
       arrayStart !== -1 &&
       arrayEnd !== -1 &&
       arrayEnd > arrayStart
     ) {
+      /*
+       * Some existing champions-data content has an accidental
+       * extra closing bracket at the very end:
+       *
+       *   },
+       * ]]
+       *
+       * Convert that to:
+       *
+       *   },
+       * ]
+       */
+      if (
+        arrayEnd === source.length - 1 &&
+        source.charAt(arrayEnd - 1) === "]"
+      ) {
+        arrayEnd -= 1;
+      }
+
       return source.slice(arrayStart, arrayEnd + 1);
     }
   }
 
   /*
-   * Remove leading comments, then check again.
+   * Remove comments and export syntax if the source did not
+   * match the exported-array case above.
    */
   source = removeLeadingComments(source);
-
-  /*
-   * Remove export declaration if one remains.
-   */
   source = removeExportDeclaration(source);
-
   source = source.trim();
-
-  /*
-   * Remove final semicolon.
-   */
   source = removeFinalSemicolon(source);
 
   /*
-   * If this is already a complete array, use it directly.
+   * Handle an array with an accidental extra closing bracket:
+   *
+   *   [...]
+   *   ]]
+   */
+  if (
+    source.startsWith("[") &&
+    source.endsWith("]]")
+  ) {
+    source = source.slice(0, -1).trim();
+  }
+
+  /*
+   * Already a complete array.
    */
   if (
     source.startsWith("[") &&
@@ -240,7 +169,7 @@ if (
   }
 
   /*
-   * A single complete object.
+   * A single object.
    */
   if (
     source.startsWith("{") &&
@@ -250,22 +179,11 @@ if (
   }
 
   /*
-   * Otherwise it is a fragment containing multiple objects.
-   *
-   * Example:
-   *
-   * { ... },
-   * { ... },
-   * { ... },
-   *
-   * Wrap it in an array.
+   * Otherwise treat the source as an object fragment and wrap it.
    */
   return `[${source}]`;
 }
 
-/*
- * Parse one Academy dataset.
- */
 function parseAcademyDataset(raw, datasetName) {
   try {
     const normalized = normalizeDatasetSource(raw);
@@ -282,28 +200,53 @@ function parseAcademyDataset(raw, datasetName) {
   } catch (error) {
     let diagnostic = "";
 
-    const match = String(error?.message || "").match(
+    const errorMessage = String(
+      error?.message || error
+    );
+
+    /*
+     * JSON5 errors usually contain:
+     *
+     *   at 1271:2
+     *
+     * Use that location to return a small section of the
+     * normalized source for debugging.
+     */
+    const match = errorMessage.match(
       /at (\d+):(\d+)/
     );
 
     if (match) {
       const errorLine = Number(match[1]);
-      const lines = normalizeDatasetSource(raw).split("\n");
 
-      const start = Math.max(0, errorLine - 4);
-      const end = Math.min(lines.length, errorLine + 3);
+      try {
+        const normalized = normalizeDatasetSource(raw);
+        const lines = normalized.split("\n");
 
-      diagnostic = lines
-        .slice(start, end)
-        .map(
-          (line, index) =>
-            `${start + index + 1}: ${line}`
-        )
-        .join("\n");
+        const start = Math.max(
+          0,
+          errorLine - 4
+        );
+
+        const end = Math.min(
+          lines.length,
+          errorLine + 3
+        );
+
+        diagnostic = lines
+          .slice(start, end)
+          .map(
+            (line, index) =>
+              `${start + index + 1}: ${line}`
+          )
+          .join("\n");
+      } catch {
+        // Keep the original parser error if diagnostics fail.
+      }
     }
 
     throw new Error(
-      `${datasetName}: ${error?.message || String(error)}${
+      `${datasetName}: ${errorMessage}${
         diagnostic
           ? `\n\nContext around error:\n${diagnostic}`
           : ""
@@ -311,17 +254,20 @@ function parseAcademyDataset(raw, datasetName) {
     );
   }
 }
-/*
- * Read a normal Academy dataset from KV.
- */
-async function readDataset(kv, key, datasetName) {
+
+async function readDataset(
+  kv,
+  key,
+  datasetName
+) {
   if (!kv) {
     return {
       ok: false,
       source: "unavailable",
       data: null,
       count: 0,
-      error: "COACH_KV binding is not available",
+      error:
+        "COACH_KV binding is not available",
     };
   }
 
@@ -338,7 +284,8 @@ async function readDataset(kv, key, datasetName) {
         source: "missing",
         data: null,
         count: 0,
-        error: `KV key "${key}" is missing or empty`,
+        error:
+          `KV key "${key}" is missing or empty`,
       };
     }
 
@@ -360,28 +307,28 @@ async function readDataset(kv, key, datasetName) {
       source: "error",
       data: null,
       count: 0,
-      error: error?.message || String(error),
+      error:
+        error?.message ||
+        String(error),
     };
   }
 }
 
-/*
- * coach-overrides is stored as real JSON.
- *
- * Do NOT parse this with the dataset parser.
- */
 async function readOverrides(kv) {
   if (!kv) {
     return {
       ok: false,
       source: "unavailable",
       data: EMPTY_OVERRIDES,
-      error: "COACH_KV binding is not available",
+      error:
+        "COACH_KV binding is not available",
     };
   }
 
   try {
-    const raw = await kv.get(KEYS.overrides);
+    const raw = await kv.get(
+      KEYS.overrides
+    );
 
     if (
       raw === null ||
@@ -438,13 +385,18 @@ async function readOverrides(kv) {
       ok: false,
       source: "error",
       data: EMPTY_OVERRIDES,
-      error: error?.message || String(error),
+      error:
+        error?.message ||
+        String(error),
     };
   }
 }
 
 function getObjectCount(value) {
-  if (!value || typeof value !== "object") {
+  if (
+    !value ||
+    typeof value !== "object"
+  ) {
     return 0;
   }
 
@@ -492,88 +444,152 @@ export async function onRequestGet(context) {
     success: true,
 
     data: {
-      champions: championsResult.data,
-      items: itemsResult.data,
-      runes: runesResult.data,
-      spells: spellsResult.data,
-      overrides: overridesResult.data,
+      champions:
+        championsResult.data,
+
+      items:
+        itemsResult.data,
+
+      runes:
+        runesResult.data,
+
+      spells:
+        spellsResult.data,
+
+      overrides:
+        overridesResult.data,
     },
 
     sources: {
-      champions: championsResult.source,
-      items: itemsResult.source,
-      runes: runesResult.source,
-      spells: spellsResult.source,
-      overrides: overridesResult.source,
+      champions:
+        championsResult.source,
+
+      items:
+        itemsResult.source,
+
+      runes:
+        runesResult.source,
+
+      spells:
+        spellsResult.source,
+
+      overrides:
+        overridesResult.source,
     },
 
     diagnostics: {
-      kvBindingAvailable: Boolean(kv),
+      kvBindingAvailable:
+        Boolean(kv),
 
       champions: {
-        ok: championsResult.ok,
-        source: championsResult.source,
-        count: championsResult.count,
-        error: championsResult.error,
+        ok:
+          championsResult.ok,
+
+        source:
+          championsResult.source,
+
+        count:
+          championsResult.count,
+
+        error:
+          championsResult.error,
       },
 
       items: {
-        ok: itemsResult.ok,
-        source: itemsResult.source,
-        count: itemsResult.count,
-        error: itemsResult.error,
+        ok:
+          itemsResult.ok,
+
+        source:
+          itemsResult.source,
+
+        count:
+          itemsResult.count,
+
+        error:
+          itemsResult.error,
       },
 
       runes: {
-        ok: runesResult.ok,
-        source: runesResult.source,
-        count: runesResult.count,
-        error: runesResult.error,
+        ok:
+          runesResult.ok,
+
+        source:
+          runesResult.source,
+
+        count:
+          runesResult.count,
+
+        error:
+          runesResult.error,
       },
 
       spells: {
-        ok: spellsResult.ok,
-        source: spellsResult.source,
-        count: spellsResult.count,
-        error: spellsResult.error,
+        ok:
+          spellsResult.ok,
+
+        source:
+          spellsResult.source,
+
+        count:
+          spellsResult.count,
+
+        error:
+          spellsResult.error,
       },
 
       overrides: {
-        ok: overridesResult.ok,
-        source: overridesResult.source,
+        ok:
+          overridesResult.ok,
 
-        champions: getObjectCount(
-          overridesResult.data?.champions
-        ),
+        source:
+          overridesResult.source,
 
-        items: getObjectCount(
-          overridesResult.data?.items
-        ),
+        champions:
+          getObjectCount(
+            overridesResult.data?.champions
+          ),
 
-        runes: getObjectCount(
-          overridesResult.data?.runes
-        ),
+        items:
+          getObjectCount(
+            overridesResult.data?.items
+          ),
 
-        decisionTrees: getObjectCount(
-          overridesResult.data?.decisionTrees
-        ),
+        runes:
+          getObjectCount(
+            overridesResult.data?.runes
+          ),
+
+        decisionTrees:
+          getObjectCount(
+            overridesResult.data?.decisionTrees
+          ),
 
         patch:
-          overridesResult.data?.patch || null,
+          overridesResult.data?.patch ||
+          null,
 
         verifiedPatch:
-          overridesResult.data?.verifiedPatch || null,
+          overridesResult.data
+            ?.verifiedPatch ||
+          null,
 
         patchStatus:
-          overridesResult.data?.patchStatus || null,
+          overridesResult.data
+            ?.patchStatus ||
+          null,
 
-        error: overridesResult.error,
+        error:
+          overridesResult.error,
       },
     },
 
     meta: {
-      version: "academy-data-v3-json5",
-      generatedAt: new Date().toISOString(),
+      version:
+        "academy-data-v4-bracket-fix",
+
+      generatedAt:
+        new Date().toISOString(),
     },
   });
 }
+```
