@@ -28,96 +28,244 @@ function json(data, status = 200) {
   });
 }
 
-/**
- * Convert the current Academy KV dataset format into
- * something JSON5 can parse.
+/*
+ * Removes a UTF-8 BOM if one exists.
+ */
+function stripBom(source) {
+  return source.replace(/^\uFEFF/, "");
+}
+
+/*
+ * Detect and remove JavaScript export declarations.
+ *
+ * Supports:
+ *
+ * export const CHAMPIONS = [...]
+ * export let CHAMPIONS = [...]
+ * export var CHAMPIONS = [...]
+ *
+ * Also supports comments before the export declaration.
+ */
+function removeExportDeclaration(source) {
+  return source.replace(
+    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
+    ""
+  );
+}
+
+/*
+ * Remove a final JavaScript semicolon.
+ */
+function removeFinalSemicolon(source) {
+  const trimmed = source.trim();
+
+  if (trimmed.endsWith(";")) {
+    return trimmed.slice(0, -1).trim();
+  }
+
+  return trimmed;
+}
+
+/*
+ * Find whether the source is already a complete array.
+ *
+ * Important:
+ * We do NOT simply check startsWith("[") because the
+ * champions-data file may begin with comments.
+ */
+function extractCompleteArray(source) {
+  const text = source.trim();
+
+  const firstBracket = text.indexOf("[");
+  const lastBracket = text.lastIndexOf("]");
+
+  if (
+    firstBracket !== -1 &&
+    lastBracket !== -1 &&
+    lastBracket > firstBracket
+  ) {
+    const before = text.slice(0, firstBracket).trim();
+
+    /*
+     * If everything before the first [ is only comments,
+     * or an export declaration has already been removed,
+     * this is probably a complete array.
+     */
+    if (
+      before === "" ||
+      /^\/\/[\s\S]*$/m.test(before) ||
+      /^\/\*[\s\S]*\*\/$/.test(before)
+    ) {
+      return text.slice(firstBracket, lastBracket + 1);
+    }
+  }
+
+  return null;
+}
+
+/*
+ * Remove leading comments only.
+ *
+ * This is specifically needed because champions-data may look like:
+ *
+ * // Enchanter
+ * // ...
+ * export const CHAMPIONS = [
+ *
+ * JSON5 itself understands comments, but the export declaration
+ * must be removed first.
+ */
+function removeLeadingComments(source) {
+  let result = source.trim();
+
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+
+    // Line comment
+    const lineComment = result.match(/^\/\/[^\n]*(?:\n|$)/);
+
+    if (lineComment) {
+      result = result.slice(lineComment[0].length).trimStart();
+      changed = true;
+      continue;
+    }
+
+    // Block comment
+    const blockComment = result.match(/^\/\*[\s\S]*?\*\//);
+
+    if (blockComment) {
+      result = result.slice(blockComment[0].length).trimStart();
+      changed = true;
+    }
+  }
+
+  return result;
+}
+
+/*
+ * Normalize Academy datasets into valid JSON5.
  *
  * Supported formats:
  *
- * 1. Full array:
- *    [
- *      { id: "lulu", ... },
- *      { id: "janna", ... }
+ * 1. [
+ *      { ... },
+ *      { ... }
  *    ]
  *
- * 2. JavaScript export:
- *    export const CHAMPIONS = [
- *      { id: "lulu", ... }
+ * 2. export const CHAMPIONS = [
+ *      { ... },
+ *      { ... }
  *    ];
  *
- * 3. Fragment:
- *    // Enchanter
- *    { id: "lulu", ... },
- *    { id: "janna", ... },
+ * 3. // Enchanter
+ *    { ... },
+ *    { ... },
  *
- *    This gets wrapped in [ ... ].
+ * 4. // Enchanter
+ *    export const CHAMPIONS = [
+ *      { ... }
+ *    ];
  */
 function normalizeDatasetSource(raw) {
   if (typeof raw !== "string") {
     throw new Error("KV value is not a string");
   }
 
-  let source = raw
-    .replace(/^\uFEFF/, "")
-    .trim();
+  let source = stripBom(raw).trim();
 
   if (!source) {
     throw new Error("KV value is empty");
   }
 
-  // Remove common JS export declaration.
-  source = source.replace(
-    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
-    ""
+  /*
+   * First try to detect a complete exported array even when
+   * comments exist before the export declaration.
+   *
+   * Example:
+   *
+   * // Enchanter
+   * export const CHAMPIONS = [
+   *   ...
+   * ];
+   */
+  const exportMatch = source.match(
+    /export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*\[/
   );
 
-  source = source.trim();
+  if (exportMatch) {
+    const arrayStart = source.indexOf("[", exportMatch.index);
 
-  // Remove a final semicolon from a complete exported array/object.
-  if (source.endsWith(";")) {
-    source = source.slice(0, -1).trim();
+    const arrayEnd = source.lastIndexOf("]");
+
+    if (
+      arrayStart !== -1 &&
+      arrayEnd !== -1 &&
+      arrayEnd > arrayStart
+    ) {
+      return source.slice(arrayStart, arrayEnd + 1);
+    }
   }
 
   /*
-   * Already a complete JSON5 array.
+   * Remove leading comments, then check again.
    */
-  if (source.startsWith("[") && source.endsWith("]")) {
+  source = removeLeadingComments(source);
+
+  /*
+   * Remove export declaration if one remains.
+   */
+  source = removeExportDeclaration(source);
+
+  source = source.trim();
+
+  /*
+   * Remove final semicolon.
+   */
+  source = removeFinalSemicolon(source);
+
+  /*
+   * If this is already a complete array, use it directly.
+   */
+  if (
+    source.startsWith("[") &&
+    source.endsWith("]")
+  ) {
     return source;
   }
 
   /*
    * A single complete object.
    */
-  if (source.startsWith("{") && source.endsWith("}")) {
+  if (
+    source.startsWith("{") &&
+    source.endsWith("}")
+  ) {
     return `[${source}]`;
   }
 
   /*
-   * Current champions-data format is a fragment:
+   * Otherwise it is a fragment containing multiple objects.
    *
-   * // Enchanter
+   * Example:
+   *
    * { ... },
    * { ... },
+   * { ... },
    *
-   * JSON5 can parse the objects individually but not as
-   * multiple top-level values, so wrap the whole fragment.
+   * Wrap it in an array.
    */
   return `[${source}]`;
 }
 
-/**
- * Parse an Academy dataset stored in KV.
- *
- * JSON5 supports:
- * - // comments
- * - /* comments *\/
- * - single quoted strings
- * - unquoted object keys
- * - trailing commas
+/*
+ * Parse one Academy dataset.
  */
 function parseAcademyDataset(raw, datasetName) {
   try {
     const normalized = normalizeDatasetSource(raw);
+
     const parsed = JSON5.parse(normalized);
 
     if (!Array.isArray(parsed)) {
@@ -134,8 +282,8 @@ function parseAcademyDataset(raw, datasetName) {
   }
 }
 
-/**
- * Read one of the Academy dataset keys.
+/*
+ * Read a normal Academy dataset from KV.
  */
 async function readDataset(kv, key, datasetName) {
   if (!kv) {
@@ -151,7 +299,11 @@ async function readDataset(kv, key, datasetName) {
   try {
     const raw = await kv.get(key);
 
-    if (raw === null || raw === undefined || raw.trim() === "") {
+    if (
+      raw === null ||
+      raw === undefined ||
+      raw.trim() === ""
+    ) {
       return {
         ok: false,
         source: "missing",
@@ -161,7 +313,10 @@ async function readDataset(kv, key, datasetName) {
       };
     }
 
-    const data = parseAcademyDataset(raw, datasetName);
+    const data = parseAcademyDataset(
+      raw,
+      datasetName
+    );
 
     return {
       ok: true,
@@ -181,9 +336,10 @@ async function readDataset(kv, key, datasetName) {
   }
 }
 
-/**
- * coach-overrides is already stored as normal JSON,
- * so it should NOT go through the JSON5 dataset parser.
+/*
+ * coach-overrides is stored as real JSON.
+ *
+ * Do NOT parse this with the dataset parser.
  */
 async function readOverrides(kv) {
   if (!kv) {
@@ -198,7 +354,11 @@ async function readOverrides(kv) {
   try {
     const raw = await kv.get(KEYS.overrides);
 
-    if (raw === null || raw === undefined || raw.trim() === "") {
+    if (
+      raw === null ||
+      raw === undefined ||
+      raw.trim() === ""
+    ) {
       return {
         ok: true,
         source: "empty",
@@ -265,9 +425,6 @@ function getObjectCount(value) {
 export async function onRequestGet(context) {
   const kv = context.env.COACH_KV;
 
-  /*
-   * Read all Academy datasets in parallel.
-   */
   const [
     championsResult,
     itemsResult,
@@ -302,13 +459,6 @@ export async function onRequestGet(context) {
     readOverrides(kv),
   ]);
 
-  /*
-   * Return the actual Academy data plus detailed diagnostics.
-   *
-   * IMPORTANT:
-   * This endpoint only READS KV.
-   * It does not write or modify anything.
-   */
   return json({
     success: true,
 
@@ -393,7 +543,7 @@ export async function onRequestGet(context) {
     },
 
     meta: {
-      version: "academy-data-v2-json5",
+      version: "academy-data-v3-json5",
       generatedAt: new Date().toISOString(),
     },
   });
