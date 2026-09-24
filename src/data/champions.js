@@ -1117,6 +1117,9 @@ export const CHAMPIONS = [
     ],
     },],
   },
+   { id: "hwei", name: "hwei", role: "Off-Meta-flex", tier: "A", blurb: "Hwei can work as a utility-focused support who provides strong poke, zone control, crowd control, and teamfight pressure. His versatile abilities allow him to control space, set up fights, peel for allies, and punish enemies who overextend." },
+    { Builds: [],},
+  
   // ---- Full Wild Rift roster expansion (Phase 3, Champion Matchups redesign) ----
   // Added so the Matchup picker can select ANY current Wild Rift champion, not just
   // the 36 Support-focused ones above. Minimal fields ONLY -- id/name/role/tier --
@@ -1276,7 +1279,7 @@ export const CHAMPIONS = [
 // same set; it isn't meant to diverge from that as its own separate
 // judgment call.
 const ACADEMY_COVERED_IDS = new Set([
-  "alistar", "bard", "blitzcrank", "braum", "galio", "gragas", "janna", "jarvan-iv",
+  "alistar", "bard", "blitzcrank", "braum", "galio", "gragas","hwei", "janna", "jarvan-iv",
   "karma", "leona", "lulu", "lux", "maokai", "mel", "milio", "morgana", "nami",
   "nautilus", "norra", "ornn", "poppy", "pyke", "rakan", "rell", "senna", "seraphine",
   "sett", "skarner", "sona", "soraka", "swain", "taliyah", "thresh", "yuumi", "zilean", "zyra",
