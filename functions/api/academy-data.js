@@ -1,3 +1,5 @@
+import JSON5 from "json5";
+
 const KEYS = {
   champions: "champions-data",
   items: "items-data",
@@ -27,175 +29,121 @@ function json(data, status = 200) {
 }
 
 /**
- * Parse Academy datasets stored in KV.
+ * Convert the current Academy KV dataset format into
+ * something JSON5 can parse.
  *
- * The current KV format is JavaScript-like source:
+ * Supported formats:
  *
- * { id: "lulu", name: "Lulu", ... },
- * { id: "janna", name: "Janna", ... },
+ * 1. Full array:
+ *    [
+ *      { id: "lulu", ... },
+ *      { id: "janna", ... }
+ *    ]
  *
- * It is NOT normal JSON.
+ * 2. JavaScript export:
+ *    export const CHAMPIONS = [
+ *      { id: "lulu", ... }
+ *    ];
  *
- * This parser extracts the top-level object/array structure without
- * requiring an external dependency.
+ * 3. Fragment:
+ *    // Enchanter
+ *    { id: "lulu", ... },
+ *    { id: "janna", ... },
+ *
+ *    This gets wrapped in [ ... ].
  */
-function parseAcademyData(raw, datasetName) {
-  if (typeof raw !== "string" || !raw.trim()) {
-    throw new Error(`${datasetName}: KV value is empty`);
+function normalizeDatasetSource(raw) {
+  if (typeof raw !== "string") {
+    throw new Error("KV value is not a string");
   }
 
-  let source = raw.trim();
+  let source = raw
+    .replace(/^\uFEFF/, "")
+    .trim();
 
-  // Remove UTF-8 BOM if present.
-  source = source.replace(/^\uFEFF/, "");
+  if (!source) {
+    throw new Error("KV value is empty");
+  }
 
-  // Remove common export wrapper if present.
+  // Remove common JS export declaration.
   source = source.replace(
-    /^\s*export\s+(?:const|let|var)\s+\w+\s*=\s*/,
+    /^\s*export\s+(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*/,
     ""
-  ).trim();
+  );
+
+  source = source.trim();
+
+  // Remove a final semicolon from a complete exported array/object.
+  if (source.endsWith(";")) {
+    source = source.slice(0, -1).trim();
+  }
 
   /*
-   * Case 1:
-   * The KV value is already a complete array.
+   * Already a complete JSON5 array.
    */
   if (source.startsWith("[") && source.endsWith("]")) {
-    return parseLooseJson(source, datasetName);
+    return source;
   }
 
   /*
-   * Case 2:
-   * The KV value is a complete object.
+   * A single complete object.
    */
   if (source.startsWith("{") && source.endsWith("}")) {
-    return parseLooseJson(source, datasetName);
+    return `[${source}]`;
   }
 
   /*
-   * Case 3:
-   * The KV value contains object entries without
-   * an enclosing array:
+   * Current champions-data format is a fragment:
    *
-   * { ... },
+   * // Enchanter
    * { ... },
    * { ... },
    *
-   * Wrap them in an array.
+   * JSON5 can parse the objects individually but not as
+   * multiple top-level values, so wrap the whole fragment.
    */
-  return parseLooseJson(`[${source}]`, datasetName);
+  return `[${source}]`;
 }
 
 /**
- * Convert the Academy JavaScript-like syntax into valid JSON
- * without using eval().
+ * Parse an Academy dataset stored in KV.
  *
- * This intentionally supports the current data format:
- *
- *   id: "lulu"
- *   name: "Lulu"
- *   tag: "Core"
- *   type: "core"
- *
- * and preserves quoted strings containing apostrophes such as:
- *
- *   Kog'Maw
- *   Mikael's Blessing
+ * JSON5 supports:
+ * - // comments
+ * - /* comments *\/
+ * - single quoted strings
+ * - unquoted object keys
+ * - trailing commas
  */
-function parseLooseJson(source, datasetName) {
+function parseAcademyDataset(raw, datasetName) {
   try {
-    return JSON.parse(source);
-  } catch (firstError) {
-    // Convert unquoted object keys to quoted JSON keys.
-    let converted = source.replace(
-      /([{,]\s*)([A-Za-z_$][A-Za-z0-9_$-]*)\s*:/g,
-      '$1"$2":'
-    );
+    const normalized = normalizeDatasetSource(raw);
+    const parsed = JSON5.parse(normalized);
 
-    /*
-     * Remove JavaScript-style comments.
-     *
-     * Only remove // comments when they occur outside strings.
-     */
-    converted = stripLineComments(converted);
-
-    /*
-     * Remove trailing commas before } or ].
-     */
-    converted = converted.replace(/,\s*([}\]])/g, "$1");
-
-    try {
-      return JSON.parse(converted);
-    } catch (secondError) {
+    if (!Array.isArray(parsed)) {
       throw new Error(
-        `${datasetName}: unable to parse KV data. ` +
-        `Original error: ${firstError.message}. ` +
-        `After conversion: ${secondError.message}`
+        `Expected an array but received ${typeof parsed}`
       );
     }
+
+    return parsed;
+  } catch (error) {
+    throw new Error(
+      `${datasetName}: ${error?.message || String(error)}`
+    );
   }
 }
 
 /**
- * Removes // comments without destroying // inside strings.
+ * Read one of the Academy dataset keys.
  */
-function stripLineComments(input) {
-  let output = "";
-  let inString = false;
-  let quote = "";
-  let escaped = false;
-
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-    const next = input[i + 1];
-
-    if (inString) {
-      output += char;
-
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === quote) {
-        inString = false;
-        quote = "";
-      }
-
-      continue;
-    }
-
-    if (char === '"' || char === "'" || char === "`") {
-      /*
-       * JSON ultimately requires double-quoted strings.
-       * We don't attempt to convert single/backtick strings here.
-       * The current Academy data uses double quotes.
-       */
-      inString = true;
-      quote = char;
-      output += char;
-      continue;
-    }
-
-    if (char === "/" && next === "/") {
-      while (i < input.length && input[i] !== "\n") {
-        i++;
-      }
-
-      output += "\n";
-      continue;
-    }
-
-    output += char;
-  }
-
-  return output;
-}
-
 async function readDataset(kv, key, datasetName) {
   if (!kv) {
     return {
       ok: false,
       source: "unavailable",
       data: null,
+      count: 0,
       error: "COACH_KV binding is not available",
     };
   }
@@ -203,21 +151,23 @@ async function readDataset(kv, key, datasetName) {
   try {
     const raw = await kv.get(key);
 
-    if (!raw || !raw.trim()) {
+    if (raw === null || raw === undefined || raw.trim() === "") {
       return {
         ok: false,
         source: "missing",
         data: null,
-        error: `KV key "${key}" is empty or missing`,
+        count: 0,
+        error: `KV key "${key}" is missing or empty`,
       };
     }
 
-    const data = parseAcademyData(raw, datasetName);
+    const data = parseAcademyDataset(raw, datasetName);
 
     return {
       ok: true,
       source: "kv",
       data,
+      count: data.length,
       error: null,
     };
   } catch (error) {
@@ -225,11 +175,16 @@ async function readDataset(kv, key, datasetName) {
       ok: false,
       source: "error",
       data: null,
+      count: 0,
       error: error?.message || String(error),
     };
   }
 }
 
+/**
+ * coach-overrides is already stored as normal JSON,
+ * so it should NOT go through the JSON5 dataset parser.
+ */
 async function readOverrides(kv) {
   if (!kv) {
     return {
@@ -243,7 +198,7 @@ async function readOverrides(kv) {
   try {
     const raw = await kv.get(KEYS.overrides);
 
-    if (!raw || !raw.trim()) {
+    if (raw === null || raw === undefined || raw.trim() === "") {
       return {
         ok: true,
         source: "empty",
@@ -254,17 +209,39 @@ async function readOverrides(kv) {
 
     const parsed = JSON.parse(raw);
 
+    const data = {
+      ...EMPTY_OVERRIDES,
+      ...parsed,
+
+      champions:
+        parsed?.champions &&
+        typeof parsed.champions === "object"
+          ? parsed.champions
+          : {},
+
+      items:
+        parsed?.items &&
+        typeof parsed.items === "object"
+          ? parsed.items
+          : {},
+
+      runes:
+        parsed?.runes &&
+        typeof parsed.runes === "object"
+          ? parsed.runes
+          : {},
+
+      decisionTrees:
+        parsed?.decisionTrees &&
+        typeof parsed.decisionTrees === "object"
+          ? parsed.decisionTrees
+          : {},
+    };
+
     return {
       ok: true,
       source: "kv",
-      data: {
-        ...EMPTY_OVERRIDES,
-        ...parsed,
-        champions: parsed?.champions || {},
-        items: parsed?.items || {},
-        runes: parsed?.runes || {},
-        decisionTrees: parsed?.decisionTrees || {},
-      },
+      data,
       error: null,
     };
   } catch (error) {
@@ -277,27 +254,26 @@ async function readOverrides(kv) {
   }
 }
 
-function countData(data) {
-  if (Array.isArray(data)) {
-    return data.length;
+function getObjectCount(value) {
+  if (!value || typeof value !== "object") {
+    return 0;
   }
 
-  if (data && typeof data === "object") {
-    return Object.keys(data).length;
-  }
-
-  return 0;
+  return Object.keys(value).length;
 }
 
 export async function onRequestGet(context) {
   const kv = context.env.COACH_KV;
 
+  /*
+   * Read all Academy datasets in parallel.
+   */
   const [
-    champions,
-    items,
-    runes,
-    spells,
-    overrides,
+    championsResult,
+    itemsResult,
+    runesResult,
+    spellsResult,
+    overridesResult,
   ] = await Promise.all([
     readDataset(
       kv,
@@ -326,79 +302,98 @@ export async function onRequestGet(context) {
     readOverrides(kv),
   ]);
 
+  /*
+   * Return the actual Academy data plus detailed diagnostics.
+   *
+   * IMPORTANT:
+   * This endpoint only READS KV.
+   * It does not write or modify anything.
+   */
   return json({
     success: true,
 
     data: {
-      champions: champions.data,
-      items: items.data,
-      runes: runes.data,
-      spells: spells.data,
-      overrides: overrides.data,
+      champions: championsResult.data,
+      items: itemsResult.data,
+      runes: runesResult.data,
+      spells: spellsResult.data,
+      overrides: overridesResult.data,
     },
 
     sources: {
-      champions: champions.source,
-      items: items.source,
-      runes: runes.source,
-      spells: spells.source,
-      overrides: overrides.source,
+      champions: championsResult.source,
+      items: itemsResult.source,
+      runes: runesResult.source,
+      spells: spellsResult.source,
+      overrides: overridesResult.source,
     },
 
     diagnostics: {
-      kvBindingAvailable: !!kv,
+      kvBindingAvailable: Boolean(kv),
 
       champions: {
-        ok: champions.ok,
-        count: countData(champions.data),
-        source: champions.source,
-        error: champions.error,
+        ok: championsResult.ok,
+        source: championsResult.source,
+        count: championsResult.count,
+        error: championsResult.error,
       },
 
       items: {
-        ok: items.ok,
-        count: countData(items.data),
-        source: items.source,
-        error: items.error,
+        ok: itemsResult.ok,
+        source: itemsResult.source,
+        count: itemsResult.count,
+        error: itemsResult.error,
       },
 
       runes: {
-        ok: runes.ok,
-        count: countData(runes.data),
-        source: runes.source,
-        error: runes.error,
+        ok: runesResult.ok,
+        source: runesResult.source,
+        count: runesResult.count,
+        error: runesResult.error,
       },
 
       spells: {
-        ok: spells.ok,
-        count: countData(spells.data),
-        source: spells.source,
-        error: spells.error,
+        ok: spellsResult.ok,
+        source: spellsResult.source,
+        count: spellsResult.count,
+        error: spellsResult.error,
       },
 
       overrides: {
-        ok: overrides.ok,
-        source: overrides.source,
-        champions: Object.keys(
-          overrides.data?.champions || {}
-        ).length,
-        items: Object.keys(
-          overrides.data?.items || {}
-        ).length,
-        runes: Object.keys(
-          overrides.data?.runes || {}
-        ).length,
-        decisionTrees: Object.keys(
-          overrides.data?.decisionTrees || {}
-        ).length,
-        patch: overrides.data?.patch || null,
-        verifiedPatch: overrides.data?.verifiedPatch || null,
-        error: overrides.error,
+        ok: overridesResult.ok,
+        source: overridesResult.source,
+
+        champions: getObjectCount(
+          overridesResult.data?.champions
+        ),
+
+        items: getObjectCount(
+          overridesResult.data?.items
+        ),
+
+        runes: getObjectCount(
+          overridesResult.data?.runes
+        ),
+
+        decisionTrees: getObjectCount(
+          overridesResult.data?.decisionTrees
+        ),
+
+        patch:
+          overridesResult.data?.patch || null,
+
+        verifiedPatch:
+          overridesResult.data?.verifiedPatch || null,
+
+        patchStatus:
+          overridesResult.data?.patchStatus || null,
+
+        error: overridesResult.error,
       },
     },
 
     meta: {
-      version: "academy-data-v1",
+      version: "academy-data-v2-json5",
       generatedAt: new Date().toISOString(),
     },
   });
