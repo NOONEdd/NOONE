@@ -1,5 +1,5 @@
 // Structure-preserving conversion of a Riot patch page into plain text
-// that the Patch Intelligence parser (patchParser.js) can split into
+// that the Patch Notes parser (patchParser.js) can split into
 // semantic sections.
 //
 // WHY THIS EXISTS INSTEAD OF riotFallback.js's stripHtmlToText():
@@ -11,7 +11,7 @@
 // and it only decodes five HTML entities (so "&#39;" / "&#x27;" /
 // "&rarr;" survive into the text and break entity-name matching). The
 // AI Coach path is deliberately left on the old function so its behavior
-// is byte-for-byte unchanged; only Patch Intelligence uses this one.
+// is byte-for-byte unchanged; only Patch Notes uses this one.
 //
 // Output format (one item per line, blank line between blocks):
 //   # Title / ## Section / ### Subsection ...   headings from <h1>-<h6>

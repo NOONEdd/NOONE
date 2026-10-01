@@ -96,7 +96,7 @@ async function fetchWithTimeout(url, timeoutMs) {
  *  any failure -- never throws.
  *
  *  Exported (unlike the other internal helpers in this file) because
- *  functions/api/admin/patch-check.js -- Patch Intelligence's automatic
+ *  functions/api/admin/patch-check.js -- Patch Notes' automatic
  *  detection step -- needs exactly this same "what's the latest slug"
  *  discovery to compare against the last patch it already generated a
  *  report for. Reusing this function rather than writing a second index
@@ -190,7 +190,7 @@ function patchPageUrl(slug) {
 /** One live fetch + HTML-to-text strip of a patch page, shared by both
  *  cached-content functions below. No truncation, no caching -- those
  *  differ between the two callers (a short prompt-injection snippet for
- *  the AI Coach vs. the much larger text Patch Intelligence needs to
+ *  the AI Coach vs. the much larger text Patch Notes needs to
  *  analyze), so each wraps this with its own cap and its own cache
  *  entry rather than one trying to reuse the other's (already-truncated)
  *  cached copy. Returns null on any failure -- never throws. */
@@ -207,7 +207,7 @@ async function fetchPatchPageText(slug) {
 }
 
 /** Same one fetch as fetchPatchPageText, but returns the raw page HTML
- *  untouched (no stripping) for Patch Intelligence's structure-preserving
+ *  untouched (no stripping) for Patch Notes' structure-preserving
  *  extractor (patchText.js), and uses its own longer timeout -- Riot's
  *  full patch page is far larger than the AI-Coach snippet path expects
  *  and can legitimately take longer than RIOT_FALLBACK_TIMEOUT_MS (5s)
@@ -257,7 +257,7 @@ async function fetchAndCachePatchContent(slug, kv) {
 }
 
 /** Same one-fetch-per-slug idea as fetchAndCachePatchContent above, but
- *  for Patch Intelligence: its OWN cache key/format, a structure-
+ *  for Patch Notes: its OWN cache key/format, a structure-
  *  preserving extraction (patchText.js's htmlToStructuredText, not the
  *  AI-Coach path's line-flattening stripHtmlToText), and its own longer
  *  fetch timeout.

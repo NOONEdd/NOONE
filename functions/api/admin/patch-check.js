@@ -2,10 +2,10 @@
 //
 // TWO independent operations, both admin-only, sharing one endpoint
 // because they share almost all of their logic (fetch official content,
-// build the Academy roster snapshot, run the AI analysis, shape a
-// report object) and both belong to Patch Intelligence's generation
-// step -- they differ only in HOW they pick a slug and what happens to
-// that slug/report afterward:
+// build the Academy roster snapshot, run the deterministic analysis,
+// shape a report object) and both belong to Patch Notes'
+// generation step -- they differ only in HOW they pick a slug and what
+// happens to that slug/report afterward:
 //
 //   1. NORMAL DETECTION (default; also reachable via {"trigger":"manual"}
 //      or {"trigger":"scheduled"}) -- discovers Riot's LATEST slug,
@@ -15,36 +15,46 @@
 //      new-patch notification. Reachable by either an authenticated
 //      admin session OR the shared-secret header (unattended
 //      scheduling -- see README's "Automatic patch detection" section).
-//      Unchanged in every observable way from before this file added
-//      re-analysis.
 //
-//   2. RE-ANALYZE ({"action":"reanalyze","patchId":"7-3a"}) -- analyzes
-//      a SPECIFIC, already-known patch id directly (never
-//      discoverLatestPatchSlug()), producing a new revision alongside
-//      whatever revision(s) already exist for it -- see
-//      patchReportsStore.js's saveReanalysisRevision(). Never touches
-//      last-known-slug, never sends the new-patch notification (this is
-//      explicitly NOT "a new patch was found"), and works identically
-//      whether or not patchId is still Riot's latest patch. Admin
-//      SESSION only -- the scheduled shared-secret path can never reach
-//      this branch, since re-analysis is a deliberate, credit-consuming
-//      admin action, never something a cron trigger should do on its
-//      own.
+//   2. RESCAN ({"action":"rescan","patchId":"7-3a"}; "reanalyze" and
+//      "retry-analysis" are accepted as aliases for the same operation,
+//      for continuity with older Admin UI builds) -- re-runs
+//      deterministic detection for a SPECIFIC, already-known patch id,
+//      producing a new revision alongside whatever revision(s) already
+//      exist for it -- see patchReportsStore.js's
+//      saveReanalysisRevision(). Refreshes every entry's Riot-sourced
+//      FACT fields from a fresh pass over the (possibly re-fetched)
+//      source text, while preserving every already-written COACH field
+//      on any entity that's still detected (see
+//      patchDeterministicReport.js's mergeFreshOntoExisting) -- a rescan
+//      is "the source text or Academy data may have changed, refresh
+//      what Riot said," never "throw away the Coach's analysis." Never
+//      touches last-known-slug, never sends the new-patch notification
+//      (this is explicitly NOT "a new patch was found"). Admin SESSION
+//      only.
+//
+// AI REMOVAL (this rebuild): there is no AI call anywhere in this file
+// or anything it calls. Every analysis either succeeds deterministically
+// or the earlier content FETCH failed (source_unavailable) -- there is
+// no ai_error, no partial_failure, no retry-analysis-as-recovery-from-a-
+// failed-AI-call concept anymore, because none of those failure modes
+// exist once nothing calls out to a model. The one remaining safety net
+// is a generic try/catch around the analysis call, for a genuine code
+// bug -- never expected to trigger in normal operation.
 //
 // Neither operation ever touches public Academy data
-// (overrides.champions/items/runes/decisionTrees, or even
-// overrides.patch/verifiedPatch) -- only functions/api/admin/
-// patch-reports.js's "publish" action can ever change those, and only
-// after a human looks at the specific revision this endpoint produced.
+// (overrides.champions/items/runes/decisionTrees) directly -- only
+// functions/api/admin/patch-reports.js's "publish" action can ever
+// change overrides.patch/verifiedPatch, through the KV safety layer
+// (functions/_lib/kvSafety.js), and only after a human looks at the
+// specific revision this endpoint produced.
 
 import { requireAdminSession, hasValidPatchCheckSecret } from "../../_lib/adminAuth.js";
 import { discoverLatestPatchSlug, fetchAndCacheFullPatchContent, extractPatchNumberFromContent } from "../../_lib/riotFallback.js";
 import { runPatchIntelAnalysis, PATCH_INTEL_ENGINE_VERSION } from "../../_lib/patchIntelPipeline.js";
-import { mergeTargetedRetry } from "../../_lib/patchAggregate.js";
-import { PATCH_INTEL_MAX_TOKENS } from "../../_lib/config.js";
+import { mergeFreshOntoExisting } from "../../_lib/patchNotesReview.js";
 import { saveNewReport, saveReanalysisRevision, updateReportRevision, getLatestReport, getLastKnownSlug, setLastKnownSlug } from "../../_lib/patchReportsStore.js";
 import { sendPatchNotification, sendSourceUnavailableNotification } from "../../_lib/notify.js";
-import { resolveActiveProviderAndModel } from "../../_lib/aiProvider.js";
 import { fetchOverrides } from "../../_lib/kv.js";
 import { logPatchIntelEvent } from "../../_lib/logger.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch } from "../../../src/lib/effectiveData.js";
@@ -68,13 +78,7 @@ function adminReviewUrlFor(request) {
 
 /** A short, safe fingerprint of the fetched patch content -- proves in
  *  logs that a specific analysis run was given specific source text
- *  (e.g. "did re-analysis actually get the same Riot content as the
- *  original run, or something different/truncated/empty") without ever
- *  logging the content itself. SHA-256 via the runtime's native Web
- *  Crypto (available in Cloudflare Workers/Pages Functions with no new
- *  dependency), truncated to 16 hex chars -- collision-proof enough for
- *  "does this match the earlier logged fingerprint," which is all this
- *  is for. */
+ *  without ever logging the content itself. */
 async function fingerprintContent(content) {
   const bytes = new TextEncoder().encode(content || "");
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -82,30 +86,20 @@ async function fingerprintContent(content) {
 }
 
 /** Shared by both operations: given a specific slug, produce a full
- *  report object (source_unavailable / ai_error / pending_review),
+ *  report object (source_unavailable / analysis_error / pending_review),
  *  never persisting or notifying anything itself -- callers decide how
  *  to save it (saveNewReport vs. saveReanalysisRevision) and what else
- *  to do (advance last-known-slug, notify) since those genuinely differ
- *  between normal detection and re-analysis.
+ *  to do (advance last-known-slug, notify).
  *
- *  Trust-hierarchy note (unchanged): the AI is only ever called AFTER a
- *  successful official-source fetch -- a failed fetch returns a
- *  source_unavailable report WITHOUT reaching runPatchIntelAnalysis at
- *  all, same as always.
- *
- *  TARGETED RETRY (2026-09-23 refactor): `targetEntityKeys` (optional
- *  Set<string>) and `previousReport` (the existing report to merge
- *  onto) are set together, ONLY by handleReanalyze's retry-analysis
- *  branch, and ONLY when the previous revision has a usable
- *  analysisCoverage to target -- see that function's own comment for
- *  exactly when it does vs. falls back to a full run. When set, this
- *  narrows planning to just the units touching those entities
- *  (patchPlanner.js's onlyEntityKeys gate) and merges the result onto
- *  `previousReport` (patchAggregate.js's mergeTargetedRetry) before
- *  returning -- every other caller (normal detection, and reanalyze's
- *  deliberate full fresh look) passes neither and gets the exact
- *  unrestricted, unmerged behavior this function has always had. */
-async function analyzePatch({ env, kv, slug, overrides, logContext = {}, targetEntityKeys = null, previousReport = null }) {
+ *  `mergeOnto` (optional, rescan only): an existing report whose COACH
+ *  fields should be preserved on any entity this run still detects --
+ *  see patchDeterministicReport.js's mergeFreshOntoExisting. Normal
+ *  detection never passes this (there's nothing to merge onto -- it's a
+ *  brand-new patch). aiProvider/aiModel fields are kept in the saved
+ *  report shape (always null) purely so older stored revisions that DO
+ *  have real values there stay readable without a schema migration --
+ *  nothing reads them as meaningful anymore. */
+async function analyzePatch({ kv, slug, overrides, logContext = {}, mergeOnto = null }) {
   const previousPatch = resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION);
   const contentResult = await fetchAndCacheFullPatchContent(slug, kv);
   const contentFingerprint = contentResult.found ? await fingerprintContent(contentResult.content) : null;
@@ -115,9 +109,6 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {}, targetE
     found: contentResult.found,
     contentSource: contentResult.found ? (contentResult.cached ? "cache" : "fresh_fetch") : "unavailable",
     contentFingerprint, contentLength: contentResult.content ? contentResult.content.length : 0,
-    // Additive since the riotFallback.js truncation-root-cause fix: a
-    // safety-ceiling truncation is now a rare, explicitly logged event
-    // instead of the silent, always-on behavior it used to be.
     sourceTruncated: Boolean(contentResult.truncated), sourceOriginalLength: contentResult.originalLength || 0,
   });
 
@@ -138,218 +129,91 @@ async function analyzePatch({ env, kv, slug, overrides, logContext = {}, targetE
   const { patchNumber, source: patchNumberSource } = extractPatchNumberFromContent(contentResult.content, slug);
 
   // Academy-covered only -- see isAcademyCovered's own doc comment
-  // (src/data/champions.js) for why: this roster is shown directly to
-  // the AI as "here's what Academy tracks" (patchIntelligence.js's
-  // formatRosterSnapshot/ANALYST_INSTRUCTIONS), not just used for
-  // post-hoc id resolution, so a champion Academy doesn't cover simply
-  // isn't part of what either operation ever reports on.
+  // (src/data/champions.js): this roster is exactly what Academy tracks
+  // curated content for, so a champion Academy doesn't cover isn't part
+  // of what this pipeline reports on either.
   const championRoster = CHAMPIONS.filter(isAcademyCovered).map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id]));
   const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 
-  const { provider: aiProvider, model: aiModel } = resolveActiveProviderAndModel(env);
   const startedAt = Date.now();
-  logPatchIntelEvent({ stage: "analysis_start", slug, ...logContext, provider: aiProvider, model: aiModel, maxTokens: PATCH_INTEL_MAX_TOKENS, engineVersion: PATCH_INTEL_ENGINE_VERSION, startedAt: new Date(startedAt).toISOString() });
+  logPatchIntelEvent({ stage: "analysis_start", slug, ...logContext, engineVersion: PATCH_INTEL_ENGINE_VERSION, startedAt: new Date(startedAt).toISOString() });
 
-  const analysis = await runPatchIntelAnalysis({ env, patchContent: contentResult.content, championRoster, itemRoster, runeRoster, onlyEntityKeys: targetEntityKeys });
-  const durationMs = Date.now() - startedAt;
-  const pipelineLogFields = analysis.pipelineStats
-    ? {
-        parsedUnits: analysis.pipelineStats.parsedUnits?.units,
-        parseQuality: analysis.pipelineStats.parsedUnits?.quality,
-        categoryCounts: analysis.pipelineStats.categoryCounts,
-        planBatches: analysis.pipelineStats.plan?.batches,
-        planUnassignedUnits: analysis.pipelineStats.plan?.unassignedUnits,
-        batchesAttempted: analysis.pipelineStats.batchesAttempted,
-        batchesNotStarted: analysis.pipelineStats.batchesNotStarted,
-        // retry/split diagnostics (spec section 23) -- totalAttempts
-        // counts every AI call made across every batch/split-half this
-        // run, so a patch that needed a lot of retrying is visible in
-        // the logs even when it ultimately succeeded.
-        totalAttempts: analysis.pipelineStats.retryStats?.totalAttempts,
-        batchesSplit: analysis.pipelineStats.retryStats?.batchesSplit,
-        maxAttemptsForOneBatch: analysis.pipelineStats.retryStats?.maxAttemptsForOneBatch,
-      }
-    : {};
-
-  if (!analysis.ok) {
-    // logDetail never contains an API key, password, or session token,
-    // only reply length/finish-reason/a truncated raw-reply snippet or
-    // a parse-error message -- safe for both Cloudflare's Function logs
-    // AND the report's own adminNotes (so the failure reason is visible
-    // directly in the Admin UI without needing separate log access).
-    logPatchIntelEvent({ stage: "analysis_finish", slug, ...logContext, ok: false, code: analysis.code, detail: analysis.logDetail, provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs, targeted: Boolean(targetEntityKeys), targetedEntities: targetEntityKeys ? targetEntityKeys.size : undefined, ...pipelineLogFields });
-    // TARGETED RETRY: this round's own AI calls all failed, so nothing
-    // NEW was learned -- but previousReport's already-succeeded content
-    // is real, still-valid analysis and must not be wiped to empty just
-    // because THIS attempt at the remaining slice hit a provider error
-    // (see mergeTargetedRetry's own doc comment). A non-targeted run
-    // (normal detection, or reanalyze's full fresh look) has no prior
-    // content to preserve and keeps the original empty-arrays behavior.
-    const mergedOnFailure = targetEntityKeys
-      ? mergeTargetedRetry({ previousReport, freshReport: null, freshDeterministicFindings: analysis.deterministicFindings || null, targetEntityKeys })
-      : { championChanges: [], itemChanges: [], runeChanges: [], systemChanges: [], supportMetaAnalysis: "", recommendedTierChanges: [] };
+  let analysis;
+  try {
+    // patchVersion/sourceUrl are provenance stamped on every extracted change; previousPatchNotes
+    // carries the human review (kept/edited/removed/rejected + display edits + removed sections)
+    // of the report being regenerated forward by stable change ID -- a rescan can never reset it.
+    analysis = await runPatchIntelAnalysis({
+      patchContent: contentResult.content, championRoster, itemRoster, runeRoster,
+      patchVersion: patchNumber, sourceUrl: contentResult.source,
+      previousPatchNotes: (mergeOnto && mergeOnto.patchNotes) || null,
+    });
+  } catch (err) {
+    // Belt-and-braces: deterministic extraction has no I/O and no
+    // external dependency, so this should never actually throw in
+    // normal operation -- if it does, it's a real code bug, and this
+    // must produce a visible, saved failure record (never a bare 500
+    // with no trace) rather than silently pretending nothing happened.
+    logPatchIntelEvent({ stage: "analysis_unexpected_error", slug, ...logContext, error: String((err && err.message) || err) });
     return {
-      status: "ai_error",
-      aiError: analysis.error,
-      aiErrorCode: analysis.code,
+      status: "analysis_error",
       report: {
         id: slug, patch: patchNumber, patchNumberSource, previousPatch,
-        status: "ai_error", generatedAt: new Date().toISOString(),
-        sourceUrl: contentResult.source, sourceAvailable: true, aiProvider, aiModel,
-        ...mergedOnFailure,
+        status: "analysis_error", generatedAt: new Date().toISOString(),
+        sourceUrl: contentResult.source, sourceAvailable: true, aiProvider: null, aiModel: null,
+        championChanges: [], itemChanges: [], runeChanges: [], systemChanges: [],
+        supportMetaAnalysis: "", recommendedTierChanges: [],
         sourceReferences: [contentResult.source].filter(Boolean),
-        adminNotes: `[${analysis.code}] ${analysis.error || ""}${analysis.logDetail ? `\n\nDiagnostic detail: ${analysis.logDetail}` : ""}${targetEntityKeys ? `\n\nThis was a targeted retry of ${targetEntityKeys.size} previously-unresolved entit${targetEntityKeys.size === 1 ? "y" : "ies"} -- the rest of this report is unchanged from the previous revision.` : ""}`,
+        adminNotes: `Deterministic analysis raised an unexpected error: ${err && err.message ? err.message : String(err)}`,
         reviewedBy: null, reviewedAt: null, notifiedAt: null,
-        engineVersion: analysis.engineVersion, contentFingerprint,
+        engineVersion: PATCH_INTEL_ENGINE_VERSION, contentFingerprint,
       },
     };
   }
+  const durationMs = Date.now() - startedAt;
 
-  // TARGETED RETRY: merge this round's fresh (successful) analysis onto
-  // previousReport BEFORE anything downstream (logging, the
-  // partial_failure vs. pending_review decision, or the saved report
-  // itself) looks at it -- see mergeTargetedRetry's own doc comment for
-  // why untouched entities must keep their PRIOR verdict rather than
-  // this round's own coverage (which never even looked at them).
-  // `effectiveComplete` reflects the WHOLE patch after this merge, which
-  // is what actually decides partial_failure vs. pending_review for a
-  // targeted retry -- `analysis.complete` alone only knows about this
-  // round's own (deliberately narrow) plan, not what was already
-  // resolved before it ran.
-  const effectiveReport = targetEntityKeys
-    ? mergeTargetedRetry({ previousReport, freshReport: analysis.report, freshDeterministicFindings: null, targetEntityKeys })
-    : analysis.report;
-  const effectiveComplete = targetEntityKeys ? effectiveReport.analysisCoverage.complete : analysis.complete;
+  const effectiveReport = mergeOnto ? mergeFreshOntoExisting(analysis.report, mergeOnto) : analysis.report;
 
-  // maxTokens is now always the same fixed PATCH_INTEL_MAX_TOKENS ceiling
-  // per AI call (functions/_lib/patchAnalysis.js no longer computes a
-  // per-patch estimate) -- still logged so Cloudflare's logs show what
-  // every generation actually requested, just no longer a variable worth
-  // treating as diagnostic in itself.
   logPatchIntelEvent({
-    stage: "analysis_finish", slug, ...logContext, ok: true, complete: effectiveComplete,
-    parseStrategy: analysis.parseStrategy,
-    targeted: Boolean(targetEntityKeys), targetedEntities: targetEntityKeys ? targetEntityKeys.size : undefined,
+    stage: "analysis_finish", slug, ...logContext, ok: true, complete: true,
+    rescan: Boolean(mergeOnto), reviewMerge: analysis.patchNotes?.mergeStats || null, accounting: analysis.patchNotes?.validation ? { blocks: analysis.patchNotes.validation.totalMeaningfulBlocks, unaccounted: analysis.patchNotes.validation.droppedBlocks, changes: analysis.patchNotes.validation.totalChanges } : null,
     championChanges: effectiveReport.championChanges.length, itemChanges: effectiveReport.itemChanges.length,
     runeChanges: effectiveReport.runeChanges.length, systemChanges: effectiveReport.systemChanges.length,
-    // Academy entity coverage (spec section 23's "per-entity detected ->
-    // changed -> relevant -> included trace"): states is the summary
-    // every run gets; the full per-entity `entities` array is only
-    // logged when the run is INCOMPLETE, since that's when knowing
-    // exactly which named entities ended up unresolved actually matters
-    // for triage -- logging it unconditionally would mean a normal
-    // clean 9-batch patch prints ~170 entity rows to the log for no
-    // reason every single time.
-    coverageDetected: `${effectiveReport.analysisCoverage?.detectedEntities ?? "?"}/${effectiveReport.analysisCoverage?.totalEntities ?? "?"}`,
-    coverageStates: effectiveReport.analysisCoverage?.states,
-    ...(effectiveComplete ? {} : {
-      coverageFailures: effectiveReport.analysisCoverage?.failures,
-      coverageUnresolvedEntities: (effectiveReport.analysisCoverage?.entities || []).filter((e) => e.state === "unresolved" || e.state === "detected_unknown"),
-    }),
-    provider: aiProvider, model: aiModel, maxTokens: analysis.maxTokens, engineVersion: analysis.engineVersion, durationMs, ...pipelineLogFields,
+    engineVersion: analysis.engineVersion, durationMs,
+    parsedUnits: analysis.pipelineStats?.parsedUnits?.units, categoryCounts: analysis.pipelineStats?.categoryCounts,
   });
-
-  // HARD RULE (spec: never let a report with unresolved sections look
-  // like a clean, complete analysis): effectiveComplete is false when
-  // any batch permanently failed after its retries/splits, or the
-  // wall-clock budget stopped some batches from ever being attempted,
-  // or the batch-count cap left some units unplanned entirely -- OR
-  // (targeted retry only) something from an EARLIER round is still
-  // unresolved even though this round's own narrow plan succeeded.
-  // championChanges/itemChanges/etc still reflect everything that DID
-  // successfully analyze, ACROSS EVERY REVISION (nothing already-
-  // succeeded is ever thrown away), but the report's own status makes
-  // the gap impossible to miss: it is never saved as "pending_review"
-  // (which reads as a normal, complete report ready for a simple
-  // approve/reject) -- a human has to look at report.analysisCoverage
-  // (batches.failed/notStarted, unresolvedUnits, states.unresolved)
-  // specifically. Retry Analysis targets exactly the remaining
-  // unresolved/detected_unknown entities on its next run -- it does NOT
-  // reprocess the whole patch from scratch unless there is no usable
-  // prior coverage to target (see handleReanalyze).
-  if (!effectiveComplete) {
-    const coverage = effectiveReport.analysisCoverage;
-    const failureLines = (coverage?.failures || []).map((f) => `  - ${f.batchId} (${f.unitIds.join(",")}): [${f.code}] ${f.error}`).join("\n");
-    const notes = [
-      `Analysis completed for part of this patch, but NOT all of it -- do not treat this as a finished review.`,
-      `Batches: ${coverage?.batches.succeeded ?? "?"} succeeded, ${coverage?.batches.failed ?? 0} failed, ${coverage?.batches.notStarted ?? 0} never started (time budget), out of ${coverage?.batches.planned ?? "?"} planned.`,
-      coverage?.states.unresolved ? `${coverage.states.unresolved} Academy entities are unresolved (mentioned in the patch, but never successfully analyzed).` : null,
-      failureLines ? `Failed batches:\n${failureLines}` : null,
-      `Use Retry Analysis to resolve the remaining unresolved entities (a targeted retry -- it will not re-spend AI calls on what's already resolved).`,
-    ].filter(Boolean).join("\n");
-
-    return {
-      status: "partial_failure",
-      report: {
-        id: slug, patch: patchNumber, patchNumberSource, previousPatch,
-        status: "partial_failure", generatedAt: new Date().toISOString(),
-        sourceUrl: contentResult.source, sourceAvailable: true, aiProvider, aiModel,
-        ...effectiveReport,
-        sourceReferences: [contentResult.source].filter(Boolean),
-        adminNotes: notes, reviewedBy: null, reviewedAt: null, notifiedAt: null,
-        engineVersion: analysis.engineVersion, contentFingerprint,
-      },
-    };
-  }
 
   return {
     status: "pending_review",
     report: {
       id: slug, patch: patchNumber, patchNumberSource, previousPatch,
       status: "pending_review", generatedAt: new Date().toISOString(),
-      sourceUrl: contentResult.source, sourceAvailable: true, aiProvider, aiModel,
+      sourceUrl: contentResult.source, sourceAvailable: true, aiProvider: null, aiModel: null,
       ...effectiveReport,
       sourceReferences: [contentResult.source].filter(Boolean),
-      adminNotes: targetEntityKeys ? `Targeted retry resolved the remaining ${targetEntityKeys.size} entit${targetEntityKeys.size === 1 ? "y" : "ies"} -- this patch is now fully analyzed.` : "",
+      adminNotes: mergeOnto ? "Re-scanned: Riot facts refreshed; every Patch Notes review decision (kept/edited/removed/rejected, display edits, removed sections) and Coach field was carried forward by stable change ID." : "",
       reviewedBy: null, reviewedAt: null, notifiedAt: null,
       engineVersion: analysis.engineVersion, contentFingerprint,
     },
   };
 }
 
-/** Re-analyze / Retry Analysis -- ONE shared implementation for both,
- *  differing only in whether this round is TARGETED:
- *  {"action":"reanalyze","patchId":"7-3a"} is a deliberate fresh look at
- *  a working report and always runs the full, unrestricted analysis,
- *  same as it always has. {"action":"retry-analysis","patchId":"7-2d"}
- *  is recovery, and -- since the 2026-09-23 deterministic-first refactor
- *  -- targets ONLY the entities the existing report's own
- *  analysisCoverage lists as "unresolved" or "detected_unknown" (see
- *  patchAggregate.js's mergeTargetedRetry, and
- *  patchPlanner.planPatchAnalysis's onlyEntityKeys), instead of
- *  re-spending AI calls on entities this patch already has a confirmed
- *  verdict for. Falls back to a full, non-targeted run automatically
- *  when there's nothing usable to target from (the existing report has
- *  no analysisCoverage at all -- a total prior ai_error/
- *  source_unavailable, or a revision saved before this refactor) --
- *  targetEntityKeys stays null in that case and this behaves exactly as
- *  a full reanalyze would. Admin session only (see file header for why
- *  the scheduled secret can't reach this). Requires a report to already
- *  exist for patchId -- this is "generate another revision of a patch
- *  Patch Intelligence already knows about," not a way to sneak a
- *  brand-new patch in through a side door. Works identically regardless
- *  of the EXISTING report's status -- published, ai_error,
- *  source_unavailable, whatever -- there is no "only retry if currently
- *  broken" gate here; that distinction is purely which button the Admin
- *  UI shows for which status (src/pages/AdminPage.jsx), not anything
- *  this function itself enforces or needs to.
+/** Rescan / Refresh Detection -- re-runs deterministic analysis for a
+ *  patch Patch Notes already has at least one report for,
+ *  producing a new revision that refreshes Riot-sourced facts while
+ *  preserving every Coach-written field (see analyzePatch's mergeOnto
+ *  and patchDeterministicReport.js's mergeFreshOntoExisting). Admin
+ *  session only (see file header). Works identically regardless of the
+ *  existing report's status.
  *
- *  Response is deliberately explicit about success vs. failure at the
- *  TOP level (`success`), not just buried in `status` -- a caller that
- *  only checks HTTP 200 / `ok:true` must never mistake "a new revision
- *  was recorded, but the AI call inside it failed" for "re-analysis
- *  produced a usable new analysis." `ok` stays true whenever the
- *  OPERATION itself completed (a new revision -- possibly a failure
- *  record -- was successfully created and the previously published
- *  revision, if any, is untouched); `success` is specifically "did the
- *  new revision actually get a fresh, usable AI analysis." Both are
- *  always present so neither can be misread as the other. A failed
- *  retry is never a dead end: it still creates a normal revision (just
- *  with status ai_error/source_unavailable), so the SAME action can
- *  always be called again -- there is no state a failure can leave the
- *  patch in that blocks a further retry. */
-async function handleReanalyze(context, body) {
+ *  `ok` is true whenever the operation itself completed (a new revision
+ *  was successfully created and any already-published revision is
+ *  untouched) -- there is no longer a separate `success` axis for "the
+ *  analysis step itself failed," since deterministic analysis has no
+ *  partial-failure mode; `ok:false` now only means the rescan couldn't
+ *  even run (bad request, no existing report, save failed). */
+async function handleRescan(context, body) {
   const { env } = context;
   const kv = env.COACH_KV;
   if (!kv) return json({ ok: false, code: "kv_not_configured", error: "COACH_KV binding not set up yet." }, 500);
@@ -358,7 +222,7 @@ async function handleReanalyze(context, body) {
     return json({ ok: false, code: "unauthorized", error: "Not authenticated." }, 401);
   }
 
-  const action = body?.action === "retry-analysis" ? "retry-analysis" : "reanalyze";
+  const action = "rescan";
   const patchId = body?.patchId;
   if (!patchId || typeof patchId !== "string") {
     return json({ ok: false, action, error: "Missing patchId." }, 400);
@@ -366,71 +230,37 @@ async function handleReanalyze(context, body) {
 
   const existing = await getLatestReport(kv, patchId);
   if (!existing) {
-    return json({ ok: false, action, error: `No existing report for patch "${patchId}" -- ${action === "retry-analysis" ? "retry" : "re-analyze"} only works on a patch Patch Intelligence has already generated at least once.` }, 404);
+    return json({ ok: false, action, error: `No existing report for patch "${patchId}" -- rescan only works on a patch Patch Notes has already generated at least one report for.` }, 404);
   }
   const currentRevision = existing.revision || 1;
-
-  // TARGETED RETRY (retry-analysis only -- reanalyze is always a full,
-  // deliberate fresh look, never targeted). null means "run the full
-  // analysis" -- either because this is reanalyze, or because the
-  // existing report has no analysisCoverage at all to target from (a
-  // total prior failure, or a pre-refactor revision).
-  const OPEN_COVERAGE_STATES = new Set(["unresolved", "detected_unknown"]);
-  let targetEntityKeys = null;
-  if (action === "retry-analysis" && existing.analysisCoverage && Array.isArray(existing.analysisCoverage.entities)) {
-    targetEntityKeys = new Set(
-      existing.analysisCoverage.entities.filter((e) => OPEN_COVERAGE_STATES.has(e.state)).map((e) => e.key)
-    );
-  }
 
   let result;
   try {
     const overrides = await fetchOverrides(kv);
-    result = await analyzePatch({
-      env, kv, slug: patchId, overrides,
-      logContext: { action, currentRevision },
-      targetEntityKeys,
-      previousReport: targetEntityKeys ? existing : null,
-    });
+    result = await analyzePatch({ kv, slug: patchId, overrides, logContext: { action, currentRevision }, mergeOnto: existing });
   } catch (err) {
-    // Belt-and-braces: analyzePatch/its dependencies are written to
-    // catch their own failures and return a status, never throw -- but
-    // if something unexpected still does throw (a bug, an unhandled
-    // edge case), this must still produce a real, visible error instead
-    // of a bare 500 with no detail, and MUST NOT touch anything already
-    // published (nothing above this point has written anything).
-    logPatchIntelEvent({ stage: `${action}_unexpected_error`, slug: patchId, action, currentRevision, error: String(err && err.message || err) });
-    return json({ ok: false, success: false, action, patchId, error: `Unexpected error during ${action === "retry-analysis" ? "retry" : "re-analysis"}: ${err && err.message ? err.message : String(err)}` }, 500);
+    logPatchIntelEvent({ stage: `${action}_unexpected_error`, slug: patchId, action, currentRevision, error: String((err && err.message) || err) });
+    return json({ ok: false, action, patchId, error: `Unexpected error during rescan: ${err && err.message ? err.message : String(err)}` }, 500);
   }
 
   const revision = await saveReanalysisRevision(kv, patchId, result.report);
   if (revision === null) {
-    return json({ ok: false, success: false, action, patchId, error: "Failed to save the new revision." }, 500);
+    return json({ ok: false, action, patchId, error: "Failed to save the new revision." }, 500);
   }
 
-  // Deliberately NOT calling setLastKnownSlug and NOT calling
-  // sendPatchNotification/sendSourceUnavailableNotification anywhere in
-  // this function -- this is not a newly discovered patch, so neither
-  // of those normal-detection side effects apply. Whatever revision was
-  // already published for this id is completely untouched by
-  // everything above -- saveReanalysisRevision carries publishedRevision
-  // forward unchanged, and analyzePatch never writes to any EXISTING
-  // revision's key at all, only the brand new one's.
-  const success = result.status === "pending_review";
+  // Deliberately NOT calling setLastKnownSlug and NOT sending any
+  // notification -- this is not a newly discovered patch. Whatever
+  // revision was already published for this id is completely untouched
+  // by everything above.
   return json({
     ok: true,
-    success,
-    action,
-    patchId,
+    action, patchId,
     previousRevision: currentRevision,
     revision,
     status: result.status,
     engineVersion: result.report.engineVersion || null,
     contentFingerprint: result.report.contentFingerprint || null,
-    targeted: Boolean(targetEntityKeys),
-    targetedEntityCount: targetEntityKeys ? targetEntityKeys.size : null,
     report: { ...result.report, revision },
-    ...(result.aiError ? { aiError: result.aiError, aiErrorCode: result.aiErrorCode } : {}),
   });
 }
 
@@ -448,14 +278,14 @@ export async function onRequestPost(context) {
     // no body / not JSON is fine -- trigger just defaults below
   }
 
-  // "reanalyze" and "retry-analysis" are aliases for the exact same
-  // operation (see handleReanalyze's doc comment) -- Admin UI uses
-  // "reanalyze" for the deliberate fresh-look button on a published
-  // report, and "retry-analysis" for the recovery button on an
-  // ai_error/source_unavailable one (src/pages/AdminPage.jsx), but
-  // there is only one implementation either way.
-  if (body && (body.action === "reanalyze" || body.action === "retry-analysis")) {
-    return handleReanalyze(context, body);
+  // "rescan" is the canonical action name; "reanalyze" and
+  // "retry-analysis" are accepted as aliases for continuity with older
+  // Admin UI builds and existing integrations -- all three run the
+  // exact same implementation now that there is no AI call to
+  // distinguish "a deliberate fresh look" from "recovering from a
+  // failure" (see file header).
+  if (body && (body.action === "rescan" || body.action === "reanalyze" || body.action === "retry-analysis")) {
+    return handleRescan(context, body);
   }
 
   // ---- Normal new-patch detection (unchanged) ----
@@ -473,9 +303,8 @@ export async function onRequestPost(context) {
   if (!latestSlug) {
     // Couldn't even reach/parse Riot's patch index -- we don't know
     // whether a new patch exists at all, so there's nothing to persist
-    // (no slug to key a report by) and nothing was changed. Only
-    // notify on the unattended path -- a manual click already shows
-    // this error directly in the Admin UI.
+    // and nothing was changed. Only notify on the unattended path -- a
+    // manual click already shows this error directly in the Admin UI.
     if (trigger === "scheduled") {
       const overrides = await fetchOverrides(kv);
       const previousPatch = resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION);
@@ -491,25 +320,24 @@ export async function onRequestPost(context) {
 
   const overrides = await fetchOverrides(kv);
 
-  // ROOT-CAUSE FIX (data-loss bug found during the pipeline audit, not
-  // something the original spec called out): a report can already exist
-  // for `latestSlug` even though last-known-slug never advanced to it --
-  // this happens whenever the FIRST detection attempt for a patch failed
-  // (ai_error / source_unavailable), since last-known-slug is only ever
+  // ROOT-CAUSE FIX (data-loss bug found during an earlier pipeline
+  // audit -- unrelated to AI removal, still applies exactly as before):
+  // a report can already exist for `latestSlug` even though
+  // last-known-slug never advanced to it -- this happens whenever the
+  // FIRST detection attempt for a patch failed (source_unavailable,
+  // formerly also ai_error), since last-known-slug is only ever
   // advanced below on a successful (pending_review) result. If a LATER
-  // "check for new patch" run (e.g. the next scheduled cron tick) then
-  // re-detects that same still-not-yet-confirmed slug, calling
-  // saveNewReport() unconditionally would reset this patch's revision
-  // pointer straight back to {latestRevision:1, publishedRevision:null}
-  // -- silently discarding every later revision, INCLUDING a currently
-  // published one an admin already reviewed and approved via Retry
-  // Analysis, with no warning to anyone. Checking for an existing report
+  // "check for new patch" run then re-detects that same
+  // still-not-yet-confirmed slug, calling saveNewReport() unconditionally
+  // would reset this patch's revision pointer straight back to
+  // {latestRevision:1, publishedRevision:null} -- silently discarding
+  // every later revision, INCLUDING a currently published one an admin
+  // already reviewed and approved. Checking for an existing report
   // first and routing to the same upsert saveReanalysisRevision() uses
-  // (rather than ever re-running saveNewReport on an id that isn't
-  // actually new) makes that impossible: nothing this endpoint does can
-  // ever destroy a revision that already exists.
+  // makes that impossible: nothing this endpoint does can ever destroy
+  // a revision that already exists.
   const existingForSlug = await getLatestReport(kv, latestSlug);
-  const result = await analyzePatch({ env, kv, slug: latestSlug, overrides, logContext: { action: "detect", trigger } });
+  const result = await analyzePatch({ kv, slug: latestSlug, overrides, logContext: { action: "detect", trigger }, mergeOnto: existingForSlug || null });
 
   const revision = existingForSlug
     ? await saveReanalysisRevision(kv, latestSlug, result.report)
@@ -519,18 +347,13 @@ export async function onRequestPost(context) {
   if (result.status === "pending_review") {
     // Only advance last-known-slug (and only send the normal new-patch
     // notification) once a real analysis actually succeeded -- a
-    // source_unavailable or ai_error result deliberately leaves
+    // source_unavailable or analysis_error result deliberately leaves
     // last-known-slug untouched, so the NEXT check (manual or
     // scheduled) retries this same slug instead of silently skipping a
     // patch that was never actually analyzed.
     await setLastKnownSlug(kv, latestSlug);
     const notifyResult = await sendPatchNotification({ env, report: result.report, patch: result.report.patch, previousPatch: result.report.previousPatch, adminReviewUrl });
     if (notifyResult.sent && revision) {
-      // Persist notifiedAt onto the SAME revision that was just created,
-      // via the revision-targeted updater -- never saveNewReport/
-      // saveReanalysisRevision again here, since either would mint yet
-      // another revision (or, for saveNewReport, re-trigger the exact
-      // reset this fix exists to prevent) just to record one timestamp.
       result.report.notifiedAt = new Date().toISOString();
       await updateReportRevision(kv, latestSlug, revision, { notifiedAt: result.report.notifiedAt });
     }
@@ -538,5 +361,5 @@ export async function onRequestPost(context) {
     await sendSourceUnavailableNotification({ env, previousPatch: result.report.previousPatch, adminReviewUrl });
   }
 
-  return json({ ok: true, newPatch: true, status: result.status, report: result.report, ...(result.aiError ? { aiError: result.aiError, aiErrorCode: result.aiErrorCode } : {}) });
+  return json({ ok: true, newPatch: true, status: result.status, report: result.report });
 }

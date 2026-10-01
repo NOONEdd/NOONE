@@ -1,0 +1,54 @@
+Patch Notes redesign -- changed files vs Nyx_NOONEdd_Academy_8.zip
+
+CREATED:
+  functions/_lib/patchLifecycle.js
+  functions/_lib/patchNotesExtract.js
+  functions/_lib/patchNotesIds.js
+  functions/_lib/patchNotesReview.js
+  src/components/PatchNotesReview.jsx
+  src/pages/PatchNotesPage.jsx
+  tests/helpers/patchNotesHelpers.mjs
+  tests/patchNotes.test.mjs
+  tests/patchNotesApi.test.mjs
+
+MODIFIED:
+  functions/_lib/config.js
+  functions/_lib/logger.js
+  functions/_lib/notify.js
+  functions/_lib/patchAcademyDetection.js
+  functions/_lib/patchChangeDetector.js
+  functions/_lib/patchIntelPipeline.js
+  functions/_lib/patchIntelligence.js
+  functions/_lib/patchParser.js
+  functions/_lib/patchReportsStore.js
+  functions/_lib/patchText.js
+  functions/_lib/riotFallback.js
+  functions/api/admin/patch-check.js
+  functions/api/admin/patch-reports.js
+  functions/api/patch-reports.js
+  src/App.jsx
+  src/components/EntityImage.jsx
+  src/components/PatchStatus.jsx
+  src/components/TierBoard.jsx
+  src/data/champions.js
+  src/data/constants.js
+  src/index.css
+  src/lib/effectiveData.js
+  src/pages/AdminPage.jsx
+  src/utils/images.js
+  tests/patchDeterministicFacts.test.mjs
+  tests/patchLifecycleSections.test.mjs
+
+DELETED (delete these in your repo; also in the zip's MANIFEST for the earlier chat-changes):
+  functions/_lib/patchAggregate.js
+  functions/_lib/patchAnalysis.js
+  functions/_lib/patchDeterministicReport.js
+  functions/_lib/patchPlanner.js
+  src/pages/PatchIntelligencePage.jsx
+  tests/patchAcademyDetectionAndPlanner.test.mjs
+  tests/patchAnalysisPipeline.test.mjs
+  tests/patchDeterministicReport.test.mjs
+  tests/patchIntelReanalyze.test.mjs
+  tests/patchIntelRetryVsDetect.test.mjs
+  tests/patchRevisionSafety.test.mjs
+  tests/patchTargetedRetryEndToEnd.test.mjs

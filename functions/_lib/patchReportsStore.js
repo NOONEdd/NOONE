@@ -1,4 +1,4 @@
-// Patch Intelligence report storage -- reuses COACH_KV (no new KV
+// Patch Notes report storage -- reuses COACH_KV (no new KV
 // namespace). Key structure:
 //
 //   patch-intel:reports              one small JSON index: [{id, patch,
@@ -51,7 +51,7 @@
 //                                     except which ONE revision is
 //                                     currently the public one.
 //   patch-intel:last-known-slug      unchanged -- the raw Riot slug
-//                                     Patch Intelligence has already
+//                                     Patch Notes has already
 //                                     generated a report for, compared
 //                                     against discoverLatestPatchSlug()
 //                                     by the NORMAL detection flow only
@@ -368,7 +368,7 @@ export async function listAllReports(kv) {
   );
 }
 
-/** PUBLIC report list for the Patch Intelligence page -- for each
+/** PUBLIC report list for the Patch Notes page -- for each
  *  patch id, the CURRENTLY PUBLISHED revision only (via
  *  getPublishedReport above), with internal-only fields (adminNotes,
  *  reviewedBy) stripped. An id with no published revision right now

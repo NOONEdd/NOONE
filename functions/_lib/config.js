@@ -80,111 +80,26 @@ export const ADMIN_SESSION_TTL_SECONDS = 12 * 60 * 60; // 12h -- long enough for
 export const ADMIN_SESSION_COOKIE_NAME = "academy_admin_session";
 
 // ---------------------------------------------------------------------
-// Patch Intelligence (functions/_lib/patchIntelligence.js,
-// functions/_lib/riotFallback.js's full-content fetch, functions/api/admin/patch-check.js).
-// Deliberately separate from the AI-Coach-chat constants above -- a
-// structured Support-impact analysis covering every changed champion/
-// item/rune in a patch is a fundamentally bigger, rarer, admin-triggered
-// generation than a single chat reply, so it gets its own token budget
-// and its own (larger, separately cached) content cap rather than
-// borrowing MAX_TOKENS/RIOT_FALLBACK_MAX_CHARS.
-//
-// PATCH_INTEL_MAX_TOKENS is requested directly, for every Patch
-// Intelligence generation, full stop -- there is no per-patch estimate
-// or heuristic that ever requests less than this. This file used to
-// also export PATCH_INTEL_MIN_TOKENS/PATCH_INTEL_BASE_TOKENS/
-// PATCH_INTEL_TOKENS_PER_ENTRY/PATCH_INTEL_CHARS_PER_EXTRA_ENTRY, the
-// clamp inputs for an adaptive per-patch estimate
-// (estimatePatchIntelTokenBudget(), formerly in patchIntelligence.js):
-// a quiet patch would request a smaller maxTokens than a heavy one,
-// clamped between MIN and this MAX. That estimate could be wrong in the
-// dangerous direction -- an UNDER-estimate meant the AI got cut off
-// mid-JSON (stop_reason "max_tokens") even though the hard ceiling
-// itself was never reached, which is exactly the "truncated_output"
-// failure this project hit in production. Removing the estimator
-// removes that entire failure mode: a quiet patch naturally produces a
-// short response and costs little regardless of the requested ceiling;
-// a heavy patch can use as much of the ceiling as it actually needs.
-// The four estimation constants were deleted along with it -- nothing
-// in this codebase references them anymore.
-//
-// 16384 is still a deliberately considered, conservative ceiling, not
-// an arbitrarily huge one (a genuine requirement here, not just a
-// leftover from the old design) -- comfortably within the STANDARD
-// (non-beta) output-token limit of every current Claude Sonnet/Opus-
-// class model this project's Anthropic adapter targets, and within the
-// range most OpenAI-compatible backends (OpenAI itself, OpenRouter,
-// Groq, Together, etc.) support for max_tokens without special
-// configuration. It cannot be verified against every possible AI_MODEL
-// string someone might configure (openai-compatible allows literally
-// any backend) -- if a specific configured model is confirmed to
-// support a verified higher limit, this constant is the one place to
-// raise it.
-export const PATCH_INTEL_MAX_TOKENS = 16384;
 export const PATCH_REPORTS_INDEX_LIMIT = 100; // caps patch-intel:reports so that one index key can't grow unbounded across years of patches
 
 // ---------------------------------------------------------------------
-// Patch Intelligence multi-stage pipeline (patchText.js / patchParser.js /
-// patchAcademyDetection.js / patchPlanner.js / patchAnalysis.js /
-// patchAggregate.js / patchIntelligence.js).
+// Patch Notes pipeline (patchText.js -> patchParser.js -> patchNotesExtract.js
+// -> patchNotesReview.js; helpers: patchAcademyDetection.js,
+// patchChangeDetector.js, patchLifecycle.js, patchNotesIds.js,
+// patchIntelligence.js). Fully deterministic -- no AI call anywhere in
+// this pipeline, so it has no token budget, timeout, retry or concurrency
+// limit to configure.
 //
 // ROOT-CAUSE NOTE: this file used to export PATCH_INTEL_FALLBACK_MAX_CHARS
 // = 16000 and riotFallback.js sliced the whole patch page to that length
-// BEFORE anything else ran (and cached the sliced copy). Real Wild Rift
-// patch notes for a large patch are many times that size, so everything
-// after the first ~16K characters -- typically items, runes, jungle,
-// objectives, turrets, minions, ranked -- never reached the analyst at
-// all and nothing reported it. That constant is gone. Input is now
-// NEVER silently truncated: the only cap left is the hard safety limit
-// below, and hitting it blocks publication instead of being ignored.
+// BEFORE anything else ran. Everything after the first ~16K characters
+// never reached the parser and nothing reported it. That constant is gone.
+// Input is NEVER silently truncated: the only cap left is the hard safety
+// limit below, and hitting it blocks publication instead of being ignored.
 export const PATCH_INTEL_SOURCE_MAX_CHARS = 800000; // hard safety ceiling on the structured patch text; exceeding it is reported (analysis_incomplete), never swallowed
 export const PATCH_INTEL_SOURCE_FETCH_TIMEOUT_MS = 20000; // Riot's full patch page is far larger than the 5s-bounded AI-Coach snippet fetch expects
 
-// Batch sizing. Batches are packed from semantic units (a champion /
-// item / rune / subsection block) -- never split mid-change -- so these
-// are targets for packing, not slice offsets.
-export const PATCH_INTEL_BATCH_MAX_CHARS = 12000; // patch text per AI batch (~5K tokens); a unit larger than this is split on change-block boundaries first
-export const PATCH_INTEL_BATCH_MIN_CHARS = 2000; // adjacent tiny batches are merged up to BATCH_MAX_CHARS so small patches don't fan out into many requests
-export const PATCH_INTEL_BATCH_MAX_ENTITIES = 8; // Academy entities detected per batch -- bounds how many verdicts/entries one response must contain
-export const PATCH_INTEL_MAX_BATCHES = 40; // hard bound on the plan; a patch needing more is reported as incomplete, not silently thinned out
-
-// Deterministic-first relevance gate (patchPlanner.js). A unit with NO
-// deterministically-detected Academy entity (patchAcademyDetection.js)
-// is only sent to AI at all if its patchParser.js `category` is in this
-// list -- these are the categories that can still carry a genuine,
-// entity-less Support-relevant change (a general system/economy shift,
-// an objective-timer change, a map-wide value) worth an AI request even
-// with no champion/item/rune named. Everything else with zero detected
-// entities (nongameplay, bugfixes, appendix, marksmen/jungle/minions/
-// turrets/other/preamble with no tracked entity mentioned) is reported
-// as IGNORED in diagnostics and never billed to AI -- a unit WITH a
-// detected entity is always eligible regardless of category; this list
-// only governs the entity-less case. Reviewed and approved as the
-// default 2026-09-23; adjust here (one place) if a real patch run's
-// diagnostics show something genuinely Support-relevant getting
-// gated out.
-export const PATCH_INTEL_RELEVANT_NO_ENTITY_CATEGORIES = ["champions", "items", "runes", "systems", "objectives", "map"];
-
-// Failure handling / pacing. These bound AI calls per revision so a
-// misbehaving provider can never loop.
-export const PATCH_INTEL_BATCH_MAX_ATTEMPTS = 3; // attempts per batch (retry on transient errors / invalid output)
-export const PATCH_INTEL_MAX_SPLIT_DEPTH = 3; // a truncated batch is split in half at most this many times (patchAnalysis.js)
-export const PATCH_INTEL_CONCURRENCY = 2; // AI batches in flight at once (patchAnalysis.js's runAllBatches)
-export const PATCH_INTEL_CALL_TIMEOUT_MS = 20000; // stop waiting for one AI call after this (does not cancel the upstream request -- aiProvider.js takes no abort signal)
-// No NEW batch call is STARTED after this much wall time in one HTTP
-// request (already-started batches still finish) -- patchAnalysis.js's
-// runAllBatches. KNOWN LIMITATION (see the delivery report): there is no
-// cross-request "continue" mechanism -- a batch this budget prevented
-// from starting is reported as unresolved (report.status becomes
-// "partial_failure", never silently presented as complete), and the
-// existing Retry Analysis action (2026-09-23 refactor) targets exactly
-// those unresolved entities on its next run instead of reprocessing the
-// whole patch -- see functions/api/admin/patch-check.js's
-// onlyEntityKeys/mergeTargetedRetry. True resumption (persisting partial
-// pipeline state across requests and continuing just the unfinished
-// batches, rather than re-planning from the cached source text and
-// diffing against the previous revision's coverage) was assessed as
-// more complexity/risk than was worth building for a gap the targeted
-// retry already closes in practice.
-export const PATCH_INTEL_REQUEST_BUDGET_MS = 25000;
-
+// A parsed unit larger than this is split on change-block boundaries first
+// (patchParser.js), so no single block is unmanageably large. Every part is
+// still extracted -- this is a size bound on one block, never a filter.
+export const PATCH_INTEL_BATCH_MAX_CHARS = 12000;

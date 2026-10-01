@@ -1,6 +1,6 @@
 // Semantic parsing of a Riot patch page (the line-oriented text produced by
 // patchText.js) into ordered "units" -- the atomic pieces the rest of the
-// Patch Intelligence pipeline plans, detects and analyzes.
+// Patch Notes pipeline plans, detects and analyzes.
 //
 // DESIGN RULES (see the pipeline overview in patchIntelligence.js):
 //  * Structure comes from the DOCUMENT, not from a hardcoded section list.
@@ -28,7 +28,7 @@
 // Bump when parsing/classification/splitting can produce different units
 // for the same text (part of PATCH_INTEL_ENGINE_VERSION's inputs and of
 // every batch's input hash, so old batch results can't be reused).
-export const PARSER_VERSION = "parse-v1";
+export const PARSER_VERSION = "parse-v2";
 
 const HEADING_MD = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 const BULLET = /^(\s*)([-*+\u2022]|\d{1,3}[.)])\s+(.*)$/;
@@ -75,6 +75,10 @@ function isLabelLike(line) {
 // classified by "Wild Pass" and not by the word "System".
 const CATEGORY_RULES = [
   ["nongameplay", /\b(wild\s*pass|mini\s*pass|wild\s*stars?|battlefest|adventure\s*mode|aram|augments?|skins?|chromas?|emotes?|ensigns?|new\s*player|login\s*event|emporium|promotions?|related\s+articles|newsletter|training\s*camp|custom\s*mode|sonic\s*waves|legendary\s*collection|loot|trove|battle\s*pass)\b/i],
+  // "Marksman Systematic Adjustments" (base Critical Strike Damage, ...) is a
+  // SYSTEM section, not a per-champion/per-item marksman block -- checked
+  // before the marksmen rule so it is not gated out with them.
+  ["systems", /\bsystematic\b/i],
   ["marksmen", /\bmarksm[ae]n\b/i],
   ["jungle", /\b(jungl\w*|smite|monsters?|camps?)\b/i],
   ["objectives", /\b(epic|dragons?|baron|herald|elder|objectives?|nexus)\b/i],
@@ -83,7 +87,7 @@ const CATEGORY_RULES = [
   ["runes", /\brunes?\b/i],
   ["items", /\b(items?|enchant\w*|boots)\b/i],
   ["champions", /\b(champions?|abilit\w*|base stats|durability|attack speed)\b/i],
-  ["map", /\b(battlefield|map|pacing|tempo|economy|gold|experience|xp)\b/i],
+  ["map", /\b(battlefield|map|pacing|economy|gold|experience|xp)\b/i],
   ["systems", /\b(ranked|legendary|season|priority role|autofill|bans?|pick|matchmaking|draft|champion score|mvp|rating|system|roles?|lifesteal|vamp|omnivamp|stats?)\b/i],
   ["bugfixes", /\b(bug\s*fix\w*|fixes)\b/i],
   ["appendix", /\bappendix\b/i],

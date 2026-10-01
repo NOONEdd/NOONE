@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, Send, RefreshCw, AlertTriangle, ExternalLink, Download, Database, Trash2 } from "lucide-react";
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
+import PatchNotesReview from "../components/PatchNotesReview.jsx";
 import { planBuildTypeMigration, verifyAllEntriesTyped } from "../lib/buildTypeClassifier.js";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 const CONFIDENCE_COLOR = { Low: "var(--text-dimmer)", Medium: "var(--text-dim)", High: "var(--cyan)" };
 const REPORTS_URL = "/api/admin/patch-reports";
 const CHECK_URL = "/api/admin/patch-check";
+const KV_SAFETY_URL = "/api/admin/coach-overrides-backups";
 
 function SeverityChip({ severity }) {
   return <span className="severity-chip" style={{ "--sc": SEVERITY_COLOR[severity] || "var(--text-dimmer)" }}>{severity}</span>;
@@ -24,9 +26,20 @@ const STATUS_LABEL = {
   archived: "Archived (older revision)",
   unpublished: "Unpublished",
   source_unavailable: "Source unavailable",
-  ai_error: "Analysis failed",
-  partial_failure: "Incomplete — needs retry",
+  analysis_error: "Analysis error",
+  // ai_error/partial_failure can no longer be produced by a NEW report
+  // (there is no AI call left to fail or leave partial) -- kept mapped
+  // here only so a historical report saved before this rebuild still
+  // displays a real label instead of raw status text.
+  ai_error: "Analysis failed (historical)",
+  partial_failure: "Incomplete (historical)",
 };
+
+// Mirrors PUBLISHABLE_STATUSES in functions/api/admin/patch-reports.js: the
+// server refuses to publish/restore any other status, so the buttons below
+// are only enabled for these. "published" is excluded here only because the
+// button is hidden for an already-published revision.
+const PUBLISHABLE_STATUSES = new Set(["approved", "unpublished", "archived"]);
 
 /** One champion/item/rune/system change entry. Read-only display of the
  *  extracted fact fields; editMode reveals editable controls for the
@@ -58,6 +71,20 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
       {(entry.previousValue || entry.newValue) && (
         <p className="patch-entry-line"><b>Previous → New:</b> {entry.previousValue || "—"} → {entry.newValue || "—"}</p>
       )}
+      {(entry.comparisonState || entry.relevance) && (
+        // The Riot fact itself, always visible beside the Coach's own
+        // fields below -- so writing an analysis never requires
+        // re-reading the whole patch page. comparisonState is about how
+        // much weight the value pair carries against Academy's own data
+        // (see patchChangeDetector.js's COMPARISON_STATE); relevance is
+        // a structural Support-focused classification (CORE/VIABLE/
+        // SITUATIONAL), not a judgment on the change's content.
+        <p className="patch-entry-line" style={{ color: "var(--text-dimmer)" }}>
+          <b>Riot fact:</b> {entry.relevance || "—"} · {entry.comparisonState || "—"}
+          {entry.academyDataFlag ? <> · Academy's own data may be stale: {entry.academyDataFlag.reason || "check manually"}</> : null}
+        </p>
+      )}
+      {entry.sourceRaw && <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", fontStyle: "italic" }}>“{entry.sourceRaw}”</p>}
       {entry.supportImpact && <p className="patch-entry-line"><b>Support impact:</b> {entry.supportImpact}</p>}
       {entry.championsAffected && entry.championsAffected.length > 0 && (
         <p className="patch-entry-line"><b>Champions affected:</b> {entry.championsAffected.join(", ")}</p>
@@ -66,6 +93,12 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
       {entry.buildImplications && <p className="patch-entry-line"><b>Build:</b> {entry.buildImplications}</p>}
       {entry.runeImplications && <p className="patch-entry-line"><b>Runes:</b> {entry.runeImplications}</p>}
       {entry.matchupImplications && <p className="patch-entry-line"><b>Matchups:</b> {entry.matchupImplications}</p>}
+      {entry.laneImpact && <p className="patch-entry-line"><b>Lane:</b> {entry.laneImpact}</p>}
+      {entry.roamImpact && <p className="patch-entry-line"><b>Roaming/macro:</b> {entry.roamImpact}</p>}
+      {entry.teamfightImpact && <p className="patch-entry-line"><b>Teamfight:</b> {entry.teamfightImpact}</p>}
+      {entry.objectiveVisionImpact && <p className="patch-entry-line"><b>Objective/vision:</b> {entry.objectiveVisionImpact}</p>}
+      {entry.decisionChange && <p className="patch-entry-line"><b>Decision change:</b> {entry.decisionChange}</p>}
+      {entry.coachNotes && <p className="patch-entry-line"><b>Coach notes:</b> {entry.coachNotes}</p>}
 
       {editMode ? (
         <div className="patch-entry-edit-row">
@@ -85,12 +118,25 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
             placeholder="Recommended tier action, e.g. S -> A"
             onChange={(e) => onChange({ ...entry, recommendedTierAction: e.target.value })}
           />
+          <label className="patch-entry-checkbox">
+            <input type="checkbox" checked={Boolean(entry.tierListActionNeeded)} onChange={(e) => onChange({ ...entry, tierListActionNeeded: e.target.checked })} />
+            Needs a tier list action
+          </label>
+          <textarea className="edit-info-field" value={entry.supportImpact || ""} placeholder="Support impact" onChange={(e) => onChange({ ...entry, supportImpact: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.gameplayImplications || ""} placeholder="Gameplay impact" onChange={(e) => onChange({ ...entry, gameplayImplications: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.buildImplications || ""} placeholder="Itemization / build impact" onChange={(e) => onChange({ ...entry, buildImplications: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.laneImpact || ""} placeholder="Lane impact" onChange={(e) => onChange({ ...entry, laneImpact: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.roamImpact || ""} placeholder="Roaming / macro impact" onChange={(e) => onChange({ ...entry, roamImpact: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.teamfightImpact || ""} placeholder="Teamfight impact" onChange={(e) => onChange({ ...entry, teamfightImpact: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.objectiveVisionImpact || ""} placeholder="Objective / vision impact" onChange={(e) => onChange({ ...entry, objectiveVisionImpact: e.target.value })} />
+          <textarea className="edit-info-field" value={entry.decisionChange || ""} placeholder="Recommended decision change" onChange={(e) => onChange({ ...entry, decisionChange: e.target.value })} />
           <textarea
             className="edit-info-field"
             value={entry.reasoning || ""}
             placeholder="Reasoning"
             onChange={(e) => onChange({ ...entry, reasoning: e.target.value })}
           />
+          <textarea className="edit-info-field" value={entry.coachNotes || ""} placeholder="Coach notes" onChange={(e) => onChange({ ...entry, coachNotes: e.target.value })} />
         </div>
       ) : (
         <div className="patch-entry-footer">
@@ -98,7 +144,7 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
           <ConfidenceChip confidence={entry.confidence} />
         </div>
       )}
-      {editMode && <p className="patch-entry-reasoning-readonly">{entry.tierListActionNeeded ? "Tier action flagged by AI" : "Not flagged for a tier action"}</p>}
+      {editMode && <p className="patch-entry-reasoning-readonly">{entry.tierListActionNeeded ? "Tier action needed (set above)" : "Not flagged for a tier action"}</p>}
     </div>
   );
 }
@@ -111,9 +157,155 @@ function ChangeEntryCard({ entry, nameField, entityType, roster, editMode, onCha
  *  (publishRevision() with that revision's number, see
  *  patchReportsStore.js) -- there is no separate restore code path,
  *  just a different revision number in the same request. */
+// KV Data Protection panel -- the Admin-facing half of the safety layer
+// in functions/_lib/kvSafety.js. Shows the live coach-overrides
+// revision/size/checksum, whether emergency read-only mode is active,
+// and the available backups (each restorable, one click plus confirm).
+// Every restore itself creates a fresh backup of whatever was live
+// first -- see that file's header comment -- this panel never bypasses
+// that. Self-contained: fetches its own data, matching RevisionHistory
+// above rather than threading more state through AdminPage itself.
+function KvSafetyPanel() {
+  const [open, setOpen] = useState(true);
+  const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState(null);
+  const [showAudit, setShowAudit] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const res = await fetch(KV_SAFETY_URL, { credentials: "same-origin" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Failed to load KV status");
+      setData(body);
+    } catch (e) {
+      setLoadError(e.message || "Couldn't load KV status.");
+    }
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  async function handleRestore(backup) {
+    if (!window.confirm(`Restore the backup from ${new Date(backup.timestamp).toLocaleString()} (operation: ${backup.operation}, ${backup.size} bytes)? Whatever is live right now will itself be backed up first, then replaced with this.`)) return;
+    setBusy(true); setActionError(null);
+    try {
+      const res = await fetch(KV_SAFETY_URL, {
+        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupKey: backup.key }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        if (body.code === "KV_WRITE_BLOCKED_SUSPICIOUS_DATA_CHANGE" && window.confirm(`${body.error}\n\nRestore anyway?`)) {
+          const forced = await fetch(KV_SAFETY_URL, {
+            method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "restore", backupKey: backup.key, force: true }),
+          });
+          const forcedBody = await forced.json();
+          if (!forced.ok || !forcedBody.ok) throw new Error(forcedBody.error || "Restore failed.");
+        } else if (body.code !== "KV_WRITE_BLOCKED_SUSPICIOUS_DATA_CHANGE") {
+          throw new Error(body.error || "Restore failed.");
+        } else {
+          setBusy(false);
+          return; // admin declined the forced restore
+        }
+      }
+      await load();
+    } catch (e) {
+      setActionError(e.message || "Restore failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClearReadOnly() {
+    setBusy(true); setActionError(null);
+    try {
+      const res = await fetch(KV_SAFETY_URL, {
+        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear-readonly" }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || "Couldn't clear read-only mode.");
+      await load();
+    } catch (e) {
+      setActionError(e.message || "Couldn't clear read-only mode.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-panel">
+      <div className="admin-panel-head">
+        <h3><Database size={15} style={{ verticalAlign: -2, marginRight: 6 }} />KV data protection</h3>
+        <button type="button" className="btn btn-ghost btn-small" onClick={load} disabled={busy}><RefreshCw size={14} /> Refresh</button>
+      </div>
+
+      {loadError && <p className="patch-entry-line" style={{ color: "var(--magenta)" }}>{loadError}</p>}
+      {actionError && <p className="patch-entry-line" style={{ color: "var(--magenta)" }}>{actionError}</p>}
+      {!data && !loadError && <p className="patch-entry-line">Loading…</p>}
+
+      {data && (
+        <>
+          {data.readOnly?.active && (
+            <p className="patch-entry-line" style={{ color: "var(--gold)" }}>
+              <AlertTriangle size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
+              Emergency read-only mode is ACTIVE — Coach Mode saves and Patch Notes publish are blocked. Reason: {data.readOnly.reason}
+              {" "}<button type="button" className="btn btn-ghost btn-small" onClick={handleClearReadOnly} disabled={busy}>Clear read-only mode</button>
+            </p>
+          )}
+
+          <p className="patch-entry-line">
+            <b>Live data:</b> revision {data.current.revision ?? "—"} · {data.current.size ?? "—"} bytes · checksum {data.current.checksum ? data.current.checksum.slice(0, 12) + "…" : "—"}
+            {data.current.updatedAt ? <> · last updated {new Date(data.current.updatedAt).toLocaleString()}</> : null}
+            {data.current.status !== "VALID_DATA" ? <> · <span style={{ color: "var(--magenta)" }}>status: {data.current.status}</span></> : null}
+          </p>
+
+          <p className="patch-entry-line" style={{ color: "var(--text-dimmer)" }}>
+            Every Coach Mode save and Patch Notes publish backs up the previous state first — restoring one here backs up the current state first, too, so this is never a one-way action.
+          </p>
+
+          {(!data.backups || data.backups.length === 0) ? (
+            <p className="patch-entry-line">No backups yet — one is created automatically the next time anything writes to Coach Mode data.</p>
+          ) : (
+            <ul className="revision-list">
+              {data.backups.map((b) => (
+                <li key={b.key} className="revision-list-item">
+                  <span>{new Date(b.timestamp).toLocaleString()}</span>
+                  <span style={{ color: "var(--text-dimmer)" }}>{b.operation}{b.source ? ` — ${b.source}` : ""}</span>
+                  <span style={{ color: "var(--text-dimmer)" }}>{b.size} bytes</span>
+                  <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={() => handleRestore(b)}>Restore</button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <button type="button" className="btn btn-ghost btn-small" style={{ marginTop: 10 }} onClick={() => setShowAudit((v) => !v)}>
+            {showAudit ? <ChevronDown size={13} /> : <ChevronRight size={13} />} Recent activity ({data.recentAudit?.length ?? 0})
+          </button>
+          {showAudit && (
+            (!data.recentAudit || data.recentAudit.length === 0) ? <p className="patch-entry-line">No recorded activity yet.</p> : (
+              <ul className="revision-list">
+                {data.recentAudit.map((a) => (
+                  <li key={a.key} className="revision-list-item">
+                    <span>{new Date(a.timestamp).toLocaleString()}</span>
+                    <span>{a.operation}</span>
+                    <span style={{ color: a.result === "ACCEPTED" ? "var(--cyan)" : a.result === "CONFLICT" ? "var(--gold)" : "var(--magenta)" }}>{a.result}</span>
+                    {a.failureReason ? <span style={{ color: "var(--text-dimmer)" }}>{a.failureReason}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function RevisionHistory({ reportId, onAction, busy, refreshToken }) {
-  const [open, setOpen] = useState(false);
-  const [revisions, setRevisions] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
@@ -156,7 +348,7 @@ function RevisionHistory({ reportId, onAction, busy, refreshToken }) {
                 <span>Revision {rev.revision}</span>
                 <span className={"patch-report-status status-" + rev.status}>{STATUS_LABEL[rev.status] || rev.status}</span>
                 <span className="patch-report-date">{new Date(rev.generatedAt).toLocaleString()}</span>
-                {rev.status !== "published" && (
+                {PUBLISHABLE_STATUSES.has(rev.status) && (
                   <button
                     type="button"
                     className="btn btn-ghost btn-small"
@@ -189,10 +381,14 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
     setDraft({
       supportMetaAnalysis: report.supportMetaAnalysis || "",
       adminNotes: report.adminNotes || "",
-      championChanges: report.championChanges || [],
-      itemChanges: report.itemChanges || [],
-      runeChanges: report.runeChanges || [],
-      systemChanges: report.systemChanges || [],
+      // A report with a Patch Notes dataset is reviewed change-by-change (see PatchNotesReview); the legacy
+      // entry arrays are DERIVED from it and must not be sent back wholesale.
+      ...(report.patchNotes ? {} : {
+        championChanges: report.championChanges || [],
+        itemChanges: report.itemChanges || [],
+        runeChanges: report.runeChanges || [],
+        systemChanges: report.systemChanges || [],
+      }),
       recommendedTierChanges: report.recommendedTierChanges || [],
     });
     setEditMode(true);
@@ -230,16 +426,6 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
         </p>
       )}
 
-      {expanded && coverage && (
-        <p className="patch-entry-line" style={{ padding: "0 20px", color: "var(--text-dimmer)", fontSize: "0.85em" }}>
-          Coverage: {coverage.batches.succeeded}/{coverage.batches.planned} excerpts analyzed
-          {coverage.batches.failed > 0 ? `, ${coverage.batches.failed} failed` : ""}
-          {coverage.batches.notStarted > 0 ? `, ${coverage.batches.notStarted} not started` : ""}
-          {" · "}{coverage.detectedEntities}/{coverage.totalEntities} Academy entities detected in this patch
-          {coverage.states.unresolved > 0 ? ` · ${coverage.states.unresolved} unresolved` : ""}
-        </p>
-      )}
-
       {expanded && (
         <div className="patch-report-body">
           {isSourceProblem ? (
@@ -248,10 +434,10 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 <AlertTriangle size={14} style={{ verticalAlign: "-2px" }} />{" "}
                 {report.status === "source_unavailable"
                   ? "The official patch notes page couldn't be retrieved for this patch. No analysis was generated."
-                  : `The AI analyst couldn't produce a usable report: ${report.adminNotes || "unknown error"}`}
+                  : `The deterministic extraction couldn't produce a usable report: ${report.adminNotes || "unknown error"}`}
               </p>
               <p className="patch-entry-line" style={{ color: "var(--text-dimmer)" }}>
-                "Check for New Patch" won't retry this — it only looks for a Riot patch newer than the last one Patch Intelligence already knows about, and this one is already known. Use the button below instead, which re-runs the fetch/analysis for THIS specific patch directly.
+                "Check for New Patch" won't retry this — it only looks for a Riot patch newer than the last one Patch Notes already knows about, and this one is already known. Use the button below instead, which re-runs the fetch/analysis for THIS specific patch directly.
               </p>
             </div>
           ) : (
@@ -266,7 +452,8 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 <p className="patch-meta-analysis">{data.supportMetaAnalysis || "No Support-relevant changes identified."}</p>
               )}
 
-              {data.championChanges.length > 0 && (
+              {report.patchNotes && <PatchNotesReview report={report} busy={busy} onOps={(ops) => onAction(report.id, "review", { ops, revision: report.revision })} />}
+              {!report.patchNotes && data.championChanges.length > 0 && (
                 <>
                   <h4 className="patch-section-label">Champions</h4>
                   {data.championChanges.map((e, i) => (
@@ -274,7 +461,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   ))}
                 </>
               )}
-              {data.itemChanges.length > 0 && (
+              {!report.patchNotes && data.itemChanges.length > 0 && (
                 <>
                   <h4 className="patch-section-label">Items</h4>
                   {data.itemChanges.map((e, i) => (
@@ -282,7 +469,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   ))}
                 </>
               )}
-              {data.runeChanges.length > 0 && (
+              {!report.patchNotes && data.runeChanges.length > 0 && (
                 <>
                   <h4 className="patch-section-label">Runes</h4>
                   {data.runeChanges.map((e, i) => (
@@ -290,7 +477,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   ))}
                 </>
               )}
-              {data.systemChanges.length > 0 && (
+              {!report.patchNotes && data.systemChanges.length > 0 && (
                 <>
                   <h4 className="patch-section-label">System / Meta</h4>
                   {data.systemChanges.map((e, i) => (
@@ -318,7 +505,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
               )}
               {(report.aiProvider || report.aiModel) && (
                 <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", fontSize: 12.5 }}>
-                  Generated by {report.aiProvider || "unknown provider"}{report.aiModel ? ` (${report.aiModel})` : ""} · revision {report.revision || 1}
+                  Legacy revision from the retired AI analyzer ({report.aiProvider || "unknown provider"}{report.aiModel ? `, ${report.aiModel}` : ""}) · revision {report.revision || 1}
                 </p>
               )}
 
@@ -369,7 +556,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   <input type="checkbox" checked={alsoVerify} onChange={(e) => setAlsoVerify(e.target.checked)} />
                   Also mark {report.patch} verified
                 </label>
-                <button className="btn btn-primary btn-small" disabled={busy || !report.patch} onClick={() => onAction(report.id, "publish", { alsoMarkVerified: alsoVerify })}>
+                <button className="btn btn-primary btn-small" disabled={busy || !report.patch || !PUBLISHABLE_STATUSES.has(report.status)} title={PUBLISHABLE_STATUSES.has(report.status) ? undefined : "Approve this revision before publishing it."} onClick={() => onAction(report.id, "publish", { alsoMarkVerified: alsoVerify })}>
                   <Send size={14} /> Publish
                 </button>
               </span>
@@ -379,9 +566,12 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 className="btn btn-ghost btn-small"
                 style={{ color: "var(--gold)" }}
                 disabled={busy || !report.patch}
-                onClick={() => {
+                onClick={async () => {
                   if (window.confirm(`Publish patch ${report.patch || report.id} anyway, even though this analysis is INCOMPLETE (see coverage details above)? The public page will show only the changes that WERE successfully analyzed — anything unresolved will simply be missing, with no indication to visitors that the analysis was incomplete. This is not recommended; Retry Analysis is the better option.`)) {
-                    onAction(report.id, "publish", { alsoMarkVerified: false });
+                    // The server requires approval before publishing; choosing "anyway" IS the
+                    // approval. If approving fails, the publish below is rejected by the server.
+                    await onAction(report.id, "approve");
+                    await onAction(report.id, "publish", { alsoMarkVerified: false });
                   }
                 }}
               >
@@ -394,18 +584,18 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                   className="btn btn-ghost btn-small"
                   disabled={busy}
                   onClick={() => {
-                    if (window.confirm(`Re-analyze patch ${report.patch || report.id}? This runs a fresh AI analysis (uses AI/API credits) and creates a new revision pending your review — the currently published version stays live until you publish the new one.`)) {
+                    if (window.confirm(`Re-scan patch ${report.patch || report.id}? This re-reads the official patch notes and re-runs deterministic detection, creating a new revision pending your review — your existing Coach analysis is preserved for every entity still detected, and the currently published version stays live until you publish the new one.`)) {
                       onReanalyze(report.id, "reanalyze");
                     }
                   }}
                 >
-                  <RefreshCw size={14} /> Re-analyze
+                  <RefreshCw size={14} /> Re-scan Patch
                 </button>
                 <button
                   className="btn btn-ghost btn-small"
                   disabled={busy}
                   onClick={() => {
-                    if (window.confirm(`Unpublish patch ${report.patch || report.id}? It will disappear from the public Patch Intelligence page immediately. The report itself is kept and can be published again later.`)) {
+                    if (window.confirm(`Unpublish patch ${report.patch || report.id}? It will disappear from the public Patch Notes page immediately. The report itself is kept and can be published again later.`)) {
                       onAction(report.id, "unpublish");
                     }
                   }}
@@ -419,13 +609,13 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 className="btn btn-primary btn-small"
                 disabled={busy}
                 onClick={() => {
-                  const label = report.status === "source_unavailable" ? "Retry Source Fetch" : "Retry Analysis";
-                  if (window.confirm(`${label} for patch ${report.patch || report.id}? This fetches the official patch notes again and runs a fresh AI analysis (uses AI/API credits) as a new revision pending your review.`)) {
+                  const label = report.status === "source_unavailable" ? "Retry Source Fetch" : "Re-scan Patch";
+                  if (window.confirm(`${label} for patch ${report.patch || report.id}? This fetches the official patch notes again and re-runs deterministic detection as a new revision pending your review.`)) {
                     onReanalyze(report.id, "retry-analysis");
                   }
                 }}
               >
-                <RefreshCw size={14} /> {report.status === "source_unavailable" ? "Retry Source Fetch" : "Retry Analysis"}
+                <RefreshCw size={14} /> {report.status === "source_unavailable" ? "Retry Source Fetch" : "Re-scan Patch"}
               </button>
             )}
             {!editMode && (
@@ -434,7 +624,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 style={{ color: "var(--magenta)" }}
                 disabled={busy}
                 onClick={() => {
-                  const publishedWarning = report.status === "published" ? " This patch is CURRENTLY PUBLISHED — it will disappear from the public Patch Intelligence page immediately." : "";
+                  const publishedWarning = report.status === "published" ? " This patch is CURRENTLY PUBLISHED — it will disappear from the public Patch Notes page immediately." : "";
                   if (window.confirm(`Permanently delete ALL revisions of patch ${report.patch || report.id}? This cannot be undone.${publishedWarning}`)) {
                     onAction(report.id, "delete", { confirm: true });
                   }
@@ -562,7 +752,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
       setReports(data.reports || []);
       setLoadError(null);
     } catch (e) {
-      setLoadError(e.message || "Couldn't load Patch Intelligence reports.");
+      setLoadError(e.message || "Couldn't load Patch Notes reports.");
     }
   }, []);
 
@@ -602,8 +792,8 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
         setCheckResult({ ok: true, message: `New patch detected: ${data.report.patch}. Report generated below.` });
       } else if (data.status === "source_unavailable") {
         setCheckResult({ ok: false, message: "A new patch was detected but its official notes page couldn't be fetched. A report was created below — use its \"Retry Source Fetch\" button once the source is reachable, not this button again (this one only looks for a newer patch, which won't exist yet)." });
-      } else if (data.status === "ai_error") {
-        setCheckResult({ ok: false, message: `A new patch was found but analysis failed: ${data.aiError || "unknown error"}. A report was created below — use its "Retry Analysis" button to try again, not this button again (this one only looks for a newer patch than ${data.report.patch}, which won't exist yet).` });
+      } else if (data.status === "analysis_error") {
+        setCheckResult({ ok: false, message: `A new patch was found but the deterministic analysis hit an unexpected error: ${data.report?.adminNotes || "unknown error"}. A report was created below — use its "Re-scan Patch" button to try again, not this button again (this one only looks for a newer patch than ${data.report.patch}, which won't exist yet).` });
       }
       await loadReports();
     } catch {
@@ -651,7 +841,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
   async function handleReanalyze(patchId, action = "reanalyze") {
     setBusyId(patchId);
     setCheckResult(null);
-    const verb = action === "retry-analysis" ? "Retry" : "Re-analysis";
+    const verb = action === "retry-analysis" ? "Retry" : "Re-scan";
     try {
       const res = await fetch(CHECK_URL, {
         method: "POST",
@@ -661,14 +851,15 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.error || `${verb} failed`);
-      if (data.success === false) {
-        // A new revision WAS created (for debugging/history), but the
-        // actual AI analysis failed -- this must read as a failure, not
-        // "re-analysis complete." See functions/api/admin/patch-check.js's
-        // handleReanalyze doc comment for the ok-vs-success distinction.
-        setCheckResult({ ok: false, message: `${verb} ran but did not produce a usable result (revision ${data.revision}, ${STATUS_LABEL[data.status] || data.status}): ${data.aiError || "unknown error"}. ${action === "retry-analysis" ? "You can press Retry again." : "The published version is unchanged."}` });
+      if (data.status === "source_unavailable" || data.status === "analysis_error") {
+        // A new revision WAS created (for debugging/history), but this
+        // particular run didn't produce a fresh, usable analysis --
+        // deterministic detection itself can't fail, so this only
+        // happens if the source page couldn't be re-fetched, or a
+        // genuine code bug was hit (see patch-check.js's analyzePatch).
+        setCheckResult({ ok: false, message: `${verb} ran but didn't produce a fresh analysis (revision ${data.revision}, ${STATUS_LABEL[data.status] || data.status}): ${data.report?.adminNotes || "unknown error"}. The published version is unchanged.` });
       } else {
-        setCheckResult({ ok: true, message: `${verb} complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review. The published version is unchanged until you publish it.` });
+        setCheckResult({ ok: true, message: `${verb} complete: revision ${data.revision} (${STATUS_LABEL[data.status] || data.status}) is ready for review — Riot facts refreshed, your existing Coach analysis was preserved for every entity still detected. The published version is unchanged until you publish it.` });
       }
       await loadReports();
       setRefreshToken((t) => t + 1);
@@ -686,7 +877,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
           <div className="section-head">
             <div className="eyebrow"><span className="dot" />Private Area</div>
             <h2>NOONEdd Academy — Admin</h2>
-            <p>Sign in to manage Coach Mode content and review Patch Intelligence reports.</p>
+            <p>Sign in to manage Coach Mode content and review Patch Notes reports.</p>
           </div>
           <form className="admin-login-form" onSubmit={handleLogin}>
             <label htmlFor="admin-password" className="save-note">Admin password</label>
@@ -714,7 +905,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
         <div className="section-head" style={{ marginBottom: 30 }}>
           <div className="eyebrow"><span className="dot" />Private Area</div>
           <h2>Admin</h2>
-          <p>Patch status, Patch Intelligence detection, and review — Coach Mode content editing still happens in place on the public pages.</p>
+          <p>Patch status, Patch Notes detection, and review — Coach Mode content editing still happens in place on the public pages.</p>
         </div>
 
         <div className="admin-panel">
@@ -734,6 +925,8 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
             </div>
           </div>
         </div>
+
+        <KvSafetyPanel />
 
         <div className="admin-panel">
           <div className="admin-panel-head">
@@ -844,7 +1037,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
 
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <h3>Patch Intelligence</h3>
+            <h3>Patch Notes</h3>
             <button className="btn btn-primary btn-small" onClick={handleCheckNow} disabled={checking}>
               <Radar size={14} className={checking ? "spin" : ""} /> {checking ? "Checking..." : "Check for new patch now"}
             </button>
@@ -858,7 +1051,7 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
 
           {loadError && <p className="coach-password-error">{loadError}</p>}
           {reports === null && !loadError && <p className="storage-note">Loading reports…</p>}
-          {reports && reports.length === 0 && <p className="storage-note">No Patch Intelligence reports yet — click "Check for new patch now," or wait for the next scheduled check (see README).</p>}
+          {reports && reports.length === 0 && <p className="storage-note">No Patch Notes reports yet — click "Check for new patch now," or wait for the next scheduled check (see README).</p>}
 
           {reports && reports.length > 0 && (
             <div className="patch-report-list">

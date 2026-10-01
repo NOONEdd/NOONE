@@ -38,15 +38,11 @@
 // locally in the meantime.
 
 import { requireAdminSession } from "../_lib/adminAuth.js";
+import { readOverrides, mutateOverrides, READ_STATUS, EMPTY_OVERRIDES } from "../_lib/kvSafety.js";
 // Only import needed for the matchup validation added below (see
 // validateMatchupOverrides) -- everything else in this file is
 // unchanged from before the Champion Matchups redesign.
 import { CHAMPIONS } from "../../src/data/champions.js";
-
-const KEY = "coach-overrides";
-// Kept in sync with functions/_lib/kv.js's `empty` -- see that file's
-// comment for what verifiedPatch/patchStatus are for.
-const EMPTY_OVERRIDES = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null, verifiedPatch: null, patchStatus: null };
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -158,8 +154,17 @@ export async function onRequestGet(context) {
   if (!kv) {
     return json({ error: "COACH_KV binding not set up yet — see comments in functions/api/coach-overrides.js", overrides: null }, 200);
   }
-  const value = await kv.get(KEY);
-  return json({ overrides: value ? JSON.parse(value) : EMPTY_OVERRIDES });
+  // Strict read (functions/_lib/kvSafety.js): a KV failure or an
+  // unparseable blob is reported with an explicit code instead of an
+  // uncaught throw (a bare 500) -- and is never presented as "no
+  // overrides". A genuinely absent key is still the normal fresh-site
+  // case and returns the empty set, as before. The client (see
+  // src/hooks/useCoachOverrides.js) treats any non-2xx as "local-only",
+  // exactly as it already did for the old 500.
+  const read = await readOverrides(kv);
+  if (read.status === READ_STATUS.VALID_DATA) return json({ overrides: read.overrides });
+  if (read.status === READ_STATUS.KEY_NOT_FOUND) return json({ overrides: EMPTY_OVERRIDES });
+  return json({ error: read.error, code: read.status, overrides: null }, read.status === READ_STATUS.KV_DATA_INVALID ? 502 : 503);
 }
 
 export async function onRequestPost(context) {
@@ -183,7 +188,7 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { overrides } = body || {};
+  const { overrides, clientRevision } = body || {};
   if (!overrides || typeof overrides !== "object") {
     return json({ error: "Missing overrides object" }, 400);
   }
@@ -193,18 +198,38 @@ export async function onRequestPost(context) {
     return json({ error: validation.error }, 400);
   }
 
-  try {
-    await kv.put(KEY, JSON.stringify(validation.sanitized));
-  } catch (err) {
-    // Cloudflare's Workers KV free tier caps out at 1,000 put operations
-    // per day; past that, kv.put() itself rejects -- this is exactly the
-    // "Daily Workers KV put limit exceeded" email. The client (see
-    // src/hooks/useCoachOverrides.js) already falls back to localStorage
-    // on any non-ok response, so no edit is lost -- it just won't sync to
-    // other devices/visitors until the quota resets at 00:00 UTC.
-    return json({ error: "Cloudflare's daily free-tier KV write limit was reached. Your edit is saved in this browser and will sync once the limit resets (00:00 UTC)." }, 429);
+  // Everything from here -- reading the live value, backing it up,
+  // blocking an all-empty or otherwise suspiciously smaller payload,
+  // the stale-client (clientRevision) check, writing, and auditing the
+  // attempt -- is the KV Data Protection / Safety Layer, shared with
+  // Patch Intelligence publish (functions/api/admin/patch-reports.js)
+  // and the admin restore endpoint. See functions/_lib/kvSafety.js's
+  // header comment for the full guarantee; nothing about that flow is
+  // specific to Coach Mode.
+  const result = await mutateOverrides(kv, {
+    operation: "coach-save",
+    source: "POST /api/coach-overrides (Coach Mode UI)",
+    clientRevision: typeof clientRevision === "number" ? clientRevision : undefined,
+    // Merge, don't replace wholesale: carry forward whatever the client
+    // didn't send (patch/verifiedPatch/patchStatus live on this same
+    // object but aren't part of every Coach Mode save) rather than
+    // letting a partial client payload blank them out.
+    mutate: (current) => ({ ...current, ...validation.sanitized }),
+  });
+
+  if (!result.ok) {
+    if (result.code === "KV_WRITE_FAILED" || result.code === "BACKUP_FAILED") {
+      // Cloudflare's Workers KV free tier caps out at 1,000 put
+      // operations per day; past that, kv.put() itself rejects -- this
+      // is exactly the "Daily Workers KV put limit exceeded" email. The
+      // client already falls back to localStorage on any non-ok
+      // response, so no edit is lost -- it just won't sync to other
+      // devices/visitors until the quota resets at 00:00 UTC.
+      return json({ error: "Cloudflare's daily free-tier KV write limit was reached (or KV is temporarily unavailable). Your edit is saved in this browser and will sync once the limit resets (00:00 UTC).", code: result.code }, 429);
+    }
+    return json({ error: result.error, code: result.code, ...(result.assessment ? { assessment: result.assessment } : {}) }, result.httpStatus || 500);
   }
-  return json({ ok: true });
+  return json({ ok: true, revision: result.revision });
 }
 
 export async function onRequestOptions() {

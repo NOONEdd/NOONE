@@ -1254,7 +1254,7 @@ export const CHAMPIONS = [
 // it is a real, resolvable identity: valid for image resolution
 // (src/utils/images.js), valid as a Matchup target (src/data/
 // matchups.js, functions/api/coach-overrides.js's validation), and
-// valid for AI Coach/Patch Intelligence to recognize by name. That's
+// valid for AI Coach/Patch Notes to recognize by name. That's
 // deliberate and unchanged -- see requirement #2 in the redesign spec
 // this section implements: "Do NOT solve this by deleting non-Support
 // Champions from the canonical Champion registry."
@@ -1262,7 +1262,7 @@ export const CHAMPIONS = [
 // ACADEMY_COVERED_IDS is a SEPARATE, narrower concept: which of those
 // champions Nyx NOONEdd Academy actually has coaching content for --
 // appears in the Support Champion Tier List, the guide-browsing page,
-// the homepage teaser, and Patch Intelligence's own roster snapshot.
+// the homepage teaser, and Patch Notes' own roster snapshot.
 // This is exactly the original 36-champion roster from before the
 // Phase 3 "add every current Wild Rift champion so Matchups can
 // reference them" expansion -- the 105 added in that phase have no

@@ -49,7 +49,7 @@ export function stripAnnotation(name) {
 // as different characters and the match silently fails. Normalizing
 // every apostrophe-like character to one form before comparing (both
 // sides) closes that gap for EVERY caller of findCanonicalId below --
-// Coach Mode build/rune notes and Patch Intelligence's AI-extracted
+// Coach Mode build/rune notes and Patch Notes' extracted
 // entity names alike -- from this one place, rather than each caller
 // (or worse, each feature) needing its own copy of this normalization.
 // Deliberately NOT applied inside slugify() itself: slugify's own
@@ -69,7 +69,7 @@ function normalizeApostrophes(value) {
  *  for the whole project: src/components/BuildBoard.jsx, BuildList.jsx,
  *  BuildEditor.jsx, and ItemRunePicker.jsx already call this for
  *  hand-written Coach Mode build/rune names, and src/components/
- *  EntityImage.jsx (Patch Intelligence's report images) calls this same
+ *  EntityImage.jsx (Patch Notes' report images) calls this same
  *  function for the AI's extracted entity names -- nobody maintains a
  *  second copy of this matching logic.
  *  Tries, in order: exact match, then substring match in either

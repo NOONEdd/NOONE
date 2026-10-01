@@ -129,7 +129,7 @@ export function resolveEffectivePatch(kvPatch, staticPatch) {
 /** The Academy's DATA VERIFICATION STATUS for whatever the effective
  *  patch currently is -- deliberately a SEPARATE question from "what is
  *  the current patch" above. Changing the current patch (Coach Mode's
- *  patch field, or a Patch Intelligence publish) must never, by itself,
+ *  patch field, or a Patch Notes publish) must never, by itself,
  *  make the site claim its data has been verified for that patch --
  *  that would silently misrepresent unreviewed data as reviewed. The
  *  only way `status` can ever come back "verified" is if
@@ -141,7 +141,7 @@ export function resolveEffectivePatch(kvPatch, staticPatch) {
  *
  *  `overrides.verifiedPatch`: the patch number an admin last explicitly
  *  marked verified (via the Coach Mode patch editor's "Mark verified"
- *  action, or via publishing a Patch Intelligence report with "also mark
+ *  action, or via publishing a Patch Notes report with "also mark
  *  verified" checked) -- see functions/api/admin/patch-reports.js and
  *  src/components/TierBoard.jsx's CoachToggle.
  *  `overrides.patchStatus`: an optional explicit "updating" flag an

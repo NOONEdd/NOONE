@@ -40,9 +40,18 @@
 
 import { requireAdminSession } from "../../_lib/adminAuth.js";
 import { listAllReports, getReportRevision, getLatestReport, listRevisionsForPatch, updateReportRevision, publishRevision, unpublishReport, deletePatchCompletely } from "../../_lib/patchReportsStore.js";
-import { fetchOverrides } from "../../_lib/kv.js";
+import { mutateOverrides } from "../../_lib/kvSafety.js";
+import { applyReviewOps, applyCoachFieldEdits, deriveLegacyReport, mergeFreshOntoExisting, reviewSummary } from "../../_lib/patchNotesReview.js";
+import { ITEMS } from "../../../src/data/items.js";
+import { resolveEffectiveItem } from "../../../src/lib/effectiveData.js";
 
-const KEY = "coach-overrides"; // matches functions/api/coach-overrides.js exactly -- see that file for why
+// Server-side approval gate for publish/restore. A revision can only become
+// public if a human already approved it -- or it has already been public
+// before (published/archived/unpublished: that is what Restore and
+// re-publish operate on). pending_review, rejected, partial_failure,
+// ai_error and source_unavailable revisions are never publishable
+// directly; approve first.
+const PUBLISHABLE_STATUSES = new Set(["approved", "published", "archived", "unpublished"]);
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
@@ -128,6 +137,30 @@ export async function onRequestPost(context) {
   const revision = await resolveTargetRevision(kv, id, requestedRevision);
   if (!revision) return json({ error: "No report with that id." }, 404);
 
+  if (action === "review") {
+    // Patch Notes human review: small, targeted operations on the per-change / per-section REVIEW layer only
+    // (see patchNotesReview.js). The original Riot source, the normalized extraction and the provenance are
+    // never writable here -- applyReviewOps ignores any such key. Each op is applied against a FRESH read of
+    // the revision (a delta, never a whole-report replacement), then the draft legacy view is re-derived.
+    // Only this revision's own key is written; coach-overrides / Academy master data are never touched.
+    const target = await getReportRevision(kv, id, revision);
+    if (!target) return json({ error: "No report with that id/revision." }, 404);
+    if (!target.patchNotes || !Array.isArray(target.patchNotes.changes)) {
+      return json({ error: "This revision predates Patch Notes review (it has no extracted change dataset). Re-scan the patch to generate one.", code: "NO_PATCH_NOTES_DATASET" }, 409);
+    }
+    const ops = Array.isArray(body?.ops) ? body.ops.slice(0, 500) : [];
+    const { dataset, applied, errors } = applyReviewOps(target.patchNotes, ops);
+    if (!applied.length) return json({ error: "No valid review operation was applied.", errors }, 400);
+    const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
+    const legacy = mergeFreshOntoExisting(deriveLegacyReport(dataset, { itemRoster, mode: "draft" }), target);
+    const updated = await updateReportRevision(kv, id, revision, {
+      patchNotes: dataset, patchNotesSummary: { ...reviewSummary(dataset), validation: dataset.validation },
+      championChanges: legacy.championChanges, itemChanges: legacy.itemChanges, runeChanges: legacy.runeChanges, systemChanges: legacy.systemChanges,
+    });
+    if (!updated) return json({ error: "Failed to save the review." }, 500);
+    return json({ ok: true, applied, errors, report: updated });
+  }
+
   if (action === "edit") {
     // Admin corrections to the AI's analysis. Only these specific
     // fields are accepted -- id/status/generatedAt/sourceUrl/etc. are
@@ -135,10 +168,23 @@ export async function onRequestPost(context) {
     // be able to overwrite. Nested arrays (championChanges etc.) are
     // replaced wholesale when provided -- the frontend sends the full
     // (admin-edited) array back, not a diff.
+    // A report that has a Patch Notes dataset keeps its facts, source text and review state in that dataset
+    // (changed only through action "review"). A wholesale array edit is therefore reduced to the Coach fields
+    // it carries, merged onto the server's current entries -- see applyCoachFieldEdits.
+    const current = await getReportRevision(kv, id, revision);
+    if (current && current.patchNotes && edits) {
+      const reduced = { ...edits };
+      for (const [field, idField] of [["championChanges", "championId"], ["itemChanges", "itemId"], ["runeChanges", "runeId"]]) {
+        if (Object.prototype.hasOwnProperty.call(edits, field)) reduced[field] = applyCoachFieldEdits(current[field], edits[field], idField);
+      }
+      delete reduced.systemChanges; // system rows are derived; they carry no Coach fields
+      body.edits = reduced;
+    }
+    const editsIn = body.edits;
     const allowed = ["supportMetaAnalysis", "adminNotes", "championChanges", "itemChanges", "runeChanges", "systemChanges", "recommendedTierChanges"];
     const safeEdits = {};
     for (const field of allowed) {
-      if (edits && Object.prototype.hasOwnProperty.call(edits, field)) safeEdits[field] = edits[field];
+      if (editsIn && Object.prototype.hasOwnProperty.call(editsIn, field)) safeEdits[field] = editsIn[field];
     }
     const updated = await updateReportRevision(kv, id, revision, safeEdits);
     return json({ ok: true, report: updated });
@@ -158,8 +204,16 @@ export async function onRequestPost(context) {
     // publishRevision() doesn't care which direction `revision` moves
     // in, it just makes THAT revision the public one and archives
     // whatever was published before. See patchReportsStore.js.
-    const updated = await publishRevision(kv, id, revision, { reviewedAt: new Date().toISOString() });
-    if (!updated) return json({ error: "Failed to update report." }, 500);
+
+    // ---- Gate 1: human approval, enforced HERE, not just in the UI ----
+    const target = await getReportRevision(kv, id, revision);
+    if (!target) return json({ error: "No report with that id/revision." }, 404);
+    if (!PUBLISHABLE_STATUSES.has(target.status)) {
+      return json({
+        error: `Revision ${revision} of this patch is "${target.status}" and cannot be published -- approve it first. Nothing was changed.`,
+        code: "APPROVAL_REQUIRED", status: target.status, revision, published: false,
+      }, 409);
+    }
 
     // Default true -- publishing a report is the moment in the spec's
     // own workflow ("admin publishes/marks patch verified") where the
@@ -168,22 +222,39 @@ export async function onRequestPost(context) {
     // the site verified can uncheck this in the UI. Restoring an older
     // revision applies the exact same verification side effect,
     // reusing that revision's own already-recorded `patch` value.
-    const shouldMarkVerified = alsoMarkVerified !== false;
-    if (shouldMarkVerified && updated.patch) {
-      const overrides = await fetchOverrides(kv);
-      overrides.patch = updated.patch;
-      overrides.verifiedPatch = updated.patch;
-      overrides.patchStatus = null; // "verified" is derived from verifiedPatch matching patch -- see resolvePatchDataStatus()
-      try {
-        await kv.put(KEY, JSON.stringify(overrides));
-      } catch {
-        return json({ ok: true, report: updated, verifiedWriteFailed: true, error: "Report published, but writing the verified-patch status failed (KV write limit?). Set it manually from the patch editor on any tier list page." });
+    const shouldMarkVerified = alsoMarkVerified !== false && Boolean(target.patch);
+
+    // ---- Gate 2: the Coach Mode blob must be safe to touch BEFORE
+    // anything is published. Marking a patch verified is a read-modify-
+    // write of the whole `coach-overrides` blob -- mutateOverrides()
+    // (functions/_lib/kvSafety.js) does the full read/verify/validate/
+    // backup/apply/validate/destructive-check/write/verify sequence
+    // atomically; if ANY step of that fails, nothing is written and the
+    // publish is aborted outright rather than published-without-
+    // verification or (worse) written over a guessed empty state. This
+    // write only ever touches 3 scalar fields (patch/verifiedPatch/
+    // patchStatus) and carries every other key through unchanged, so it
+    // can never trip the destructive-change check. ----
+    if (shouldMarkVerified) {
+      const preflight = await mutateOverrides(kv, {
+        operation: `patch-publish:${action}`,
+        source: `POST /api/admin/patch-reports (id=${id}, revision=${revision})`,
+        mutate: (current) => ({ ...current, patch: target.patch, verifiedPatch: target.patch, patchStatus: null }), // "verified" is derived from verifiedPatch matching patch -- see resolvePatchDataStatus()
+      });
+      if (!preflight.ok) {
+        return json({
+          error: `Publish aborted: the live Coach Mode data could not be safely updated (${preflight.code}). Nothing was published and no Coach Mode data was changed. ${preflight.error || ""}`.trim(),
+          code: preflight.code, published: false,
+        }, preflight.httpStatus || 503);
       }
     }
+
+    const updated = await publishRevision(kv, id, revision, { reviewedAt: new Date().toISOString() });
+    if (!updated) return json({ error: "Failed to update report." }, 500);
     return json({ ok: true, report: updated, markedVerified: shouldMarkVerified && Boolean(updated.patch) });
   }
 
-  return json({ error: `Unknown action "${action}". Expected one of: edit, approve, reject, publish, unpublish, restore, delete.` }, 400);
+  return json({ error: `Unknown action "${action}". Expected one of: edit, review, approve, reject, publish, unpublish, restore, delete.` }, 400);
 }
 
 export async function onRequestOptions() {

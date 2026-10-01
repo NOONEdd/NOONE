@@ -1,4 +1,4 @@
-// Deterministic Academy-entity detection for Patch Intelligence.
+// Deterministic Academy-entity detection for Patch Notes.
 //
 // PURPOSE: guarantee COVERAGE. Before any AI runs, every Academy-tracked
 // champion, item and rune is looked up in the official patch text. An

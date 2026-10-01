@@ -78,6 +78,7 @@ export function CoachToggle({ editMode, setEditMode, syncStatus, auth, currentPa
     checking: "Checking sync status...",
     syncing: "Saving...",
     synced: "Synced to the live site for everyone",
+    conflict: "Someone else saved first — refreshed with their changes, redo your edit",
     "local-only": "Saved to this browser only — see README to enable real syncing",
   }[syncStatus] || "Saved to this browser only — see README to enable real syncing";
 
@@ -135,7 +136,7 @@ export function CoachToggle({ editMode, setEditMode, syncStatus, auth, currentPa
             </div>
           )}
           <span className="storage-note" style={{ margin: 0 }}>
-            Shown site-wide and used by the AI Coach. Clear the field to fall back to the version shipped in the code. Changing the patch number always drops verification back to "not yet reviewed" until you explicitly mark it verified again — see Patch Intelligence at #/patch-intelligence for a Support-focused breakdown of what changed.
+            Shown site-wide and used by the AI Coach. Clear the field to fall back to the version shipped in the code. Changing the patch number always drops verification back to "not yet reviewed" until you explicitly mark it verified again — see Patch Notes at #/patch-intelligence for a Support-focused breakdown of what changed.
           </span>
         </div>
       )}

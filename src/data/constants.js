@@ -42,6 +42,6 @@ export const NAV_LINKS = [
   { label: "Items", path: "/items", page: "items" },
   { label: "Runes", path: "/runes", page: "runes" },
   { label: "Guides", path: "/guides", page: "guides" },
-  { label: "Patch Intel", path: "/patch-intelligence", page: "patch-intelligence" },
+  { label: "Patch Notes", path: "/patch-notes", page: "patch-notes" },
   { label: "Coaching", path: "/coaching", page: "coaching" },
 ];

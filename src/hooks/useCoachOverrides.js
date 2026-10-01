@@ -5,7 +5,7 @@ const API_URL = "/api/coach-overrides";
 const LOGIN_URL = "/api/admin/login";
 const LOGOUT_URL = "/api/admin/logout";
 const SESSION_URL = "/api/admin/session";
-const EMPTY = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null, verifiedPatch: null, patchStatus: null };
+const EMPTY = { champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: null, verifiedPatch: null, patchStatus: null, revision: 0, updatedAt: null };
 
 function readLocal() {
   try {
@@ -56,9 +56,20 @@ function writeLocal(value) {
  * latest accumulated overrides, so even if ten edits land inside one
  * debounce window, the eventual single write still contains all of them.
  *
+ * KV SAFETY LAYER (functions/_lib/kvSafety.js): every write here is
+ * revisioned -- `revisionRef` tracks the last revision this tab knows
+ * about, sent back as `clientRevision` on every POST, so a save built on
+ * stale data (another device/tab wrote in between) is rejected by the
+ * server (409 REVISION_CONFLICT) instead of silently overwriting that
+ * newer write. On a conflict, this hook does NOT retry or merge --
+ * per the safety spec, a stale client must refresh, not overwrite -- it
+ * re-fetches the live state (so the coach sees what actually changed)
+ * and surfaces syncStatus "conflict" for exactly that one flush; any
+ * edit still wanted has to be redone on top of the refreshed data.
+ *
  * Returns [overrides, update, syncStatus, auth, decisionTreeActions,
  * updatePatch, patchVerification] where syncStatus is one of "checking" |
- * "syncing" | "synced" | "local-only", auth is { isAuthorized,
+ * "syncing" | "synced" | "local-only" | "conflict", auth is { isAuthorized,
  * verify(password), logout() }, decisionTreeActions is { add(championId),
  * update(championId, entryId, content), remove(championId, entryId) } --
  * add() returns the new entry's id synchronously so the caller can focus
@@ -75,6 +86,7 @@ export function useCoachOverrides() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const pendingSyncRef = useRef(null); // latest overrides object awaiting a debounced write
   const debounceTimerRef = useRef(null);
+  const revisionRef = useRef(0); // last revision this tab knows the server to be at -- see KV SAFETY LAYER note above
 
   useEffect(() => {
     (async () => {
@@ -85,6 +97,7 @@ export function useCoachOverrides() {
         if (data.error) throw new Error(data.error);
         setOverrides(data.overrides || EMPTY);
         writeLocal(data.overrides || EMPTY);
+        revisionRef.current = data.overrides?.revision ?? 0;
         setSyncStatus("synced");
       } catch {
         setSyncStatus("local-only");
@@ -116,10 +129,36 @@ export function useCoachOverrides() {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ overrides: payload }),
+      body: JSON.stringify({ overrides: payload, clientRevision: revisionRef.current }),
     })
-      .then((res) => res.json())
-      .then((data) => setSyncStatus(data.ok ? "synced" : "local-only"))
+      .then((res) => res.json().then((data) => ({ res, data })))
+      .then(({ res, data }) => {
+        if (data.ok) {
+          revisionRef.current = data.revision ?? revisionRef.current;
+          setSyncStatus("synced");
+          return;
+        }
+        if (res.status === 409 && data.code === "REVISION_CONFLICT") {
+          // Someone else's edit landed first -- do NOT retry this write
+          // over it. Pull the real current state (and its revision) so
+          // this tab stops being stale, and surface the conflict so the
+          // coach knows this specific save didn't apply; their local
+          // edit stays in localStorage/state and can be redone once
+          // they've seen what changed.
+          setSyncStatus("conflict");
+          fetch(API_URL)
+            .then((r) => r.json())
+            .then((fresh) => {
+              if (!fresh.overrides) return;
+              revisionRef.current = fresh.overrides.revision ?? revisionRef.current;
+              setOverrides(fresh.overrides);
+              writeLocal(fresh.overrides);
+            })
+            .catch(() => {});
+          return;
+        }
+        setSyncStatus("local-only");
+      })
       .catch(() => setSyncStatus("local-only"));
   }, []);
 
@@ -134,7 +173,7 @@ export function useCoachOverrides() {
   useEffect(() => {
     function flushOnUnload() {
       if (!pendingSyncRef.current) return;
-      const body = JSON.stringify({ overrides: pendingSyncRef.current });
+      const body = JSON.stringify({ overrides: pendingSyncRef.current, clientRevision: revisionRef.current });
       pendingSyncRef.current = null;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       navigator.sendBeacon?.(API_URL, new Blob([body], { type: "application/json" }));

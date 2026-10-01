@@ -30,7 +30,7 @@ import ErrorBoundary from "./components/ErrorBoundary.jsx";
 const ChampionDetailPage = lazy(() => import("./pages/ChampionDetailPage.jsx"));
 const CoachingPage = lazy(() => import("./pages/CoachingPage.jsx"));
 const AICoachPage = lazy(() => import("./pages/AICoachPage.jsx"));
-const PatchIntelligencePage = lazy(() => import("./pages/PatchIntelligencePage.jsx"));
+const PatchNotesPage = lazy(() => import("./pages/PatchNotesPage.jsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
 
 export default function App() {
@@ -105,8 +105,8 @@ export default function App() {
     content = <CoachingPage />;
   } else if (route.page === "ai-coach") {
     content = <AICoachPage currentPatch={effectivePatch} patchStatus={patchStatus} />;
-  } else if (route.page === "patch-intelligence") {
-    content = <PatchIntelligencePage currentPatch={effectivePatch} patchStatus={patchStatus} champions={champions} items={items} runes={runes} />;
+  } else if (route.page === "patch-notes" || route.page === "patch-intelligence") { // "patch-intelligence" = the old URL, kept as an alias so existing links/bookmarks still work
+    content = <PatchNotesPage currentPatch={effectivePatch} patchStatus={patchStatus} champions={champions} items={items} runes={runes} />;
   } else if (route.page === "admin") {
     // Deliberately NOT in NAV_LINKS / any visible nav element -- reached
     // only by navigating here directly (e.g. a bookmark). See

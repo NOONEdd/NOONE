@@ -6,7 +6,7 @@ import { CheckCircle2, RefreshCw, CircleDashed } from "lucide-react";
 // overrides.patchStatus), so this component never re-derives or
 // second-guesses that logic; it only renders whatever it's given. Used
 // on the three tier list pages, the champion detail page, the AI Coach
-// page, and the public Patch Intelligence page -- see App.jsx for where
+// page, and the public Patch Notes page -- see App.jsx for where
 // `patchStatus` gets threaded down from.
 const STATUS_META = {
   verified: { label: "Verified for this patch", Icon: CheckCircle2, color: "var(--cyan)" },

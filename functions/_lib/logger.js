@@ -12,7 +12,7 @@ export function logCoachEvent(fields) {
   console.log(JSON.stringify({ path: "/api/coach", ...fields }));
 }
 
-/** Same idea as logCoachEvent above, scoped to Patch Intelligence
+/** Same idea as logCoachEvent above, scoped to Patch Notes
  *  (functions/api/admin/patch-check.js). Added specifically so a failed
  *  analysis is actually diagnosable from Cloudflare's real-time Function
  *  logs -- previously the detailed failure reason (raw AI reply length,

@@ -626,7 +626,7 @@
 
 /* PATCH INTELLIGENCE reports — shared by the admin review list
    (src/pages/AdminPage.jsx) and the public page
-   (src/pages/PatchIntelligencePage.jsx); the admin version adds action
+   (src/pages/PatchNotesPage.jsx); the admin version adds action
    buttons and edit controls on top of this same base. */
 .patch-report-list { display: flex; flex-direction: column; gap: 12px; }
 .patch-report-card { border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.02); overflow: hidden; }
@@ -721,3 +721,22 @@
   .patch-publish-group { margin-left: 0; width: 100%; }
 }
 .picker-empty { grid-column: 1 / -1; color: var(--text-dimmer); font-size: 13.5px; text-align: center; padding: 20px; }
+/* ---- Patch Notes review panel (src/components/PatchNotesReview.jsx) ---- */
+.pn-root { display: flex; flex-direction: column; gap: 10px; }
+.pn-accounting { font-size: 12.5px; color: var(--text-dim); }
+.pn-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pn-filter { border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; color: var(--text-dim); background: transparent; }
+.pn-filter.active { border-color: var(--cyan); color: var(--cyan); }
+.pn-search { flex: 1 1 160px; min-width: 140px; }
+.pn-section { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: rgba(255,255,255,.015); }
+.pn-section-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pn-section-actions { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.pn-count { font-size: 12px; color: var(--text-dimmer); }
+.pn-toggle { display: inline-flex; align-items: center; gap: 4px; color: var(--text); background: transparent; border: 0; padding: 4px 0; font-weight: 700; text-align: left; }
+.pn-change { border-top: 1px solid var(--line); padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.pn-change-head { display: flex; flex-wrap: wrap; gap: 6px; }
+.pn-label { font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dimmer); margin-top: 4px; }
+.pn-source { margin: 0; padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--line); background: rgba(0,0,0,.25); color: var(--text-dim); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow: auto; }
+.pn-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-family: 'Rajdhani'; font-weight: 600; font-size: 13px; padding: 8px 11px; }
+.pn-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pn-details { font-size: 12.5px; color: var(--text-dim); display: flex; flex-direction: column; gap: 3px; word-break: break-word; }

@@ -6,8 +6,8 @@ import { ROLE_ICONS, ROLE_COLORS, ITEM_ICONS, ITEM_COLORS, RUNE_ICONS, RUNE_COLO
 const TYPE_PREFIX = { champion: "c", item: "i", rune: "r" };
 
 /**
- * Champion/Item/Rune image for a Patch Intelligence report entry
- * (src/pages/AdminPage.jsx, src/pages/PatchIntelligencePage.jsx) --
+ * Champion/Item/Rune image for a Patch Notes report entry
+ * (src/pages/AdminPage.jsx, src/pages/PatchNotesPage.jsx) --
  * reuses the EXACT SAME mechanism the rest of the site already uses for
  * every other entity image, at BOTH of its steps, not a second asset
  * system:

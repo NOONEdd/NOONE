@@ -45,7 +45,7 @@ function buildMessageText({ report, patch, previousPatch, adminReviewUrl }) {
     .map((e) => formatChangeLine(e, e.championName ? "championName" : e.itemName ? "itemName" : "runeName"));
 
   const lines = [
-    `Wild Rift patch ${patch} detected (previously ${previousPatch || "unknown"}) — Patch Intelligence report ready for review.`,
+    `Wild Rift patch ${patch} detected (previously ${previousPatch || "unknown"}) — Patch Notes report ready for review.`,
     "",
     report.supportMetaAnalysis || "(No Support meta summary generated.)",
   ];
@@ -63,7 +63,7 @@ function buildMessageText({ report, patch, previousPatch, adminReviewUrl }) {
 
 function buildSourceUnavailableText({ previousPatch, adminReviewUrl }) {
   const lines = [
-    `Patch Intelligence: a new Wild Rift patch may be available, but the official patch notes page couldn't be retrieved.`,
+    `Patch Notes: a new Wild Rift patch may be available, but the official patch notes page couldn't be retrieved.`,
     `Academy's last known patch was ${previousPatch || "unknown"}. No report was generated and no data was changed.`,
   ];
   if (adminReviewUrl) lines.push("", `Check manually: ${adminReviewUrl}`);
@@ -108,7 +108,7 @@ export async function sendPatchNotification({ env, report, patch, previousPatch,
 /** Sent instead of the above when the official source couldn't be
  *  fetched at all (see functions/api/admin/patch-check.js) -- per the
  *  trust-hierarchy requirement to notify the admin rather than silently
- *  doing nothing when Patch Intelligence can't do its job. Only fires
+ *  doing nothing when Patch Notes can't do its job. Only fires
  *  for the SCHEDULED/automatic trigger path, not a manually-clicked
  *  "check now" (which already shows the same failure inline in the
  *  Admin UI immediately, so a duplicate webhook ping adds no value). */
