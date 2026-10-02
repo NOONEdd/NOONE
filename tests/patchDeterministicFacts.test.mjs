@@ -1,5 +1,5 @@
-// Patch Intelligence -- patchChangeDetector.js / patchPlanner.js's
-// relevance gate regression test (2026-09-23 deterministic-first
+// Patch Intelligence -- patchChangeDetector.js
+// regression test (2026-09-23 deterministic-first
 // refactor). Plain Node ESM, no framework. Run directly:
 //
 //   node tests/patchDeterministicFacts.test.mjs
@@ -73,9 +73,9 @@ console.log('\n=== patchChangeDetector.js: ADDED/REMOVED + item-info signal ==='
 }
 
 // ---------------------------------------------------------------------
-// patchPlanner.js -- the deterministic-first relevance gate
+// (retired) the deterministic-first relevance gate
 // ---------------------------------------------------------------------
-// (the relevance gate / planner sections of this file were retired with patchPlanner.js on 2026-09-30:
+// (the relevance gate / planner sections of this file were retired with the planner module on 2026-09-30:
 //  nothing is gated out any more -- see tests/patchNotes.test.mjs for the accounting + ownership suite)
 
 console.log(`\n${pass} passed, ${fail} failed`);

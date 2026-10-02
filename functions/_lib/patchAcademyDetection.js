@@ -10,7 +10,7 @@
 // a comparison, a lore line, or a list of returning cosmetics. Whether
 // Riot actually changed the entity, and whether that matters to Support,
 // is decided afterwards (by the analyst, then re-checked deterministically
-// -- see patchAnalysis.js / patchAggregate.js). The four diagnostic
+// -- see patchNotesExtract.js). The four diagnostic
 // states the brief asks for map to:
 //   A  not detected                       (this file: no match in any unit)
 //   B  detected, did not change           (verdict changed=false)

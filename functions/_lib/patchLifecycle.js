@@ -2,15 +2,13 @@
 // Removed / New Champions / bare "Removed" under "Marksman Item
 // Adjustments", ...). Pure structure-based helpers, no I/O.
 //
-// Lives in its own module (moved out of patchDeterministicReport.js, which
-// still re-exports every function here so existing imports keep working)
-// so patchPlanner.js can ask "is this unit an explicit lifecycle section?"
-// BEFORE its relevance gate decides whether the unit is kept -- a
-// lifecycle list ("Removed: Magnetic Blaster, Soul Transfer, ...") is an
-// explicit Riot statement and must never be dropped just because the
-// section it sits in (Marksman Item Adjustments) has a category the gate
-// doesn't otherwise carry. patchDeterministicReport.js builds the actual
-// report entries from these results.
+// Lives in its own module so the extractor (patchNotesExtract.js) can ask
+// "is this unit an explicit lifecycle section?" before anything else
+// decides how to treat the unit -- a lifecycle list ("Removed: Magnetic
+// Blaster, Soul Transfer, ...") is an explicit Riot statement and must
+// never be dropped just because the section it sits in (Marksman Item
+// Adjustments) has a category nothing else carries. The report entries
+// themselves are built from these results downstream.
 //
 // ---------------------------------------------------------------------
 // EXPLICIT LIFECYCLE SECTIONS (Items Removed / New Items / Runes Removed

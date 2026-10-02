@@ -1,0 +1,12 @@
+Delete these files from your project (verified dead: no production import, no dynamic import, no route, no frontend reference):
+
+functions/_lib/patchAnalysis.js
+functions/_lib/patchAggregate.js
+functions/_lib/patchPlanner.js
+functions/_lib/patchDeterministicReport.js
+src/pages/PatchIntelligencePage.jsx
+tests/patchAnalysisPipeline.test.mjs
+tests/patchIntelReanalyze.test.mjs
+tests/patchIntelRetryVsDetect.test.mjs
+tests/patchRevisionSafety.test.mjs
+tests/patchTargetedRetryEndToEnd.test.mjs

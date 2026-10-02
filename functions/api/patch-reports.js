@@ -1,6 +1,6 @@
 // Cloudflare Pages Function — GET /api/patch-reports
 // PUBLIC, unauthenticated, read-only -- the data source for
-// src/pages/PatchIntelligencePage.jsx. Only ever returns reports an
+// src/pages/PatchNotesPage.jsx. Only ever returns reports an
 // admin has explicitly PUBLISHED (see functions/api/admin/patch-reports.js's
 // "publish" action); pending/approved/rejected/source_unavailable/
 // ai_error reports stay in the private Admin Patch Review area and are

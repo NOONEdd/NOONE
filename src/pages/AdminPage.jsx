@@ -306,6 +306,8 @@ function KvSafetyPanel() {
 }
 
 function RevisionHistory({ reportId, onAction, busy, refreshToken }) {
+  const [open, setOpen] = useState(false);
+  const [revisions, setRevisions] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {

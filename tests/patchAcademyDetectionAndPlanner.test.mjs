@@ -1,12 +1,11 @@
-// Patch Intelligence -- patchAcademyDetection.js / patchPlanner.js
-// regression test. Plain Node ESM, no framework. Run directly:
+// Patch Intelligence -- patchAcademyDetection.js regression test. Plain Node ESM, no framework. Run directly:
 //
 //   node tests/patchAcademyDetectionAndPlanner.test.mjs
+//
+// (The filename is historical: this file used to ALSO cover the AI-era batch planner, which has been
+// retired together with its planPatchAnalysis / splitBatchInHalf sections. Only the live Academy-detection coverage remains.)
 
 import { buildAcademyIndex, detectEntitiesInText, isStrongDetection, resolveEntityByName } from '../functions/_lib/patchAcademyDetection.js';
-import { parsePatchDocument } from '../functions/_lib/patchParser.js';
-import { planPatchAnalysis } from '../functions/_lib/patchPlanner.js';
-import { htmlToStructuredText } from '../functions/_lib/patchText.js';
 
 let pass = 0, fail = 0;
 function check(label, cond, detail) {
@@ -78,70 +77,6 @@ const index = buildAcademyIndex({ championRoster, itemRoster, runeRoster });
   check('resolveEntityByName exact match', resolveEntityByName('Leona', championRoster)?.id === 'leona');
   check('resolveEntityByName is case-insensitive', resolveEntityByName('leona', championRoster)?.id === 'leona');
   check('resolveEntityByName returns null for no match', resolveEntityByName('Nonexistent Champion', championRoster) === null || resolveEntityByName('Nonexistent Champion', championRoster) === undefined);
-}
-
-// ---------------------------------------------------------------------
-// patchPlanner.js
-// ---------------------------------------------------------------------
-console.log('\n=== patchPlanner.js ===');
-
-{
-  const html = `<html><body><h1>Patch 7.3a</h1><h2>CHAMPION CHANGES</h2><h3>Leona</h3><ul><li>Q up</li></ul><h3>Rakan</h3><ul><li>W down</li></ul><h2>ITEM CHANGES</h2><h3>Ardent Censer</h3><ul><li>Cost down</li></ul></body></html>`;
-  const { text } = htmlToStructuredText(html);
-  const parsed = parsePatchDocument(text, { maxUnitChars: 18000 });
-  const plan = planPatchAnalysis({ units: parsed.units, championRoster, itemRoster, runeRoster });
-
-  check('entities detected via heading (not just body text)', plan.detectedAnywhere.has('champion:leona') && plan.detectedAnywhere.has('champion:rakan') && plan.detectedAnywhere.has('item:ardent-censer'));
-  check('small patch fits in a single batch', plan.batches.length === 1, plan.batches.length);
-  check('not capped for a small patch', plan.capped === false);
-  check('never-mentioned roster entities are absent from detectedAnywhere', !plan.detectedAnywhere.has('champion:nautilus') && !plan.detectedAnywhere.has('rune:guardian'));
-}
-
-{
-  // Batches must respect PATCH_INTEL_BATCH_MAX_ENTITIES: build a big
-  // roster + patch so packing is forced to span multiple batches, and
-  // confirm no single batch exceeds the entity cap.
-  const bigChampionRoster = Array.from({ length: 40 }, (_, i) => ({ id: `champ${i}`, name: `Champion${i}Name`, role: 'Support', tier: 'B' }));
-  let body = '<h1>Patch 7.3a</h1><h2>CHAMPION CHANGES</h2>';
-  for (const c of bigChampionRoster) body += `<h3>${c.name}</h3><ul><li>Passive cooldown reduced</li></ul>`;
-  const { text } = htmlToStructuredText(`<html><body>${body}</body></html>`);
-  const parsed = parsePatchDocument(text, { maxUnitChars: 18000 });
-  const plan = planPatchAnalysis({ units: parsed.units, championRoster: bigChampionRoster, itemRoster: [], runeRoster: [] });
-
-  check('multiple batches formed for 40 champions', plan.batches.length > 1, plan.batches.length);
-  check('every batch respects the entity cap (<=14)', plan.batches.every((b) => b.entities.length <= 14), plan.batches.map((b) => b.entities.length));
-  check('every detected champion assigned to exactly one batch (no duplicates, none missing)', (() => {
-    const seen = new Map();
-    for (const b of plan.batches) for (const e of b.entities) seen.set(e.key, (seen.get(e.key) || 0) + 1);
-    const allOnce = [...seen.values()].every((n) => n === 1);
-    const allPresent = bigChampionRoster.every((c) => seen.has(`champion:${c.id}`));
-    return allOnce && allPresent;
-  })());
-  check('no units left unassigned for a patch well within capacity', plan.unassignedUnits.length === 0, plan.unassignedUnits.length);
-}
-
-{
-  // splitBatchInHalf (used by patchAnalysis.js's retry-with-split) must
-  // cut at a unit boundary and correctly re-derive each half's entities
-  // from entityKeysByUnitId rather than reusing the whole batch's list.
-  const html = `<html><body><h1>Patch</h1><h2>CHAMPION CHANGES</h2><h3>Leona</h3><ul><li>Q up</li></ul><h3>Rakan</h3><ul><li>W up</li></ul><h3>Nautilus</h3><ul><li>E up</li></ul></body></html>`;
-  const { text } = htmlToStructuredText(html);
-  const parsed = parsePatchDocument(text, { maxUnitChars: 18000 });
-  const plan = planPatchAnalysis({ units: parsed.units, championRoster, itemRoster, runeRoster });
-  const { splitBatchInHalf } = await import('../functions/_lib/patchPlanner.js');
-  const batch = plan.batches[0];
-  const halves = splitBatchInHalf(batch, plan.index);
-
-  check('split produces two halves', halves.length === 2, halves.length);
-  check('every original unit id appears in exactly one half', (() => {
-    const ids = [...halves[0].unitIds, ...halves[1].unitIds];
-    return ids.length === batch.unitIds.length && new Set(ids).size === ids.length;
-  })());
-  check("each half's entities come only from its own units (no leakage from the other half)", (() => {
-    const half0Keys = new Set(halves[0].entities.map((e) => e.key));
-    const half1UnitEntityKeys = new Set([...halves[1].entityKeysByUnitId.values()].flat());
-    return [...half0Keys].every((k) => !half1UnitEntityKeys.has(k)) || halves[0].unitIds.every((id) => !halves[1].unitIds.includes(id));
-  })());
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

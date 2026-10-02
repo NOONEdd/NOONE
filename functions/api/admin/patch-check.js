@@ -26,7 +26,7 @@
 //      FACT fields from a fresh pass over the (possibly re-fetched)
 //      source text, while preserving every already-written COACH field
 //      on any entity that's still detected (see
-//      patchDeterministicReport.js's mergeFreshOntoExisting) -- a rescan
+//      patchNotesReview.js's mergeFreshOntoExisting) -- a rescan
 //      is "the source text or Academy data may have changed, refresh
 //      what Riot said," never "throw away the Coach's analysis." Never
 //      touches last-known-slug, never sends the new-patch notification
@@ -93,7 +93,7 @@ async function fingerprintContent(content) {
  *
  *  `mergeOnto` (optional, rescan only): an existing report whose COACH
  *  fields should be preserved on any entity this run still detects --
- *  see patchDeterministicReport.js's mergeFreshOntoExisting. Normal
+ *  see patchNotesReview.js's mergeFreshOntoExisting. Normal
  *  detection never passes this (there's nothing to merge onto -- it's a
  *  brand-new patch). aiProvider/aiModel fields are kept in the saved
  *  report shape (always null) purely so older stored revisions that DO
@@ -203,7 +203,7 @@ async function analyzePatch({ kv, slug, overrides, logContext = {}, mergeOnto = 
  *  patch Patch Notes already has at least one report for,
  *  producing a new revision that refreshes Riot-sourced facts while
  *  preserving every Coach-written field (see analyzePatch's mergeOnto
- *  and patchDeterministicReport.js's mergeFreshOntoExisting). Admin
+ *  and patchNotesReview.js's mergeFreshOntoExisting). Admin
  *  session only (see file header). Works identically regardless of the
  *  existing report's status.
  *

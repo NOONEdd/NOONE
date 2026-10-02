@@ -176,7 +176,7 @@ src/
   data/          champions.js, items.js, runes.js, constants.js, patch.js (static patch fallback)
   lib/           effectiveData.js — shared data-merge resolver + patch/verification-status resolvers, imported by BOTH the website and the AI Coach
   components/    shared UI (RankChip, TierBoard, Layout, BuildList, SmartImage, icons, PatchStatus)
-  pages/         one file (or group) per route, including AdminPage.jsx and PatchIntelligencePage.jsx
+  pages/         one file (or group) per route, including AdminPage.jsx and PatchNotesPage.jsx
   hooks/         routing, Coach Mode storage (real API + local fallback, now session-cookie-based), hero parallax
   utils/         image base-path resolution
 functions/

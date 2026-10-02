@@ -5,11 +5,10 @@
 // and response parser (buildBatchSystemPrompt / BATCH_REPORT_JSON_SCHEMA
 // / parseAIJson / normalizePatchIntelReport / normalizeEntityVerdicts).
 // All of that is gone as of the deterministic rebuild -- there is no AI
-// call anywhere in Patch Notes anymore. functions/_lib/
-// patchDeterministicReport.js is the module that replaced patchAnalysis.js
-// (the old per-batch AI executor) and patchAggregate.js (the old cross-
-// batch merger); it builds every report entry directly from
-// patchChangeDetector.js's extracted facts and patchAcademyDetection.js's
+// call anywhere in Patch Notes anymore. The deterministic pipeline
+// (patchNotesExtract.js -> patchNotesReview.js) replaced the old per-batch
+// AI executor and cross-batch merger; it builds every report entry directly
+// from patchChangeDetector.js's extracted facts and patchAcademyDetection.js's
 // entity detection, using normalizeChangeEntry() below for the entry
 // shape so a deterministically-built entry and a human-edited one always
 // look the same to the rest of the app (the Admin Coach Review UI, the
@@ -63,7 +62,7 @@ function recordArray(value) {
 
 /** Confidence is about how sure we are of the RIOT FACT and its
  *  attribution -- not a judgment about the change's importance (that's
- *  `relevance`, computed separately in patchDeterministicReport.js).
+ *  `relevance`, computed separately in patchNotesReview.js).
  *  Derived, never asked-for: a CONFIRMED comparison state (a clean,
  *  unambiguous before/after pair straight from Riot's own text) is
  *  always High; a low-confidence item-info signal (POSSIBLE) or an
@@ -81,7 +80,7 @@ export function confidenceForComparisonState(state) {
  *  of fields, kept clearly apart (see this file's header):
  *    - FACT fields (whatChanged/previousValue/newValue/sourceRaw/
  *      comparisonState/relevance/detectionMethod/confidence) --
- *      supplied by patchDeterministicReport.js from Riot's own text,
+ *      supplied by patchNotesReview.js from Riot's own text,
  *      never hand-typed by a coach.
  *    - COACH fields (supportImpact/gameplayImplications/
  *      buildImplications/runeImplications/matchupImplications/
@@ -92,7 +91,7 @@ export function confidenceForComparisonState(state) {
  *      the "edit" action; this function's own defaults for them are
  *      just safe placeholders, never a claim about the change's actual
  *      impact.
- *  Called both by patchDeterministicReport.js (building a fresh entry)
+ *  Called both by patchNotesReview.js (building a fresh entry)
  *  and by functions/api/admin/patch-reports.js's "edit" action
  *  (re-normalizing a coach's saved edits) -- same shape either way. */
 export function normalizeChangeEntry(entry, { withChampionsAffected }) {
@@ -134,8 +133,7 @@ export function normalizeChangeEntry(entry, { withChampionsAffected }) {
 }
 
 /** Shapes one systemChanges entry (an objective/macro/system change with
- *  no single Academy entity to attach it to -- see patchPlanner.js's
- *  RELEVANT_NO_ENTITY_CATEGORIES). Same fact/coach split as
+ *  no single Academy entity to attach it to). Same fact/coach split as
  *  normalizeChangeEntry, minus the entity-specific implication fields
  *  that don't apply to a systemwide change. */
 export function normalizeSystemChangeEntry(entry) {

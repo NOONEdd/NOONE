@@ -260,7 +260,7 @@ export function deriveLegacyReport(dataset, { itemRoster = [], mode = "draft" } 
   };
 }
 
-// ---- coach-field preservation on rescan (moved here from the retired patchDeterministicReport.js, semantics unchanged) ----
+// ---- coach-field preservation on rescan (moved here from the retired interim report builder, semantics unchanged) ----
 // Coach fields ONLY -- never a fact field; facts always come from the run that just re-scanned the patch.
 const COACH_FIELDS = [
   "type", "supportImpact", "impactSeverity", "gameplayImplications", "buildImplications",

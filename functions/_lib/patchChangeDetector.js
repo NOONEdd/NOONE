@@ -54,7 +54,7 @@ export const COMPARISON_STATE = Object.freeze({
   // Explicit lifecycle sections ("Items Removed", "New Champions", ...):
   // Riot's OWN section structure states the entity no longer exists /
   // newly exists. Not a value comparison at all -- the section itself is
-  // the fact. See patchDeterministicReport.js's LIFECYCLE_SECTION_PATTERNS.
+  // the fact. See patchLifecycle.js's LIFECYCLE_TITLE_PATTERNS.
   REMOVED: "REMOVED",
   ADDED: "ADDED",
 });
@@ -467,7 +467,7 @@ export function extractDeterministicFacts(unitText, opts = {}) {
  *  when a label was captured -- this is the FACT half of a report entry
  *  (see patchIntelligence.js's normalizeChangeEntry / this file's header
  *  for the fact/coach split). Returns null for an empty/missing fact
- *  list -- patchDeterministicReport.js's cue to fall back to Riot's own
+ *  list -- the report builder's (patchNotesReview.js) cue to fall back to Riot's own
  *  raw unit text instead (a real, confirmed mention with no extractable
  *  value pair -- prose-only, still worth an entry). */
 export function formatFacts(facts) {
@@ -514,7 +514,7 @@ export function resolveUnitOwnership(unit, index, detectEntitiesInText, isStrong
 /** Resolves the single Academy entity a unit's OWN heading (not its
  *  body) names, if exactly one strong match exists -- Riot's own
  *  per-champion/per-item heading convention (\"### Leona\", \"### Ardent
- *  Censer\") is what patchDeterministicReport.js relies on to attribute a
+ *  Censer\") is what the report builder (patchNotesReview.js) relies on to attribute a
  *  unit's facts to exactly one entity's report entry. Zero or
  *  multiple heading-level matches return null. Thin wrapper over
  *  resolveUnitOwnership, kept for existing callers. */
