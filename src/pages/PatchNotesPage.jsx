@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Radar } from "lucide-react";
 import { PatchStatusBanner } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
+import { buildPatchSummary, classificationLabel, normalizeClassification } from "../lib/patchNotesPresentation.js";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 
@@ -9,16 +10,46 @@ function SeverityChip({ severity }) {
   return <span className="severity-chip" style={{ "--sc": SEVERITY_COLOR[severity] || "var(--text-dimmer)" }}>{severity}</span>;
 }
 
+const CLASS_COLOR = { BUFF: "var(--cyan)", NERF: "var(--magenta)", ADJUSTED: "var(--gold)", NEW: "var(--cyan)", REMOVED: "var(--magenta)", UNKNOWN: "var(--text-dimmer)" };
+// The reviewed classification (Buff / Nerf / Adjustment / New / Removed / Unknown). Old AI-era revisions only carry the legacy `type`.
+const classOf = (entry) => entry.classification || normalizeClassification(entry.type) || "UNKNOWN";
+
+function ChangeBadge({ value }) {
+  return <span className="patch-entry-type patch-class" style={{ "--cc": CLASS_COLOR[value] || CLASS_COLOR.UNKNOWN }}>{classificationLabel(value)}</span>;
+}
+
+/** One Riot subsection (an ability / stat / passive heading exactly as Riot wrote it, or the admin's display edit of it) with its own
+ *  changes and notes. `entry.subsections` is built from the review dataset's structure -- never by splitting a text string. */
+function PublicSubsection({ sub, entryClass }) {
+  return (
+    <div className="patch-sub">
+      {sub.title && <div className="patch-sub-title">{sub.title}</div>}
+      {sub.changes.map((c, j) => (
+        <div className="patch-sub-change" key={j}>
+          <p className="patch-entry-line">
+            {c.text}
+            {c.classification && c.classification !== entryClass && c.classification !== "UNKNOWN" && <> <ChangeBadge value={c.classification} /></>}
+          </p>
+          {c.note && <p className="patch-change-note"><b>Note:</b> {c.note}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PublicChangeRow({ entry, nameField, entityType, roster }) {
+  const cls = classOf(entry);
   return (
     <div className="patch-entry-card">
       <div className="patch-entry-head">
         {entityType && <EntityImage entityType={entityType} entityName={entry[nameField]} roster={roster} />}
-        <span className="patch-entry-name">{entry[nameField]}</span>
-        <span className="patch-entry-type">{entry.type}</span>
+        <span className="patch-entry-name">{entry.displayTitle || entry[nameField]}</span>
+        <ChangeBadge value={cls} />
         <SeverityChip severity={entry.impactSeverity} />
       </div>
-      {entry.whatChanged && <p className="patch-entry-line">{entry.whatChanged}</p>}
+      {Array.isArray(entry.subsections) && entry.subsections.length > 0
+        ? entry.subsections.map((s, i) => <PublicSubsection key={i} sub={s} entryClass={cls} />)
+        : entry.whatChanged && <p className="patch-entry-line">{entry.whatChanged}</p>}
       {entry.supportImpact && <p className="patch-entry-line"><b>Support impact:</b> {entry.supportImpact}</p>}
       {entry.tierListActionNeeded && (
         <p className="patch-entry-footer"><span className="patch-entry-tier-action">Suggested tier action: {entry.recommendedTierAction}</span></p>
@@ -27,9 +58,11 @@ function PublicChangeRow({ entry, nameField, entityType, roster }) {
   );
 }
 
-function PublicReportCard({ report, roster }) {
-  const [expanded, setExpanded] = useState(false);
-  const totalChanges = report.championChanges.length + report.itemChanges.length + report.runeChanges.length + report.systemChanges.length;
+export function PublicReportCard({ report, roster, initiallyExpanded = false }) {
+  const [expanded, setExpanded] = useState(Boolean(initiallyExpanded));
+  // ONE summary for the whole card: the server's (custom text, else generated from the visible reviewed entries) or, for a response
+  // that predates it, the same function over the same arrays this card renders -- the count and the message cannot disagree.
+  const summary = report.summary || buildPatchSummary(report, { legacyText: report.supportMetaAnalysis });
 
   return (
     <div className="patch-report-card">
@@ -37,11 +70,11 @@ function PublicReportCard({ report, roster }) {
         {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <span className="patch-report-patch">Patch {report.patch}</span>
         <span className="patch-report-date">{new Date(report.generatedAt).toLocaleDateString()}</span>
-        <span className="storage-note" style={{ margin: 0 }}>{totalChanges} Support-relevant change{totalChanges === 1 ? "" : "s"}</span>
+        {summary.headline && <span className="storage-note" style={{ margin: 0 }}>{summary.headline}</span>}
       </button>
       {expanded && (
         <div className="patch-report-body">
-          <p className="patch-meta-analysis">{report.supportMetaAnalysis || "No Support-relevant changes identified in this patch."}</p>
+          <p className="patch-meta-analysis">{summary.text}</p>
 
           {report.championChanges.length > 0 && (
             <>

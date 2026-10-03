@@ -143,7 +143,7 @@ check('champion/item/rune/decision-tree overrides byte-identical after publish (
 const publicRes = await publicGet({ env, request: new Request('https://x/api/patch-reports') });
 const publicBody = await publicRes.json();
 const pr = (publicBody.reports || publicBody)[0];
-check('public view exists and never leaks the review dataset / provenance / reviewer notes', pr && !('patchNotes' in pr) && !JSON.stringify(pr).includes('reviewerNote') && !JSON.stringify(pr).includes('sourceFingerprint'), pr && Object.keys(pr));
+check('public view exists and never leaks the review dataset / provenance / fingerprints (the reviewer note is PUBLIC by design, as presentation field `note`; its storage key never appears)', pr && !('patchNotes' in pr) && !JSON.stringify(pr).includes('reviewerNote') && !JSON.stringify(pr).includes('sourceFingerprint'), pr && Object.keys(pr));
 check('public view shows the EXISTING Leona entry', pr.championChanges.some((c) => c.championId === 'leona'));
 check('public view hides the rejected change', !JSON.stringify(pr.championChanges).includes('bonus armor'));
 check('public view shows the kept NEW_CANDIDATE and hides the removed system change', pr.itemChanges.some((i) => i.itemName === 'Mystery Blade') && pr.systemChanges.length === 0, { items: pr.itemChanges.map((i) => i.itemName), sys: pr.systemChanges.length });

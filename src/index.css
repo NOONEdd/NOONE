@@ -669,6 +669,13 @@
 .patch-entry-type { font-size: 11.5px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .5px; }
 .patch-entry-line { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin-bottom: 5px; }
 .patch-entry-line b { color: var(--text); }
+.patch-class { color: var(--cc, var(--text-dimmer)); font-weight: 700; }
+/* Patch Notes: one block per Riot subsection (ability / stat / passive heading), separated by a hairline */
+.patch-sub { border-top: 1px solid var(--line); padding: 8px 0 2px; margin-top: 6px; }
+.patch-sub-title { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.patch-sub-change { margin-bottom: 4px; }
+.patch-change-note { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin: 0 0 6px; padding-left: 10px; border-left: 2px solid var(--gold); }
+.patch-change-note b { color: var(--gold); }
 .patch-entry-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 .patch-entry-tier-action { font-size: 12.5px; font-weight: 700; color: var(--violet); }
 .patch-entry-reasoning-readonly { font-size: 11.5px; color: var(--text-dimmer); margin-top: 4px; }
@@ -735,6 +742,9 @@
 .pn-toggle { display: inline-flex; align-items: center; gap: 4px; color: var(--text); background: transparent; border: 0; padding: 4px 0; font-weight: 700; text-align: left; }
 .pn-change { border-top: 1px solid var(--line); padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
 .pn-change-head { display: flex; flex-wrap: wrap; gap: 6px; }
+.pn-sub { border-left: 2px solid var(--line); margin: 8px 0 0 4px; padding-left: 10px; }
+.pn-sub-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0 0; font-size: 13.5px; }
+.pn-summary { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .pn-label { font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dimmer); margin-top: 4px; }
 .pn-source { margin: 0; padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--line); background: rgba(0,0,0,.25); color: var(--text-dim); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow: auto; }
 .pn-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-family: 'Rajdhani'; font-weight: 600; font-size: 13px; padding: 8px 11px; }

@@ -339,7 +339,9 @@ export function extractStructuredChanges(unitText, opts = {}) {
   };
 
   let currentLine = 0;
-  const base = (extra) => ({ ability, group, ...extra, source: "riot_patch_notes", detection: "deterministic", sourceSection, lineIndex: currentLine });
+  // abilityLabel = the label line exactly as Riot wrote it (markup/colon/inline tag stripped, slot notation like "E -" KEPT): the
+  // source heading a Patch Notes subsection is named after. `ability` (slot notation removed) stays what it always was.
+  const base = (extra) => ({ ability, abilityLabel: abilityRaw, group, ...extra, source: "riot_patch_notes", detection: "deterministic", sourceSection, lineIndex: currentLine });
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     currentLine = lineIndex;

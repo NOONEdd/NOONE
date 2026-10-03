@@ -42,6 +42,7 @@ import { requireAdminSession } from "../../_lib/adminAuth.js";
 import { listAllReports, getReportRevision, getLatestReport, listRevisionsForPatch, updateReportRevision, publishRevision, unpublishReport, deletePatchCompletely } from "../../_lib/patchReportsStore.js";
 import { mutateOverrides } from "../../_lib/kvSafety.js";
 import { applyReviewOps, applyCoachFieldEdits, deriveLegacyReport, mergeFreshOntoExisting, reviewSummary } from "../../_lib/patchNotesReview.js";
+import { publicPreview } from "../../_lib/patchNotesPublic.js";
 import { ITEMS } from "../../../src/data/items.js";
 import { resolveEffectiveItem } from "../../../src/lib/effectiveData.js";
 
@@ -55,6 +56,14 @@ const PUBLISHABLE_STATUSES = new Set(["approved", "published", "archived", "unpu
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+}
+
+/** The summary visitors would get for this revision if it were published now (custom text, else generated from the visible reviewed
+ *  data) -- computed at READ time by the same function the public endpoint uses and attached to the response only; never stored. */
+function withPublicPreview(report) {
+  if (!report) return report;
+  const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
+  return { ...report, publicPreview: publicPreview(report, itemRoster) };
 }
 
 export async function onRequestGet(context) {
@@ -73,7 +82,7 @@ export async function onRequestGet(context) {
     const revisionParam = url.searchParams.get("revision");
     const report = revisionParam ? await getReportRevision(kv, id, Number(revisionParam)) : await getLatestReport(kv, id);
     if (!report) return json({ error: "No report with that id/revision." }, 404);
-    return json({ report });
+    return json({ report: withPublicPreview(report) });
   }
 
   const reports = await listAllReports(kv);
@@ -158,7 +167,7 @@ export async function onRequestPost(context) {
       championChanges: legacy.championChanges, itemChanges: legacy.itemChanges, runeChanges: legacy.runeChanges, systemChanges: legacy.systemChanges,
     });
     if (!updated) return json({ error: "Failed to save the review." }, 500);
-    return json({ ok: true, applied, errors, report: updated });
+    return json({ ok: true, applied, errors, report: withPublicPreview(updated) });
   }
 
   if (action === "edit") {

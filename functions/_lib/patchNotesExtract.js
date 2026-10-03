@@ -25,6 +25,9 @@
 //                   heading-less appendix list is split without guessing
 //   lifecycle_block an explicit lifecycle list (Items Removed, a bare
 //                   Removed list, New Items / New Champions ...)
+//   entity_subsection  the block's own heading is NOT a tracked entity, but a heading ABOVE it (inside the same
+//                   section) exactly names one: it is that entity's Riot-provided subsection (an ability / stat /
+//                   passive heading), not a new entity. Document hierarchy only -- never prose, never a guess.
 //   section_structure  the block sits in a system/topic section (jungle,
 //                   turrets, minions, objectives, map, systems, ...)
 //   unmatched       ownership itself can't be proven: a heading naming
@@ -63,7 +66,7 @@ export const PATCH_NOTES_EXTRACT_VERSION = "pn-extract-v1";
 export const ENTITY_STATUS = Object.freeze({ EXISTING: "EXISTING", NEW_CANDIDATE: "NEW_CANDIDATE", UNMATCHED: "UNMATCHED" });
 export const OWNERSHIP_SOURCE = Object.freeze({
   ENTITY_HEADING: "entity_heading", EXPLICIT_BLOCK: "explicit_block", LIFECYCLE_BLOCK: "lifecycle_block",
-  SECTION_STRUCTURE: "section_structure", UNMATCHED: "unmatched",
+  ENTITY_SUBSECTION: "entity_subsection", SECTION_STRUCTURE: "section_structure", UNMATCHED: "unmatched",
 });
 /** Lifecycle/comparison vocabulary for a change. BUFF/NERF only when Riot's own
  *  heading says so; old->new pairs Riot doesn't label are ADJUSTED. */
@@ -148,8 +151,8 @@ export function findNewnessEvidence(name, unitsWithText) {
 }
 
 // ---- display formatting (human-readable summary of one change; never the source of truth) ----
-export function formatChangeLine(c) {
-  const prefix = [c.ability, c.group].filter(Boolean).join(" \u203A ");
+export function formatChangeLine(c, { withPrefix = true } = {}) {
+  const prefix = withPrefix ? [c.ability, c.group].filter(Boolean).join(" \u203A ") : "";
   let body;
   switch (c.changeType) {
     case "added": body = `New ${c.stat || c.label || "stat"}: ${c.newValue}`; break;
@@ -244,7 +247,19 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
     return "unknown";
   }
 
-  function pushChange({ unit, blockIndex, rec, lineOffset = 0, owner, originalSourceText }) {
+  /** Nearest heading ABOVE this unit (inside its section, below the page title) that exactly names ONE tracked entity -- the
+   *  document hierarchy that makes this unit's own heading a subsection of that entity. Ambiguous names never qualify. */
+  function trackedEntityAncestor(unit) {
+    const path = unit.headingPath || [];
+    for (let i = path.length - 2; i > titleDepth; i--) {
+      const hits = exactEntities(path[i]);
+      if (hits.length === 1) return { entity: hits[0], heading: path[i] };
+      if (hits.length > 1) return null;
+    }
+    return null;
+  }
+
+  function pushChange({ unit, blockIndex, rec, lineOffset = 0, owner, originalSourceText, subsectionHeading = null }) {
     const sec = sectionFields(unit.headingPath, titleDepth);
     const lineIndex = rec.lineIndex != null ? rec.lineIndex + lineOffset : null;
     const original = originalSourceText ?? rec.raw;
@@ -266,6 +281,9 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
     }
     const comparisonState = rec.lifecycle ? (rec.lifecycle.action === "added" ? COMPARISON.NEW : COMPARISON.REMOVED) : comparisonFor(rec, unit.headingPath, owner.status);
     const entityLabel = owner.kind === "entity" ? owner.name : null;
+    // SUBSECTION = Riot's own heading for this change: a label line above it ("Disaster - Devastating Fire") or, in
+    // heading-style documents, the unit's own heading under a tracked entity heading. Exact Riot wording; never a slot guess.
+    const subsection = rec.abilityLabel ? { sourceHeading: rec.abilityLabel, origin: "label" } : subsectionHeading ? { sourceHeading: subsectionHeading, origin: "heading" } : null;
     const displayText = rec.lifecycle ? `${rec.lifecycle.action === "added" ? "New" : "Removed"} ${rec.lifecycle.kind}: ${rec.lifecycle.name}` : formatChangeLine(rec);
     const change = {
       changeId,
@@ -291,8 +309,10 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
         sourceAnchor: null, // the structured text carries no anchors; never invented
         sourceFingerprint: fingerprint, parserVersion: PARSER_VERSION, extractorVersion: PATCH_NOTES_EXTRACT_VERSION, extractedAt,
       },
+      subsection,
       duplicates: [],
-      displayDefaults: { displayTitle: [entityLabel || sec.sourceHeading, rec.ability && rec.ability !== entityLabel ? rec.ability : null].filter(Boolean).join(" \u2014 "), displayText },
+      // displayBody = the same line WITHOUT the ability prefix: what is shown under that ability's own subsection heading
+      displayDefaults: { displayTitle: [entityLabel || sec.sourceHeading, rec.ability && rec.ability !== entityLabel ? rec.ability : subsectionHeading].filter(Boolean).join(" \u2014 "), displayText, displayBody: rec.lifecycle ? displayText : formatChangeLine(rec, { withPrefix: false }) },
     };
     changes.push(change);
     idSeen.set(changeId, { change, fingerprints: new Set([fingerprint]) });
@@ -360,6 +380,10 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
       blockOwner = { kind: "entity", entityKey: a.key, academy: a, name: a.name, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.ENTITY_HEADING, reason: `heading "${heading}" equals the tracked ${a.type} name` };
     } else if (entityMatchAllowed && headingEntities.length > 1) {
       blockOwner = { kind: "entity", entityKey: `unknown:${normName(heading)}`, academy: null, name: heading, type: typeFromCategory(unit), status: ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.UNMATCHED, reason: `heading "${heading}" equals more than one tracked entity name (ambiguous owner)`, suspectedReferences: headingEntities.map((e) => e.key) };
+    } else if (entityMatchAllowed && headingEntities.length === 0 && trackedEntityAncestor(unit)) {
+      const anc = trackedEntityAncestor(unit);
+      const a = anc.entity;
+      blockOwner = { kind: "entity", entityKey: a.key, academy: a, name: a.name, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.ENTITY_SUBSECTION, reason: `heading \"${heading}\" is a subsection of the tracked ${a.type} \"${anc.heading}\" (document hierarchy)` };
     } else if (entityBearing && categoryForHeading(heading) === null && typeFromCategory(unit) !== "unknown") {
       const ev = newness(heading);
       blockOwner = { kind: "entity", entityKey: `${typeFromCategory(unit)}:${normName(heading)}`, academy: null, name: heading, type: typeFromCategory(unit), status: ev ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.ENTITY_HEADING, reason: ev ? `entity-shaped block "${heading}" not tracked by Academy; newness proven by Riot wording` : `entity-shaped block "${heading}" not tracked by Academy; newness not provable`, evidence: ev };
@@ -389,7 +413,7 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
         recs = [{ kind: "effect", changeType: "textual_change", effect: stripMarkup(segText).replace(/\s+/g, " ").slice(0, 1500), ability: null, group: null, slot: null, traits: [], oldValue: "", newValue: "", raw: segText.trim(), lineIndex: 0 }];
       }
       for (const rec of recs) {
-        const ch = pushChange({ unit, blockIndex, rec, lineOffset: seg.startLine, owner });
+        const ch = pushChange({ unit, blockIndex, rec, lineOffset: seg.startLine, owner, subsectionHeading: owner === blockOwner && blockOwner.ownershipSource === OWNERSHIP_SOURCE.ENTITY_SUBSECTION ? heading : null });
         if (!block.changeIds.includes(ch.changeId)) block.changeIds.push(ch.changeId);
       }
     }

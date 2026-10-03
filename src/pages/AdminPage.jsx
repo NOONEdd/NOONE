@@ -3,6 +3,7 @@ import { Lock, LogOut, Radar, ChevronDown, ChevronRight, CheckCircle2, XCircle, 
 import { PatchStatusPill } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
 import PatchNotesReview from "../components/PatchNotesReview.jsx";
+import { buildPatchSummary } from "../lib/patchNotesPresentation.js";
 import { planBuildTypeMigration, verifyAllEntriesTyped } from "../lib/buildTypeClassifier.js";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
@@ -444,15 +445,18 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
             </div>
           ) : (
             <>
-              {editMode ? (
+              {/* A revision WITH a Patch Notes dataset edits its public summary inside the review panel below (review layer, survives
+                  re-scans). Legacy revisions keep this textarea; when they have no text the summary is generated from the very entries
+                  listed below, so the message can never claim "no changes" above a list of changes. */}
+              {!report.patchNotes && (editMode ? (
                 <textarea
                   className="edit-info-field"
                   value={data.supportMetaAnalysis}
                   onChange={(e) => setDraft((prev) => ({ ...prev, supportMetaAnalysis: e.target.value }))}
                 />
               ) : (
-                <p className="patch-meta-analysis">{data.supportMetaAnalysis || "No Support-relevant changes identified."}</p>
-              )}
+                <p className="patch-meta-analysis">{buildPatchSummary(data, { legacyText: data.supportMetaAnalysis }).text}</p>
+              ))}
 
               {report.patchNotes && <PatchNotesReview report={report} busy={busy} onOps={(ops) => onAction(report.id, "review", { ops, revision: report.revision })} />}
               {!report.patchNotes && data.championChanges.length > 0 && (

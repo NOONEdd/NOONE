@@ -102,7 +102,7 @@ const CASES = [
   ['legacy partial_failure (rev 3)', partialFailure, ['Patch 7.2d', 'INCOMPLETE', 'Leona']],
   ['legacy ai_error (rev 2)', aiError, ['Patch 7.1', 'Re-scan Patch']],
   ['legacy source_unavailable', sourceUnavailable, ['Patch 7.0', 'Retry Source Fetch']],
-  ['empty report (no changes, no patch number)', emptyReport, ['No Support-relevant changes identified.']],
+  ['empty report (no changes, no patch number)', emptyReport, ['No Support-relevant changes identified in this patch.']],
 ];
 const roster = { champions: [], items: [], runes: [] };
 

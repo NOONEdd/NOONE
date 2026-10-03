@@ -9,20 +9,14 @@
 // listPublicReports().
 
 import { listPublicReports } from "../_lib/patchReportsStore.js";
-import { deriveLegacyReport } from "../_lib/patchNotesReview.js";
+import { toPublicView } from "../_lib/patchNotesPublic.js";
 import { ITEMS } from "../../src/data/items.js";
 import { resolveEffectiveItem } from "../../src/lib/effectiveData.js";
 
-// The public Patch Notes view is DERIVED at read time from the reviewed dataset (only changes whose
-// review state allows publication; see patchNotesReview.js isChangePublishable). The review dataset itself
-// -- original source, normalized extraction, provenance, reviewer notes -- never leaves the admin API.
-function toPublicView(report, itemRoster) {
-  if (!report.patchNotes || !Array.isArray(report.patchNotes.changes)) return report;
-  const { patchNotes, patchNotesSummary, analysisCoverage, ...rest } = report;
-  const view = deriveLegacyReport(patchNotes, { itemRoster, mode: "publish" });
-  const stripChanges = (list) => list.map(({ changes, changeIds, ...e }) => e);
-  return { ...rest, championChanges: stripChanges(view.championChanges), itemChanges: stripChanges(view.itemChanges), runeChanges: stripChanges(view.runeChanges), systemChanges: stripChanges(view.systemChanges) };
-}
+// The public Patch Notes view is DERIVED at read time from the reviewed dataset (only changes whose review state allows
+// publication; see patchNotesReview.js isChangePublishable) by patchNotesPublic.js. The review dataset itself -- original source,
+// normalized extraction, provenance -- never leaves the admin API; the presentation fields (display text, the reviewer's note,
+// classification, subsection headings, summary) do.
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
