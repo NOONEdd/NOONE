@@ -12,10 +12,12 @@ import { deriveLegacyReport, subsectionOf, subsectionKeyOf } from "./patchNotesR
 import { buildPatchSummary } from "../../src/lib/patchNotesPresentation.js";
 
 const publicSubsections = (subsections) => (subsections || []).map((s) => ({
-  title: s.title || null, sourceHeading: s.sourceHeading || null,
+  title: s.title || null, sourceHeading: s.sourceHeading || null, abilityName: s.abilityName || null,
   changes: s.changes.map((c) => ({ text: c.text, note: c.note || "", classification: c.classification })),
 }));
-const publicEntry = ({ changes, changeIds, sectionKey, subsections, classificationExtracted, classificationOverridden, ...entry }) => ({ ...entry, subsections: publicSubsections(subsections) });
+// `confidence` = extraction confidence (how sure the parser is of the fact/ownership): internal, never part of the public view, so it
+// can never be mistaken for how big a change is. The reviewed change impact (changeImpact) is the only impact the public page gets.
+const publicEntry = ({ changes, changeIds, sectionKey, subsections, classificationExtracted, classificationOverridden, confidence, ...entry }) => ({ ...entry, subsections: publicSubsections(subsections) });
 
 /** @param {object} report  a stored report revision (published)  @param {Array} itemRoster  effective Academy items (for the info-vs-patch flag) */
 export function toPublicView(report, itemRoster = []) {

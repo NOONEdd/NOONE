@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, RotateCcw, Check, Trash2, Ban, AlertTriangle } from "lucide-react";
-import { CLASSIFICATION_OPTIONS, NO_CHANGES_TEXT, classificationLabel, normalizeClassification, classificationOrUnknown } from "../lib/patchNotesPresentation.js";
+import { CLASSIFICATION_OPTIONS, CHANGE_IMPACT_OPTIONS, NO_CHANGES_TEXT, classificationLabel, normalizeClassification, normalizeChangeImpact, classificationOrUnknown } from "../lib/patchNotesPresentation.js";
 
 // Patch Notes review panel (admin).
 //
@@ -162,6 +162,12 @@ function Section({ title, sectionState, changes, onOps, busy, defaultOpen, previ
             onChange={(e) => onOps([{ op: "classifySection", sectionKey: key, comparisonState: e.target.value || null }])}>
             <option value="">Derived from its changes</option>
             {CLASSIFICATION_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+          <span className="pn-label" style={{ margin: 0 }}>Overall impact (shown publicly):</span>
+          <select className="pn-input" value={normalizeChangeImpact(sectionState.changeImpact) || ""} disabled={busy} aria-label="Overall change impact"
+            onChange={(e) => onOps([{ op: "impactSection", sectionKey: key, changeImpact: e.target.value || null }])}>
+            <option value="">Not rated</option>
+            {CHANGE_IMPACT_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
         </div>
       )}

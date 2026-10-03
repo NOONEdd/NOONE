@@ -13,6 +13,7 @@
 //   change note (shown publicly)    change.review.reviewerNote                      (stored key kept so no stored review is orphaned)
 //   change classification override  change.review.comparisonStateOverride           (extraction value stays in change.comparisonState)
 //   entity classification override  dataset.sectionReview[sectionKey].comparisonStateOverride
+//   entity change impact (LOW/MEDIUM/HIGH)  dataset.sectionReview[sectionKey].changeImpact   (human-only: no extraction value exists; unset = not rated)
 //   subsection heading (display)    dataset.subsectionReview[subsectionKey].displayHeading   (Riot's own heading: change.subsection.sourceHeading)
 //   patch summary text              dataset.summaryReview.text                      (absent => generated from the visible reviewed data)
 //   change / section visibility     change.review.state / dataset.sectionReview[sectionKey].state
@@ -34,7 +35,7 @@
 import { classifyComparisonState, classifyEntityRelevance, classifySystemRelevance, compareItemInfoToPatch, COMPARISON_STATE } from "./patchChangeDetector.js";
 import { normalizeChangeEntry, normalizeSystemChangeEntry, mergeDuplicateEntities } from "./patchIntelligence.js";
 import { normName } from "./patchNotesIds.js";
-import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification } from "../../src/lib/patchNotesPresentation.js";
+import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel } from "../../src/lib/patchNotesPresentation.js";
 
 export const REVIEW_STATE = Object.freeze({ PENDING: "pending", KEPT: "kept", EDITED: "edited", REMOVED: "removed", REJECTED: "rejected" });
 export const SECTION_STATE = Object.freeze({ VISIBLE: "visible", REMOVED: "removed", REJECTED: "rejected" });
@@ -120,6 +121,7 @@ const cleanStr = (v, max) => (typeof v === "string" ? v.replace(/\u0000/g, "").s
  *   { op:"editSectionTitle", sectionKey, displayTitle }
  *   { op:"classify", changeId, comparisonState }            BUFF|NERF|ADJUSTMENT|NEW|REMOVED|UNKNOWN, null/"" = back to the extracted value
  *   { op:"classifySection", sectionKey, comparisonState }   the same, for the entity's badge as a whole
+ *   { op:"impactSection", sectionKey, changeImpact }         LOW|MEDIUM|HIGH, null/"" = not rated (how substantial the entity's changes are; Academy review metadata)
  *   { op:"editSubsectionTitle", subsectionKey, displayHeading }   "" = back to Riot's own heading
  *   { op:"setSummary", text } / { op:"clearSummary" }       the public patch summary override (cleared => generated from the visible data)
  * Returns { dataset, applied, errors }. Only review fields are ever written; any
@@ -160,6 +162,11 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString() } 
         const v = op.comparisonState === null || op.comparisonState === "" ? null : normalizeClassification(op.comparisonState);
         if (op.comparisonState !== null && op.comparisonState !== "" && v === null) { errors.push({ op, error: CLASSIFY_ERROR }); continue; }
         cur.comparisonStateOverride = v;
+      }
+      else if (op.op === "impactSection") {
+        const v = op.changeImpact === null || op.changeImpact === "" ? null : normalizeChangeImpact(op.changeImpact);
+        if (op.changeImpact !== null && op.changeImpact !== "" && v === null) { errors.push({ op, error: "changeImpact must be LOW, MEDIUM or HIGH (or null to clear)" }); continue; }
+        cur.changeImpact = v;
       }
       else if (op.op === "editSectionTitle") { const t = cleanStr(op.displayTitle, LIMITS.title); if (t === null) { errors.push({ op, error: "displayTitle must be a string" }); continue; } cur.displayTitle = t || null; }
       else { errors.push({ op, error: "unknown operation" }); continue; }
@@ -299,7 +306,7 @@ function decorateEntry(entry, dataset) {
   const map = new Map(); const order = [];
   for (const l of lites) {
     const k = l.subsectionKey || "";
-    if (!map.has(k)) { map.set(k, { key: l.subsectionKey, sourceHeading: l.subsectionHeading, origin: l.subsectionOrigin, title: l.subsectionKey ? ((dataset.subsectionReview || {})[l.subsectionKey] || {}).displayHeading || l.subsectionHeading : null, changes: [] }); order.push(k); }
+    if (!map.has(k)) { map.set(k, { key: l.subsectionKey, sourceHeading: l.subsectionHeading, origin: l.subsectionOrigin, title: l.subsectionKey ? ((dataset.subsectionReview || {})[l.subsectionKey] || {}).displayHeading || l.subsectionHeading : null, abilityName: l.ability || null, changes: [] }); order.push(k); }
     map.get(k).changes.push(l);
   }
   entry.subsections = order.map((k) => map.get(k));
@@ -310,6 +317,11 @@ function decorateEntry(entry, dataset) {
   entry.classificationOverridden = Boolean(forced) || lites.some((l) => l.classificationOverridden);
   // legacy `type` (Buff/Nerf/Adjustment, formerly a constant default) now mirrors the real classification for any old reader
   entry.type = classificationLabel(entry.classification);
+  // Change impact: the reviewer's call only. The legacy normalizer's placeholder default ("Medium" on EVERY entity -- the badge people saw)
+  // is never inherited: with no review the entity is simply not rated. `impactSeverity` mirrors it in the legacy Low/Medium/High wording
+  // for old readers (notify.js). Extraction confidence (`confidence`) is a different, internal field and is not touched here.
+  entry.changeImpact = normalizeChangeImpact(((dataset.sectionReview || {})[entry.sectionKey] || {}).changeImpact);
+  entry.impactSeverity = changeImpactLabel(entry.changeImpact);
 }
 
 export function deriveLegacyReport(dataset, { itemRoster = [], mode = "draft" } = {}) {
@@ -377,9 +389,10 @@ const COACH_FIELDS = [
   "recommendedTierAction", "reasoning",
 ];
 
-// `type` is a Coach field only on LEGACY entries. On an entry derived from a Patch Notes dataset it mirrors the derived classification
-// (override-aware), so a rescan / review re-derive must never carry an older stored `type` back over it.
-const coachFieldsFor = (entry) => (entry && entry.classification ? COACH_FIELDS.filter((f) => f !== "type") : COACH_FIELDS);
+// `type` and `impactSeverity` are Coach fields only on LEGACY entries. On an entry derived from a Patch Notes dataset they mirror the derived
+// classification / the reviewer's change impact (override-aware), so a rescan / review re-derive must never carry an older stored value
+// (the old constant "Adjustment" / "Medium") back over them.
+const coachFieldsFor = (entry) => (entry && entry.classification ? COACH_FIELDS.filter((f) => f !== "type" && f !== "impactSeverity") : COACH_FIELDS);
 
 /** Admin/Coach "edit" of a report that HAS a Patch Notes dataset: the incoming entries may only carry Coach fields.
  *  Each is merged onto the server's CURRENT entry (matched by id) -- fact fields, source text and review state are never

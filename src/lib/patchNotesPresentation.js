@@ -38,6 +38,25 @@ export function deriveEntityClassification(states) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Change impact: how substantial the changes to ONE entity are in this patch, as judged by the human reviewer.
+// It is Academy review metadata -- Riot publishes no such rating and nothing is extracted or computed for it, so an entity
+// is simply "not rated" (null) until the Admin sets it. It is NOT the extraction confidence (`confidence` on a derived
+// entry: how sure the parser is of the fact/ownership), which stays internal and is never shown as gameplay impact.
+// ---------------------------------------------------------------------------------------------------------------
+export const CHANGE_IMPACT = Object.freeze({ LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH" });
+const IMPACT_LABELS = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
+/** Options the admin may pick, in display order: [canonical value, label]. */
+export const CHANGE_IMPACT_OPTIONS = Object.freeze(Object.values(CHANGE_IMPACT).map((v) => [v, IMPACT_LABELS[v]]));
+/** "low" / "Low" / "LOW" -> "LOW"; anything else (incl. "" and null) -> null = not rated. */
+export function normalizeChangeImpact(value) {
+  if (typeof value !== "string") return null;
+  const v = value.trim().toUpperCase();
+  return Object.prototype.hasOwnProperty.call(IMPACT_LABELS, v) ? v : null;
+}
+/** Label for the public/admin chip, or null when not rated (the page then shows no impact chip at all). */
+export const changeImpactLabel = (value) => { const v = normalizeChangeImpact(value); return v ? IMPACT_LABELS[v] : null; };
+
+// ---------------------------------------------------------------------------------------------------------------
 // Patch summary. ONE function, fed with the arrays the page actually renders, so the count and the message cannot
 // disagree. A custom (human-written) text always wins; otherwise the text is generated from the same arrays.
 // ---------------------------------------------------------------------------------------------------------------

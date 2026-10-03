@@ -2,12 +2,18 @@ import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Radar } from "lucide-react";
 import { PatchStatusBanner } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
-import { buildPatchSummary, classificationLabel, normalizeClassification } from "../lib/patchNotesPresentation.js";
+import AbilityIcon from "../components/AbilityIcon.jsx";
+import { buildPatchSummary, classificationLabel, normalizeClassification, normalizeChangeImpact, changeImpactLabel } from "../lib/patchNotesPresentation.js";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 
-function SeverityChip({ severity }) {
-  return <span className="severity-chip" style={{ "--sc": SEVERITY_COLOR[severity] || "var(--text-dimmer)" }}>{severity}</span>;
+// How substantial the changes to this entity are, as set by the reviewer (Academy review metadata -- Riot publishes no such rating, and the
+// parser's extraction confidence is never shown here). Not rated => no chip at all, rather than a made-up "Medium". Old AI-era revisions
+// carry the legacy `impactSeverity` wording, shown the same way.
+function ImpactChip({ entry }) {
+  const label = changeImpactLabel(entry.changeImpact || normalizeChangeImpact(entry.impactSeverity));
+  if (!label) return null;
+  return <span className="severity-chip" title="How substantial this patch's changes to it are" style={{ "--sc": SEVERITY_COLOR[label] }}>Impact: {label}</span>;
 }
 
 const CLASS_COLOR = { BUFF: "var(--cyan)", NERF: "var(--magenta)", ADJUSTED: "var(--gold)", NEW: "var(--cyan)", REMOVED: "var(--magenta)", UNKNOWN: "var(--text-dimmer)" };
@@ -20,10 +26,16 @@ function ChangeBadge({ value }) {
 
 /** One Riot subsection (an ability / stat / passive heading exactly as Riot wrote it, or the admin's display edit of it) with its own
  *  changes and notes. `entry.subsections` is built from the review dataset's structure -- never by splitting a text string. */
-function PublicSubsection({ sub, entryClass }) {
+function PublicSubsection({ sub, entryClass, championId }) {
   return (
     <div className="patch-sub">
-      {sub.title && <div className="patch-sub-title">{sub.title}</div>}
+      {sub.title && (
+        <div className="patch-sub-head">
+          {/* champions only; the icon is looked up by Riot's own heading and is pure decoration -- the title and every change below render with or without it */}
+          {championId && <AbilityIcon championId={championId} sourceHeading={sub.sourceHeading || sub.title} abilityName={sub.abilityName} />}
+          <div className="patch-sub-title">{sub.title}</div>
+        </div>
+      )}
       {sub.changes.map((c, j) => (
         <div className="patch-sub-change" key={j}>
           <p className="patch-entry-line">
@@ -45,10 +57,10 @@ function PublicChangeRow({ entry, nameField, entityType, roster }) {
         {entityType && <EntityImage entityType={entityType} entityName={entry[nameField]} roster={roster} />}
         <span className="patch-entry-name">{entry.displayTitle || entry[nameField]}</span>
         <ChangeBadge value={cls} />
-        <SeverityChip severity={entry.impactSeverity} />
+        <ImpactChip entry={entry} />
       </div>
       {Array.isArray(entry.subsections) && entry.subsections.length > 0
-        ? entry.subsections.map((s, i) => <PublicSubsection key={i} sub={s} entryClass={cls} />)
+        ? entry.subsections.map((s, i) => <PublicSubsection key={i} sub={s} entryClass={cls} championId={entityType === "champion" ? entry.championId : null} />)
         : entry.whatChanged && <p className="patch-entry-line">{entry.whatChanged}</p>}
       {entry.supportImpact && <p className="patch-entry-line"><b>Support impact:</b> {entry.supportImpact}</p>}
       {entry.tierListActionNeeded && (
