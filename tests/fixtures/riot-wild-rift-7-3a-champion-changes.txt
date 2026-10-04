@@ -1,0 +1,176 @@
+# Wild Rift Patch Notes 7.3a
+
+## CHAMPION CHANGES
+
+HWEI
+
+Hwei’s performance has continued to rise as players master his kit, and we expect that trend to continue. We’re reducing his overall damage to keep his growing strength in check.
+
+Signature of the Visionary
+
+- Damage: 33 - 333 (Based on level) + 33%Ability Power → 40-285 (Based on level) + 30% Ability Power
+
+Subject: Disaster - Devastating Fire
+
+- Damage: 50/90/130/170 + 75% Ability Power + 4%/5%/6%/7% Maximum Health → 50/85/120/155 + 70% Ability Power + 4%/5%/6%/7% Maximum Health
+
+Subject: Disaster - Severing Bolt
+
+- Damage Ratio based on Health lost: 150%/200%/250%/300% → 100%/150%/200%/250%
+
+Spiraling Despair
+
+- Explosion Damage: 250/350/450 + 75% Ability Power → 200/300/400 + 70% Ability Power
+
+SAMIRA
+
+Samira has been underperforming across all skill levels, with both her burst damage and survivability falling short. We’re increasing her damage and durability to help her make a bigger impact when she dives into the fight.
+
+Base Stats
+
+- Health per level：128 → 136
+- Armor per level：5 → 5.5
+- Magic Resistance per level：1.4 → 2
+
+Daredevil Impulse
+
+- Minimum Attack Damage ratio for melee damage: 3.5% - 10.5% (Based on level) → 5.8% - 17% (Based on level)
+- Maximum Attack Damage ratio for melee damage: 7% - 21% (Based on level) → 11.6% - 34% (Based on level)
+
+Flair
+
+- Attack Damage ratio: 110% → 125%
+
+Inferno Trigger
+
+- Attack Damage ratio per shot: 40% → 50%
+
+RAMMUS
+
+Rammus is clearing the jungle too quickly under the new jungle system. We’re reducing his early Armor to slow down his clear speed and early fighting power while keeping his late-game teamfighting intact.
+
+Base Stats
+
+- Armor：45 → 40
+
+Defensive Ball Curl
+
+- Armor ratio: 45%/50%/55%/60% → 30%/40%/50%/60%
+
+MALPHITE
+
+Malphite has been too strong across multiple positions. We’re reducing his damage and playmaking power to bring him more in line with his role as a tank.
+
+Thunderclap
+
+- Armor Damage Ratio: 20% → 15%
+
+Ground Slam
+
+- Armor Damage ratio: 45% → 40%
+
+Unstoppable Force
+
+- Cooldown: 75/70/65s → 85/80/75s
+
+TRISTANA
+
+Tristana has fallen behind other crit marksmen. We’re increasing her burst and sustained damage to help her keep pace.
+
+Rapid Fire
+
+- Attack Speed: 50/75/100/125% → 60/80/100/120%
+
+Rocket Jump
+
+- Cooldown: 22/20/18/16s → 20/18/16/14s
+
+Explosive Charge
+
+- Explosion Damage: (80/100/120/140 + 100% Bonus Attack Damage + 50% Ability Power) × (1 + Critical Rate × 40% + (Crit Damage - 2) × 40% × Critical Rate)→ (80/110/140/170 + 120% Bonus Attack Damage + 50% Ability Power) × (1 + Critical Rate × 50% + (Crit Damage - 2) × 50% × Critical Rate)
+
+DRAVEN
+
+Draven has been underperforming, with his burst damage falling short of other marksmen. We’re restoring some of his damage to help his axes hit harder.
+
+Spinning Axe
+
+- Bonus Attack Damage ratio: 80/90/100/110% → 90/100/110/120%
+
+Blood Rush
+
+- Attack Speed: 20/25/30/35% → 25/30/35/40%
+
+Whirling Death
+
+- Bonus Attack Damage ratio: 130% → 150%
+
+CAITLYN
+
+Caitlyn has been performing too well without needing to invest in Attack Speed. We’re reducing her sustained damage and slightly lowering her burst damage to bring her back in line.
+
+Base stats
+
+- Attack Speed per level: 0.04 → 0.025
+
+Headshot
+
+- 60% -100% (Based on level) → 60% -90% (Based on level)
+
+SENNA
+
+Senna has been overperforming across all skill levels since we removed her Attack Speed restrictions. We’re adjusting her Attack Speed ratio to rein in how effectively she scales with Attack Speed.
+
+Base Stats
+
+- Attack Speed ratio: 0.4 → 0.3
+- Base Attack Speed: 0.4 → 0.3
+- Base Bonus Attack Speed0.6 → 1.1
+- Attack Speed per level: 0.05 → 0.025
+- Bonus Attack Speed now provides less benefit toward reducing her basic attack windup.
+
+SYNDRA
+
+Syndra has been scaling too quickly after her recent damage buffs. We’re reducing some of her scaling and damage to keep her power in check.
+
+Transcendent
+
+- Upgrade threshold: 40/60/80/100/120 → 50/75/100/125/150
+
+Force of Will
+
+- Ability Power ratio: 60% → 50%
+- Slow: 20%/25%/30%/35% → 25%
+
+SWAIN
+
+Swain has been struggling in the current burst-heavy environment. We’re increasing his healing and damage to help him stay in the fight longer.
+
+Ravenous Flock
+
+- Health Restored: 3% - 4.5% (Based on level) + 0.5% Ability Power -> 4.5% - 6% + 0.2% Ability Power
+
+Nevermove
+
+- Ability Power ratio of the repeated damage: 25% → 40%
+
+YUUMI
+
+Yuumi benefits more than intended from the recent support item changes since the Health tradeoff has little impact on her. We’re reducing some of her sustain to compensate.
+
+You and Me!
+
+- Healing and Shield Power: 8%/9%/10%/11% + 0.02% Ability Power → 6%/7%/8%/9% + 0.01%a Ability Power
+
+VIEGO
+
+Viego hasn’t benefited as much as other champions from the crit system changes and has fallen behind as a result. We’re increasing his crit scaling to help him catch up.
+
+Blade of the Ruined King
+
+- Passive Damage: 2%/3%/4%/5% → 3%/4%/5%/6%
+- Crit Damage ratio: 80% → 85%
+
+Heartbreaker
+
+- Crit stats ratio: 50%→ 70%

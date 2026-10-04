@@ -75,14 +75,30 @@ const humanTouched = (c) => Boolean(c.review && (c.review.state !== REVIEW_STATE
  */
 export function mergeReviewState(fresh, previous) {
   initReview(fresh);
-  const stats = { preserved: 0, refreshed: 0, sourceChanged: 0, orphaned: 0, newChanges: 0 };
+  const stats = { preserved: 0, refreshed: 0, sourceChanged: 0, orphaned: 0, newChanges: 0, migrated: 0 };
   if (!previous || !Array.isArray(previous.changes)) { stats.newChanges = fresh.changes.length; fresh.mergeStats = stats; return fresh; }
   const prevById = new Map(previous.changes.map((c) => [c.changeId, c]));
+  const freshIds = new Set(fresh.changes.map((c) => c.changeId));
+  // IDENTITY BRIDGE. A parser improvement can change what feeds a change's ID (e.g. its ability label is now recognised) while the Riot
+  // source line is byte-for-byte the same, which would detach every human edit from a change that has not changed. A reviewed change whose
+  // ID is gone is therefore carried onto the fresh change that has the SAME scope, the SAME source path and the SAME exact source
+  // fingerprint -- but only when that pairing is one-to-one on both sides; any ambiguity falls back to the plain ID rule (orphaned, kept).
+  const bridgeKey = (c) => `${c.entity ? c.entity.key : `system:${c.system && c.system.category}`}\u241F${c.provenance.sourcePath}\u241F${c.provenance.sourceFingerprint}`;
+  const freshLoose = fresh.changes.filter((c) => !prevById.has(c.changeId));
+  const prevLoose = previous.changes.filter((p) => p.review && p.provenance && !freshIds.has(p.changeId) && humanTouched(p));
+  const count = (list) => list.reduce((m, c) => m.set(bridgeKey(c), (m.get(bridgeKey(c)) || 0) + 1), new Map());
+  const freshCount = count(freshLoose); const prevCount = count(prevLoose);
+  const bridge = new Map(); // fresh changeId -> previous change
+  for (const c of freshLoose) {
+    const k = bridgeKey(c);
+    if (freshCount.get(k) === 1 && prevCount.get(k) === 1) bridge.set(c.changeId, prevLoose.find((p) => bridgeKey(p) === k));
+  }
   const seen = new Set();
   for (const c of fresh.changes) {
-    const p = prevById.get(c.changeId);
+    const p = prevById.get(c.changeId) || bridge.get(c.changeId);
     if (!p || !p.review) { stats.newChanges++; continue; }
-    seen.add(c.changeId);
+    seen.add(p.changeId);
+    if (p.changeId !== c.changeId) { c.previousChangeIds = [p.changeId, ...(p.previousChangeIds || [])]; stats.migrated++; }
     const pr = p.review;
     const edited = { title: Boolean(pr.edited && pr.edited.title), text: Boolean(pr.edited && pr.edited.text) };
     const fpChanged = p.provenance && p.provenance.sourceFingerprint !== c.provenance.sourceFingerprint;

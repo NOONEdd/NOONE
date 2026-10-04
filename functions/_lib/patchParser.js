@@ -25,10 +25,13 @@
 //
 // Pure functions, no I/O.
 
+import { isPunctuatedTitleLabel } from "./patchLabelShape.js";
+
 // Bump when parsing/classification/splitting can produce different units
 // for the same text (part of PATCH_INTEL_ENGINE_VERSION's inputs and of
 // every batch's input hash, so old batch results can't be reused).
-export const PARSER_VERSION = "parse-v2";
+// parse-v3: a title-shaped ability name ending in "!" or "?" counts as a label when choosing cut points.
+export const PARSER_VERSION = "parse-v3";
 
 const HEADING_MD = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 const BULLET = /^(\s*)([-*+\u2022]|\d{1,3}[.)])\s+(.*)$/;
@@ -64,7 +67,8 @@ function isLabelLike(line) {
   const t = line.trim();
   if (!t || t.length > 64) return false;
   if (isBulletLine(line) || HEADING_MD.test(t) || RULE.test(t)) return false;
-  if (/[.!?]$/.test(t) && !/^\*.*\*$/.test(t)) return false;
+  // a sentence-ending mark means prose -- except a title-shaped ability name ("You and Me!"); every caller also requires the list that follows
+  if (/[.!?]$/.test(t) && !/^\*.*\*$/.test(t)) return isPunctuatedTitleLabel(t);
   if (t.split(/\s+/).length > 9) return false;
   return /^[\p{Lu}\p{N}\[*_]/u.test(t);
 }

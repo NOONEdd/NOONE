@@ -37,7 +37,10 @@
 //
 // Pure functions, no I/O.
 
-export const DETECTOR_VERSION = "detect-v3";
+import { isPunctuatedTitleLabel } from "./patchLabelShape.js";
+
+// detect-v4: an ability name that itself ends in "!" or "?" ("You and Me!") is now recognised as a label (patchLabelShape.js).
+export const DETECTOR_VERSION = "detect-v4";
 
 // ---------------------------------------------------------------------
 // COMPARISON STATE -- how much weight a fact's OLD/NEW values carry
@@ -204,6 +207,12 @@ const LABEL_VALUE = /^([^:]{1,70}?):\s+(.+)$/;
 const STARTS_WITH_VALUE = /^[-+(]?\s*\d/;
 const ARROW_ANY = /(?:\u2192|\u21D2|->|=>)/g;
 
+/** True when the next non-empty line after `index` is a list item (the structural half of the "punctuated ability name" rule). */
+function nextNonEmptyIsBullet(lines, index) {
+  for (let j = index + 1; j < lines.length; j++) if (lines[j].trim()) return BULLET_LINE.test(lines[j]);
+  return false;
+}
+
 function stripMarkup(text) {
   return String(text || "").replace(/\*+/g, "").replace(/_{2,}/g, "").trim();
 }
@@ -216,10 +225,12 @@ function normAbilityName(name) {
  *  ("Absolution", "Piercing Darkness", "Base Stats", "Energized:"). Same
  *  shape test as patchParser.js's isLabelLike (kept local so this module
  *  stays dependency-free). */
-function isLabelLine(line) {
+function isLabelLine(line, followedByBullet = false) {
   const t = String(line || "").trim();
   if (!t || t.length > 64) return false;
-  if (/[.!?]$/.test(t)) return false;
+  // A line ending in . ! or ? is a sentence -- EXCEPT a title-shaped ability name that itself ends in ! or ? ("You and Me!") sitting
+  // directly above its list of changes (see patchLabelShape.js). Both conditions are required, so prose can never become a label.
+  if (/[.!?]$/.test(t)) return followedByBullet && isPunctuatedTitleLabel(t);
   if (t.split(/\s+/).length > 9) return false;
   return /^[\p{Lu}\p{N}\[*_(]/u.test(t);
 }
@@ -355,7 +366,7 @@ export function extractStructuredChanges(unitText, opts = {}) {
     // ---- non-bullet label line ("Absolution", "Base Stats", "Spectral Haste [Removed]") ----
     if (!bullet) {
       const arrowish = (line.match(ARROW_ANY) || []).length > 0;
-      if (!arrowish && isLabelLine(line)) {
+      if (!arrowish && isLabelLine(line, nextNonEmptyIsBullet(lines, lineIndex))) {
         const inline = INLINE_TAG_SUFFIX.exec(line);
         const clean = stripMarkup(line.replace(INLINE_TAG_SUFFIX, "")).replace(/:$/, "").trim();
         group = labelStreak > 0 ? ability : null;
