@@ -38,6 +38,45 @@ export function deriveEntityClassification(states) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Change SCOPE: what kind of thing a change is about. Extraction-layer fact (change.scope, with change.scopeBasis saying what it rests on),
+// never a Support judgement and never the ability-icon system's business: the icon lookup only ever runs for the two ability-like scopes
+// below, and this file is the single definition of which those are.
+//   BASE_STATS         Riot's own stats section ("Base Stats")
+//   PASSIVE            Riot's explicit passive notation ("Passive - X")
+//   ABILITY            a named ability block under a champion (explicit Q/W/E/R notation, or Riot's named block)
+//   CHAMPION_MECHANIC  any other champion-specific change: no Riot subsection, a champion lifecycle line, or a section a reviewer marked so
+//   ITEM / RUNE / SYSTEM   by what owns the change
+// ---------------------------------------------------------------------------------------------------------------
+export const CHANGE_SCOPE = Object.freeze({ BASE_STATS: "BASE_STATS", PASSIVE: "PASSIVE", ABILITY: "ABILITY", CHAMPION_MECHANIC: "CHAMPION_MECHANIC", ITEM: "ITEM", RUNE: "RUNE", SYSTEM: "SYSTEM" });
+const SCOPE_SET = new Set(Object.values(CHANGE_SCOPE));
+const SCOPE_LABELS = { BASE_STATS: "Base stats", PASSIVE: "Passive", ABILITY: "Ability", CHAMPION_MECHANIC: "Champion mechanic", ITEM: "Item", RUNE: "Rune", SYSTEM: "System" };
+/** The scopes a reviewer may assign to a champion's Riot subsection when the extractor's default is wrong. */
+export const SUBSECTION_SCOPE_OPTIONS = Object.freeze([CHANGE_SCOPE.ABILITY, CHANGE_SCOPE.PASSIVE, CHANGE_SCOPE.BASE_STATS, CHANGE_SCOPE.CHAMPION_MECHANIC].map((v) => [v, SCOPE_LABELS[v]]));
+export function normalizeScope(value) {
+  if (typeof value !== "string") return null;
+  const v = value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return SCOPE_SET.has(v) ? v : null;
+}
+export const scopeLabel = (value) => SCOPE_LABELS[normalizeScope(value)] || null;
+/** True only for scopes that are an ability's own section (it has an icon). Anything else -- including a missing/unknown scope -- is not. */
+export const isAbilityScope = (value) => { const v = normalizeScope(value); return v === CHANGE_SCOPE.ABILITY || v === CHANGE_SCOPE.PASSIVE; };
+
+// ---------------------------------------------------------------------------------------------------------------
+// Visual (the existing ability icon) -- HOW a section is displayed, independent of WHAT it is (scope). The scope gives the default; a reviewer's
+// explicit SHOW / HIDE (dataset.subsectionReview[key].visualOverride) always wins; absent / null / "AUTO" = use the default. Resolved once, in
+// the public-view layer, so the page just renders the result.
+//   ABILITY, PASSIVE -> SHOW        BASE_STATS, CHAMPION_MECHANIC (and everything else) -> HIDE
+// ---------------------------------------------------------------------------------------------------------------
+export const VISUAL = Object.freeze({ SHOW: "SHOW", HIDE: "HIDE" });
+/** Choices for the reviewer, in display order: [stored value ("" = Auto), label]. */
+export const VISUAL_OVERRIDE_OPTIONS = Object.freeze([["", "Auto"], [VISUAL.SHOW, "Show"], [VISUAL.HIDE, "Hide"]]);
+/** "show" / "Hide" -> "SHOW" / "HIDE"; anything else (incl. "AUTO", "", null, undefined) -> null = Auto. */
+export const normalizeVisualOverride = (value) => { const v = typeof value === "string" ? value.trim().toUpperCase() : ""; return v === VISUAL.SHOW || v === VISUAL.HIDE ? v : null; };
+export const defaultVisualForScope = (scope) => (isAbilityScope(scope) ? VISUAL.SHOW : VISUAL.HIDE);
+/** The policy: an explicit reviewer override always wins; otherwise the scope's default. */
+export const effectiveVisual = (scope, override) => normalizeVisualOverride(override) || defaultVisualForScope(scope);
+
+// ---------------------------------------------------------------------------------------------------------------
 // Change impact: how substantial the changes to ONE entity are in this patch, as judged by the human reviewer.
 // It is Academy review metadata -- Riot publishes no such rating and nothing is extracted or computed for it, so an entity
 // is simply "not rated" (null) until the Admin sets it. It is NOT the extraction confidence (`confidence` on a derived

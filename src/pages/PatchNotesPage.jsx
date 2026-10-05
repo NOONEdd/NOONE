@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, ExternalLink, Radar } from "lucide-react";
 import { PatchStatusBanner } from "../components/PatchStatus.jsx";
 import EntityImage from "../components/EntityImage.jsx";
 import AbilityIcon from "../components/AbilityIcon.jsx";
-import { buildPatchSummary, classificationLabel, normalizeClassification, normalizeChangeImpact, changeImpactLabel } from "../lib/patchNotesPresentation.js";
+import { buildPatchSummary, classificationLabel, normalizeClassification, normalizeChangeImpact, changeImpactLabel, VISUAL } from "../lib/patchNotesPresentation.js";
 
 const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(--magenta)" };
 
@@ -31,8 +31,10 @@ function PublicSubsection({ sub, entryClass, championId }) {
     <div className="patch-sub">
       {sub.title && (
         <div className="patch-sub-head">
-          {/* champions only; the icon is looked up by Riot's own heading and is pure decoration -- the title and every change below render with or without it */}
-          {championId && <AbilityIcon championId={championId} sourceHeading={sub.sourceHeading || sub.title} abilityName={sub.abilityName} />}
+          {/* The icon lookup runs ONLY where the data says the section shows its visual (sub.visual === "SHOW": the scope's default -- ability / passive
+              sections -- or a reviewer's explicit choice, resolved in the public-view layer; never decided by the icon system). Otherwise no icon and no
+              placeholder. The lookup keys on Riot's own heading and is pure decoration -- the title and every change below render with or without it. */}
+          {championId && sub.visual === VISUAL.SHOW && <AbilityIcon championId={championId} sourceHeading={sub.sourceHeading || sub.title} abilityName={sub.abilityName} />}
           <div className="patch-sub-title">{sub.title}</div>
         </div>
       )}

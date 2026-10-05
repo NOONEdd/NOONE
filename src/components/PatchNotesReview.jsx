@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, RotateCcw, Check, Trash2, Ban, AlertTriangle } from "lucide-react";
-import { CLASSIFICATION_OPTIONS, CHANGE_IMPACT_OPTIONS, NO_CHANGES_TEXT, classificationLabel, normalizeClassification, normalizeChangeImpact, classificationOrUnknown } from "../lib/patchNotesPresentation.js";
+import { CLASSIFICATION_OPTIONS, CHANGE_IMPACT_OPTIONS, SUBSECTION_SCOPE_OPTIONS, VISUAL_OVERRIDE_OPTIONS, normalizeVisualOverride, NO_CHANGES_TEXT, classificationLabel, normalizeClassification, normalizeChangeImpact, classificationOrUnknown, scopeLabel, normalizeScope } from "../lib/patchNotesPresentation.js";
 
 // Patch Notes review panel (admin).
 //
@@ -96,7 +96,7 @@ function ChangeCard({ change, onOps, busy }) {
 }
 
 /** The subsection heading as visitors will see it: your edit if any, else Riot's own heading. Renaming never touches Riot's heading. */
-function SubsectionHead({ subKey, riotHeading, displayHeading, onOps, busy }) {
+function SubsectionHead({ subKey, riotHeading, displayHeading, scope, scopeExtracted, scopeOverridden, visualOverride, championSection, onOps, busy }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(displayHeading || riotHeading);
   return (
@@ -104,6 +104,23 @@ function SubsectionHead({ subKey, riotHeading, displayHeading, onOps, busy }) {
       <b>{displayHeading || riotHeading}</b>
       {displayHeading && displayHeading !== riotHeading && <span className="pn-count">Riot heading: {riotHeading}</span>}
       <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setEditing((v) => !v)}>Rename</button>
+      {/* what KIND of section Riot's heading is, as found in Riot's structure; only ability-like sections get an icon on the public page. A reviewer can correct it. */}
+      {championSection && scope && (
+        <select className="pn-input" value={scopeOverridden ? normalizeScope(scope) : ""} disabled={busy} aria-label="Section type"
+          onChange={(e) => onOps([{ op: "setSubsectionScope", subsectionKey: subKey, scope: e.target.value || null }])}>
+          <option value="">Detected: {scopeLabel(scopeExtracted || scope)}</option>
+          {SUBSECTION_SCOPE_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+        </select>
+      )}
+      {/* whether the section shows its ability icon on the public page: Auto = what its type implies; Show / Hide = the reviewer's call. Display only -- the type above is untouched. */}
+      {championSection && scope && (
+        <label className="pn-label" style={{ margin: 0 }}>Icon / Visual{" "}
+          <select className="pn-input" value={normalizeVisualOverride(visualOverride) || ""} disabled={busy} aria-label="Icon / Visual"
+            onChange={(e) => onOps([{ op: "setSubsectionVisual", subsectionKey: subKey, visual: e.target.value || null }])}>
+            {VISUAL_OVERRIDE_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+        </label>
+      )}
       {editing && (
         <span className="pn-actions">
           <input type="text" className="pn-input" value={val} maxLength={300} onChange={(e) => setVal(e.target.value)} aria-label="Subsection heading shown publicly" />
@@ -127,7 +144,7 @@ function Section({ title, sectionState, changes, onOps, busy, defaultOpen, previ
   for (const c of changes) {
     const sub = (preview && preview.subsections && preview.subsections[c.changeId]) || null;
     const k = sub ? sub.key : "";
-    if (!byKey.has(k)) { const g = { key: sub ? sub.key : null, heading: sub ? sub.sourceHeading : null, changes: [] }; byKey.set(k, g); groups.push(g); }
+    if (!byKey.has(k)) { const g = { key: sub ? sub.key : null, heading: sub ? sub.sourceHeading : null, scope: sub ? sub.scope : null, scopeExtracted: sub ? sub.scopeExtracted : null, scopeOverridden: Boolean(sub && sub.scopeOverridden), visualOverride: sub ? sub.visualOverride : null, championSection: Boolean(sub && sub.entityType === "champion"), changes: [] }; byKey.set(k, g); groups.push(g); }
     byKey.get(k).changes.push(c);
   }
   return (
@@ -173,7 +190,7 @@ function Section({ title, sectionState, changes, onOps, busy, defaultOpen, previ
       )}
       {open && groups.map((g) => (
         <div className="pn-sub" key={g.key || "none"}>
-          {g.key && <SubsectionHead subKey={g.key} riotHeading={g.heading} displayHeading={(subsectionReview[g.key] || {}).displayHeading} onOps={onOps} busy={busy} />}
+          {g.key && <SubsectionHead subKey={g.key} riotHeading={g.heading} displayHeading={(subsectionReview[g.key] || {}).displayHeading} scope={g.scope} scopeExtracted={g.scopeExtracted} scopeOverridden={g.scopeOverridden} visualOverride={g.visualOverride} championSection={g.championSection} onOps={onOps} busy={busy} />}
           {g.changes.map((c) => <ChangeCard key={c.changeId} change={c} onOps={onOps} busy={busy} />)}
         </div>
       ))}

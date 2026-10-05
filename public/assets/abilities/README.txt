@@ -12,7 +12,11 @@ Layout:   public/assets/abilities/<champion-id>/<ability-slug>.webp
       "Dawning Shadow"               ->  senna/dawning-shadow.webp
       "Signature of the Visionary"   ->  hwei/signature-of-the-visionary.webp
       "Disaster - Devastating Fire"  ->  hwei/disaster-devastating-fire.webp
-      "Base Stats"                   ->  senna/base-stats.webp
+
+ABILITIES ONLY. Patch Notes asks for an icon only for a champion's ability-like sections (Riot's named ability blocks and explicit
+"Passive - X" / "Q - X" headings). "Base Stats" and other non-ability sections (a champion mechanic, items, runes, system rows) never
+look for an icon, so do not add files for them: a base-stats.webp would simply never be used -- unless a reviewer sets that section's "Icon / Visual" to Show
+in the Patch Notes review panel (Auto = the section type's default; Show / Hide = the reviewer's explicit choice, display only).
 
 Extension: .webp is the standard (png, jpg, jpeg and avif also work; if two exist for the same ability, webp wins).
 

@@ -15,6 +15,10 @@
 //   entity classification override  dataset.sectionReview[sectionKey].comparisonStateOverride
 //   entity change impact (LOW/MEDIUM/HIGH)  dataset.sectionReview[sectionKey].changeImpact   (human-only: no extraction value exists; unset = not rated)
 //   subsection heading (display)    dataset.subsectionReview[subsectionKey].displayHeading   (Riot's own heading: change.subsection.sourceHeading)
+//   subsection scope override       dataset.subsectionReview[subsectionKey].scope            (extraction: change.scope + change.scopeBasis; the override only
+//                                                                                              decides whether the section is shown as an ability with an icon)
+//   subsection icon override        dataset.subsectionReview[subsectionKey].visualOverride   (SHOW | HIDE; absent = Auto = the scope's default. Display only: independent
+//                                                                                              of scope, and never touches scope, Riot's heading or the ID)
 //   patch summary text              dataset.summaryReview.text                      (absent => generated from the visible reviewed data)
 //   change / section visibility     change.review.state / dataset.sectionReview[sectionKey].state
 //
@@ -35,7 +39,8 @@
 import { classifyComparisonState, classifyEntityRelevance, classifySystemRelevance, compareItemInfoToPatch, COMPARISON_STATE } from "./patchChangeDetector.js";
 import { normalizeChangeEntry, normalizeSystemChangeEntry, mergeDuplicateEntities } from "./patchIntelligence.js";
 import { normName } from "./patchNotesIds.js";
-import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel } from "../../src/lib/patchNotesPresentation.js";
+import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel, normalizeScope, isAbilityScope, SUBSECTION_SCOPE_OPTIONS, normalizeVisualOverride, effectiveVisual, defaultVisualForScope, VISUAL } from "../../src/lib/patchNotesPresentation.js";
+import { classifyChangeScope } from "./patchChangeScope.js";
 
 export const REVIEW_STATE = Object.freeze({ PENDING: "pending", KEPT: "kept", EDITED: "edited", REMOVED: "removed", REJECTED: "rejected" });
 export const SECTION_STATE = Object.freeze({ VISIBLE: "visible", REMOVED: "removed", REJECTED: "rejected" });
@@ -126,6 +131,13 @@ export function mergeReviewState(fresh, previous) {
   return fresh;
 }
 
+/** Merge fields into dataset.subsectionReview[key]; an `undefined` value removes that field; an entry with no fields left is deleted. */
+function setSubsectionReview(dataset, key, patch, now) {
+  const next = { ...(dataset.subsectionReview[key] || {}) };
+  for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete next[k]; else next[k] = v; }
+  delete next.reviewedAt;
+  if (Object.keys(next).length) dataset.subsectionReview[key] = { ...next, reviewedAt: now }; else delete dataset.subsectionReview[key];
+}
 const CLASSIFY_ERROR = "comparisonState must be one of BUFF, NERF, ADJUSTMENT, NEW, REMOVED, UNKNOWN (or null to clear the override)";
 const cleanStr = (v, max) => (typeof v === "string" ? v.replace(/\u0000/g, "").slice(0, max) : null);
 
@@ -139,6 +151,8 @@ const cleanStr = (v, max) => (typeof v === "string" ? v.replace(/\u0000/g, "").s
  *   { op:"classifySection", sectionKey, comparisonState }   the same, for the entity's badge as a whole
  *   { op:"impactSection", sectionKey, changeImpact }         LOW|MEDIUM|HIGH, null/"" = not rated (how substantial the entity's changes are; Academy review metadata)
  *   { op:"editSubsectionTitle", subsectionKey, displayHeading }   "" = back to Riot's own heading
+ *   { op:"setSubsectionScope", subsectionKey, scope }       ABILITY|PASSIVE|BASE_STATS|CHAMPION_MECHANIC, null/"" = back to what the extraction found
+ *   { op:"setSubsectionVisual", subsectionKey, visual }     SHOW|HIDE, null/""/AUTO = Auto (the scope's default decides whether the section shows its icon)
  *   { op:"setSummary", text } / { op:"clearSummary" }       the public patch summary override (cleared => generated from the visible data)
  * Returns { dataset, applied, errors }. Only review fields are ever written; any
  * originalSourceText / normalizedData / provenance key in an op is ignored by construction.
@@ -155,8 +169,25 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString() } 
       if (!subsections.has(op.subsectionKey)) { errors.push({ op, error: "unknown subsectionKey" }); continue; }
       const h = cleanStr(op.displayHeading, LIMITS.title);
       if (h === null) { errors.push({ op, error: "displayHeading must be a string" }); continue; }
-      if (h.trim()) dataset.subsectionReview[op.subsectionKey] = { displayHeading: h.trim(), reviewedAt: now };
-      else delete dataset.subsectionReview[op.subsectionKey];
+      setSubsectionReview(dataset, op.subsectionKey, { displayHeading: h.trim() || undefined }, now);
+      applied.push(op.op);
+      continue;
+    }
+    if (op.op === "setSubsectionVisual") {
+      if (!subsections.has(op.subsectionKey)) { errors.push({ op, error: "unknown subsectionKey" }); continue; }
+      const auto = op.visual === null || op.visual === "" || (typeof op.visual === "string" && op.visual.trim().toUpperCase() === "AUTO");
+      const v = auto ? null : normalizeVisualOverride(op.visual);
+      if (!auto && v === null) { errors.push({ op, error: "visual must be SHOW, HIDE or AUTO (null)" }); continue; }
+      setSubsectionReview(dataset, op.subsectionKey, { visualOverride: v || undefined }, now);
+      applied.push(op.op);
+      continue;
+    }
+    if (op.op === "setSubsectionScope") {
+      if (!subsections.has(op.subsectionKey)) { errors.push({ op, error: "unknown subsectionKey" }); continue; }
+      const clear = op.scope === null || op.scope === "";
+      const v = clear ? null : normalizeScope(op.scope);
+      if (!clear && !SUBSECTION_SCOPE_OPTIONS.some(([o]) => o === v)) { errors.push({ op, error: "scope must be one of ABILITY, PASSIVE, BASE_STATS, CHAMPION_MECHANIC (or null to clear)" }); continue; }
+      setSubsectionReview(dataset, op.subsectionKey, { scope: v || undefined }, now);
       applied.push(op.op);
       continue;
     }
@@ -298,6 +329,14 @@ export function effectiveComparison(change) {
   const override = change.review ? normalizeClassification(change.review.comparisonStateOverride) : null;
   return { value: override || extracted, extracted, overridden: Boolean(override) };
 }
+/** The scope of one change: what the extraction recorded; for datasets stored before `scope` existed, the same classifier over the fields they
+ *  already hold (so nothing needs re-extracting or migrating to be read correctly). */
+export function scopeOf(change) {
+  if (change.scope) return { scope: normalizeScope(change.scope) || change.scope, basis: change.scopeBasis || null };
+  const sub = subsectionOf(change);
+  return classifyChangeScope({ kind: change.kind, entityType: change.entity ? change.entity.type : null, lifecycle: change.lifecycle, subsectionHeading: sub ? sub.sourceHeading : null });
+}
+
 /** The text shown for one change under its own subsection heading: an edited text as written; otherwise the extracted line WITHOUT
  *  the ability prefix (the heading already says it). Older datasets without displayBody fall back to the full display text. */
 function changeBody(c) {
@@ -312,6 +351,7 @@ const liteFor = (dataset) => (c) => {
     text: changeBody(c), note: c.review.reviewerNote || "",
     classification: eff.value, classificationExtracted: eff.extracted, classificationOverridden: eff.overridden,
     subsectionKey: sub ? subsectionKeyOf(c) : null, subsectionHeading: sub ? sub.sourceHeading : null, subsectionOrigin: sub ? sub.origin : null,
+    scope: scopeOf(c).scope, scopeBasis: scopeOf(c).basis,
   };
 };
 
@@ -322,7 +362,16 @@ function decorateEntry(entry, dataset) {
   const map = new Map(); const order = [];
   for (const l of lites) {
     const k = l.subsectionKey || "";
-    if (!map.has(k)) { map.set(k, { key: l.subsectionKey, sourceHeading: l.subsectionHeading, origin: l.subsectionOrigin, title: l.subsectionKey ? ((dataset.subsectionReview || {})[l.subsectionKey] || {}).displayHeading || l.subsectionHeading : null, abilityName: l.ability || null, changes: [] }); order.push(k); }
+    if (!map.has(k)) {
+      const rv = (l.subsectionKey && (dataset.subsectionReview || {})[l.subsectionKey]) || {};
+      const override = normalizeScope(rv.scope);
+      const scope = override || l.scope;
+      // abilityName (the parser's slot-free label) is only meaningful for an ability-like section; for stats / mechanics it is withheld so nothing
+      // downstream can mistake "Base Stats" for an ability name
+      const visualOverride = normalizeVisualOverride(rv.visualOverride);
+      map.set(k, { key: l.subsectionKey, sourceHeading: l.subsectionHeading, origin: l.subsectionOrigin, title: l.subsectionKey ? rv.displayHeading || l.subsectionHeading : null, scope, scopeExtracted: l.scope, scopeBasis: l.scopeBasis, scopeOverridden: Boolean(override), visual: effectiveVisual(scope, visualOverride), visualOverride, abilityName: isAbilityScope(scope) ? (l.ability || null) : null, changes: [] });
+      order.push(k);
+    }
     map.get(k).changes.push(l);
   }
   entry.subsections = order.map((k) => map.get(k));
