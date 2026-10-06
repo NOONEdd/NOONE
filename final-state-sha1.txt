@@ -1,0 +1,19 @@
+# FINAL-STATE CHECK for the Patch Notes files delivered in the last four zips (scope, icon-visual-override, missing-file, detector-export).
+# One line per file: SHA-1 of the file as it must be in your repo. Several files were delivered in more than one zip; ONLY the newest version is correct,
+# which is how an older copy can silently overwrite a newer one. On Git Bash / WSL / Linux, from the project root:   sha1sum -c final-state-sha1.txt
+# On Windows PowerShell:   Get-Content final-state-sha1.txt | Where-Object { $_ -notmatch '^#' } | ForEach-Object { $h,$p = $_ -split '  ',2; if ((Get-FileHash -Algorithm SHA1 $p).Hash.ToLower() -ne $h) { 'MISMATCH ' + $p } }
+# (Git may convert line endings on Windows; if EVERY text file mismatches, compare with: git diff --ignore-cr-at-eol / or use  git hash-object --no-filters  instead.)
+97e0e1c41d9f88e87e29d90990b22747cd6d9561  functions/_lib/patchChangeDetector.js
+89065e2f26a84e67d0e28ac2dae0080a85ad73cd  functions/_lib/patchChangeScope.js
+c682671853d102b2723391228bcd2aa5cc6c6eaf  functions/_lib/patchNotesExtract.js
+88fcbd630b4d029661ee5deca10dd25c2b51025f  functions/_lib/patchNotesPublic.js
+01983801271748e85bf05c82890b6738c549e429  functions/_lib/patchNotesReview.js
+d4d020336241e8c5f645b64b7b51264bee5f749d  public/assets/abilities/README.txt
+d1e7a3e96c037f22aa2e8099047c9609319a7e81  src/components/PatchNotesReview.jsx
+db2268f53dadf34ff8dee51b63189178bc6aad77  src/lib/patchNotesPresentation.js
+a9e6bc83995e38c8bddd3b60cba98b8eda8fe06d  src/pages/PatchNotesPage.jsx
+2b5f8229ce4780749c47b035284ef48ff9d017aa  tests/abilityAssets.test.mjs
+eaf88f6a36d7ec570cbfc99d94eba187350ed2b8  tests/functionsBundleIntegrity.test.mjs
+0c1c3550e4629e1eac4023f8b690aa49654864f2  tests/patchNotesPage.render.test.mjs
+5ebf219c3d7f56a527f0c43692e190364c216c19  tests/patchNotesScope.test.mjs
+6a9aff9c145ed04bf2667b0a6917607c32ec58cb  tests/patchNotesVisualOverride.test.mjs
