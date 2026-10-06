@@ -238,7 +238,7 @@ function isLabelLine(line, followedByBullet = false) {
 /** Slot from EXPLICIT notation in a label: "Passive - X", "Q - X", "Q: x",
  *  "(2) X", "Ultimate ...". Returns { slot, rest } (rest = label with the
  *  notation removed) -- slot null when the label carries no such notation. */
-function slotFromLabel(label) {
+export function slotFromLabel(label) {
   const t = stripMarkup(label).replace(/:$/, "").trim();
   let m = /^(?:passive|innate)\b\s*[-\u2013\u2014:]?\s*(.*)$/i.exec(t);
   if (m) return { slot: "Passive", rest: m[1].trim() };
