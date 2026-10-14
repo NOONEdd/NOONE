@@ -61,7 +61,7 @@ console.log('\n-- B. Synthetic future champion, no type anywhere, saved via upda
       { tag: 'Boots vs AD', name: 'Plated Steelcaps', note: 'vs AD' },     // no type -> swap-signal -> situational
     ],
     runes: [
-      { tag: 'Keystone', name: 'Summon Aery', note: 'default pick' },      // no type -> core (no alt offered)
+      { tag: 'Keystone', name: 'Aery', note: 'default pick' },      // no type -> core (no alt offered)
       { tag: 'Rune Swap', name: 'Perseverance (swap for Revitalize)', note: 'alt' }, // no type -> situational
     ],
   }];

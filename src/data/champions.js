@@ -21,7 +21,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target. Works every time your E or Q hits." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -45,7 +45,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -69,7 +69,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -91,7 +91,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -115,7 +115,7 @@ export const CHAMPIONS = [
       { tag: "Boots", type: "core", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -164,7 +164,7 @@ export const CHAMPIONS = [
       { tag: "Boots", type: "core", name: "Ionian Boots of Lucidity", note: "Default boots — lower cooldowns mean more shields." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -213,7 +213,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "inspiration", type: "core", name: "manaflow band", note: "to increase your mana espcially in early game." },
       { tag: "inspiration", type: "core", name: "transcendence", note: "to gain more ability haste for lower cooldowns specifially in late game.." },
       { tag: "inspiration", type: "core", name: "scorch", note: "to deal a bit damage with your Q or your Ultimate when you hit an enemy.." },
@@ -243,7 +243,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },
@@ -638,7 +638,7 @@ export const CHAMPIONS = [
       { tag: "Enchant", type: "situational", name: "Locket (instead of Mikael's Blessing or Redemption)", note: "Buy this if there are 2-3 carry champions on your team and you need to shield everyone simultaneously in a teamfight, not just one person." },
     ],
     runes: [
-      { tag: "Keystone", type: "core", name: "Summon Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
+      { tag: "Keystone", type: "core", name: "Aery", note: "Default — procs on every shield you cast and every poke ability. Constant pressure in lane and constant protection in fights." },
       { tag: "Resolve", type: "core", name: "Font of Life", note: "Free team sustain — marks enemies you slow or CC, then your allies heal when they attack the marked target." },
       { tag: "Resolve", type: "core", name: "Bone Plating", note: "Prevents you from being one-shotted by a single burst combo. Essential when the enemy has an assassin or burst-heavy carry who can reach you." },
       { tag: "Resolve", type: "core", name: "Revitalize", note: "Amplifies all your heals and shields. This is your default — swap to Perseverance if the enemy has too much CC." },

@@ -86,7 +86,7 @@ console.log('\n-- normalizeBuildEntries: shape and reference-stability --');
       { tag: 'Situational', name: 'Banshee\'s Veil', note: 'n' },
     ],
     runes: [
-      { tag: 'Keystone', name: 'Summon Aery', note: 'n' },
+      { tag: 'Keystone', name: 'Aery', note: 'n' },
       { tag: 'Rune Swap', name: 'Perseverance (swap for Revitalize)', note: 'n' },
     ],
   };
@@ -94,12 +94,12 @@ console.log('\n-- normalizeBuildEntries: shape and reference-stability --');
   check('reports changed = true when entries needed typing', result.changed === true);
   check('itemsChanged counts exactly the 2 item entries', result.itemsChanged === 2);
   check('runesChanged counts exactly the 2 rune entries', result.runesChanged === 2);
-  check('coreCount is 2 (Relic Shield, Summon Aery)', result.coreCount === 2, result.coreCount);
+  check('coreCount is 2 (Relic Shield,Aery)', result.coreCount === 2, result.coreCount);
   check('situationalCount is 2 (Banshee\'s Veil, Perseverance swap)', result.situationalCount === 2, result.situationalCount);
   check('original build object is not mutated', build.items[0].type === undefined);
   check('ordering preserved: item 0 still Relic Shield', result.build.items[0].name === 'Relic Shield');
   check('ordering preserved: item 1 still Banshee\'s Veil', result.build.items[1].name === "Banshee's Veil");
-  check('ordering preserved: rune 0 still Summon Aery', result.build.runes[0].name === 'Summon Aery');
+  check('ordering preserved: rune 0 still Aery', result.build.runes[0].name === 'Aery');
   check('tag untouched on a normalized entry', result.build.items[0].tag === 'Always');
   check('note untouched on a normalized entry', result.build.items[0].note === 'n');
 

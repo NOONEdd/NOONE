@@ -11,7 +11,7 @@
 //
 // That said, files sourced directly from the wiki or other sites rarely
 // come pre-named that way — wikis often use a different display name
-// entirely (the rune "Summon Aery" is filed on the wiki as just "Aery"),
+// entirely (the rune "Aery" is filed on the wiki as just "Aery"),
 // and manual downloads often carry extra junk ("80px-Eclipse_WR_item.png")
 // or small typos. Rather than fail silently on every variant, each id below
 // can list ALIASES — alternate filename stems that get tried too, in order,
