@@ -9,21 +9,23 @@
 //   [4] missing current data and malformed bundles fail closed, and nothing throws;
 //   [5] one owner per check: the gate validates the bundle exactly once, through checkFreshness.
 // All constants are synthetic test fixtures; the factor and principle registries stay DRAFT, so nothing is servable.
+// Approval comes only from a trusted registry, so the gate under test is bound to the CONTROLLED test registry
+// (decisionLab.testRegistry.mjs), whose approved copy carries the production pins and whose verdicts always
+// include registry_not_production.
 
 import { generateScenario } from "../functions/_lib/decisionLab/generator.js";
-import { isServable, checkFreshness, validateScenarioBundle } from "../functions/_lib/decisionLab/validator.js";
+import { checkFreshness, validateScenarioBundle } from "../functions/_lib/decisionLab/validator.js";
 import { checkStaleness, materialSignature, stableStringify } from "../functions/_lib/decisionLab/fingerprint.js";
-import { OBJECTIVE_TRADE_TEMPLATE as T } from "../functions/_lib/decisionLab/templates/objectiveTrade.js";
 import { FIXTURE_CONSTANTS as C, withConstants, copy, createHarness } from "./decisionLab.fixtures.mjs";
+import { APPROVED_COPY as approvedT, approvingGate, postApprovalBlockers } from "./decisionLab.testRegistry.mjs";
 
 const { check, finish } = createHarness();
-const approvedT = { ...T, status: "approved", rules: { ...T.rules, status: "APPROVED" } };
 const verify = (mutate = () => {}) => withConstants((c) => { c.status = "VERIFIED"; c.verifiedForPatch = "P1"; c.version = "fixture.verified"; mutate(c); });
 const verified = verify();
 const now = { effectivePatch: "P1" };
 const bundleOf = (r) => ({ scenario: r.scenario, answerKey: r.answerKey, publicScenario: r.publicScenario });
-const gate = (input) => { try { return isServable(input); } catch (e) { return { threw: `${e.constructor.name}: ${e.message}` }; } };
-const onlyDraftRegistries = (r) => r.servable === false && r.blockers.length > 0 && r.blockers.every((b) => b.startsWith("factor_not_approved:") || b.startsWith("principle_not_approved:"));
+const gate = (input) => { try { return approvingGate(input); } catch (e) { return { threw: `${e.constructor.name}: ${e.message}` }; } };
+const onlyDraftRegistries = (r) => r.servable === false && r.blockers.includes("registry_not_production") && postApprovalBlockers(r).length > 0 && postApprovalBlockers(r).every((b) => b.startsWith("factor_not_approved:") || b.startsWith("principle_not_approved:"));
 const gv = generateScenario({ seed: 11, constants: verified });
 
 console.log("\n[1] A relevant constants value change under the SAME version label blocks serving");

@@ -5,19 +5,24 @@
 //
 // Engineering tests of the gate's contract. Nothing here approves content:
 // the factor and principle registries stay DRAFT, so no scenario can become
-// servable. The approved template / VERIFIED constants below are test copies
-// used only to reach the checks that sit behind those statuses.
+// servable. The approval statuses come only from a trusted registry, so the
+// checks that sit behind them are reached through a CONTROLLED test registry
+// (decisionLab.testRegistry.mjs: an approved copy under the production pins,
+// whose gate always adds registry_not_production). The VERIFIED constants are
+// a test copy too.
 
 import { generateScenario } from "../functions/_lib/decisionLab/generator.js";
 import { isServable } from "../functions/_lib/decisionLab/validator.js";
 import { OBJECTIVE_TRADE_TEMPLATE as T, OBJECTIVE_TRADE_RULES } from "../functions/_lib/decisionLab/templates/objectiveTrade.js";
 import { FIXTURE_CONSTANTS as C, withConstants, copy, createHarness } from "./decisionLab.fixtures.mjs";
+import { APPROVED_COPY, approvingGate, postApprovalBlockers } from "./decisionLab.testRegistry.mjs";
 
 const { check, finish } = createHarness();
-const approvedT = { ...T, status: "approved", rules: { ...T.rules, status: "APPROVED" } };
 const verified = withConstants((c) => { c.status = "VERIFIED"; c.verifiedForPatch = "P1"; c.version = "fixture.verified"; });
 const bundleOf = (r) => ({ scenario: r.scenario, answerKey: r.answerKey, publicScenario: r.publicScenario });
-const gate = (input) => { try { return isServable(input); } catch (e) { return { threw: `${e.constructor.name}: ${e.message}` }; } };
+const guarded = (f) => (input) => { try { return f(input); } catch (e) { return { threw: `${e.constructor.name}: ${e.message}` }; } };
+const gate = guarded(isServable);
+const approvedGate = guarded(approvingGate); // approval from the controlled test registry
 const has = (g, prefix) => Array.isArray(g.blockers) && g.blockers.some((b) => b === prefix || b.startsWith(`${prefix}:`) || b.startsWith(prefix));
 
 const g = generateScenario({ seed: 11, constants: C });
@@ -45,7 +50,7 @@ console.log("\n[2] Fail-open paths of the E-1 gate are closed");
   const tampered = copy(bundleOf(gv));
   tampered.scenario.activeFactors = [];
   tampered.scenario.learningObjective.principles = [];
-  const t = gate({ ...tampered, template: approvedT, constants: verified, dataInputs: { effectivePatch: "P1" } });
+  const t = approvedGate({ ...tampered, template: APPROVED_COPY, constants: verified, dataInputs: { effectivePatch: "P1" } });
   check("a scenario whose own factor/principle lists were emptied is blocked (metadata mismatch, invalid bundle, and the trusted factors' DRAFT status)", t.servable === false && t.blockers.includes("scenario_metadata_mismatch:activeFactors") && t.blockers.includes("scenario_metadata_mismatch:principles") && has(t, "invalid_bundle") && has(t, "factor_not_approved") && has(t, "principle_not_approved"), t.blockers);
 
   // E-1: an unknown origin passed, and an unknown principle id threw.
@@ -83,10 +88,13 @@ console.log("\n[3] What is served must be the scenario's own template and a vali
 
 console.log("\n[4] Freshness is mandatory, including the patch for VERIFIED constants");
 {
-  check("VERIFIED constants with no current patch: freshness_unverifiable:patch_unknown", gate({ ...bundleOf(gv), template: approvedT, constants: verified, dataInputs: {} }).blockers.includes("freshness_unverifiable:patch_unknown"));
-  check("...and a different current patch is stale:review_required", gate({ ...bundleOf(gv), template: approvedT, constants: verified, dataInputs: { effectivePatch: "P2" } }).blockers.includes("stale:review_required"));
-  const ready = gate({ ...bundleOf(gv), template: approvedT, constants: verified, dataInputs: { effectivePatch: "P1" } });
-  check("with an approved template and rule table, VERIFIED constants for the current patch and a valid fresh bundle, ONLY the DRAFT factor and principle registries still block", ready.servable === false && ready.blockers.length > 0 && ready.blockers.every((x) => x.startsWith("factor_not_approved:") || x.startsWith("principle_not_approved:")), ready.blockers);
+  check("VERIFIED constants with no current patch: freshness_unverifiable:patch_unknown", approvedGate({ ...bundleOf(gv), template: APPROVED_COPY, constants: verified, dataInputs: {} }).blockers.includes("freshness_unverifiable:patch_unknown"));
+  check("...and a different current patch is stale:review_required", approvedGate({ ...bundleOf(gv), template: APPROVED_COPY, constants: verified, dataInputs: { effectivePatch: "P2" } }).blockers.includes("stale:review_required"));
+  const ready = approvedGate({ ...bundleOf(gv), template: APPROVED_COPY, constants: verified, dataInputs: { effectivePatch: "P1" } });
+  const rest = postApprovalBlockers(ready);
+  check("with a (test) registry that approves the template and rule table, VERIFIED constants for the current patch and a valid fresh bundle, ONLY the DRAFT factor and principle registries still block (plus registry_not_production)", ready.servable === false && ready.blockers.includes("registry_not_production") && rest.length > 0 && rest.every((x) => x.startsWith("factor_not_approved:") || x.startsWith("principle_not_approved:")), ready.blockers);
+  const self = gate({ ...bundleOf(gv), template: APPROVED_COPY, constants: verified, dataInputs: { effectivePatch: "P1" } });
+  check("the PRODUCTION gate given the same approved copy still blocks it as draft: approval comes from the registry, not from the copy", self.blockers.includes("template_not_approved:draft") && self.blockers.includes("rule_table_not_approved:DRAFT") && !self.blockers.includes("registry_not_production"), self.blockers);
 }
 
 console.log("\n[5] The template must be the registered one, with its registered content (diff C registry)");

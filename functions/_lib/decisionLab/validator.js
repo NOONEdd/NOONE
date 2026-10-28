@@ -26,7 +26,7 @@ import { STALENESS } from "./config.js";
 import { FACTORS, FACTOR_IDS } from "./factors.js";
 import { PRINCIPLES } from "./principles.js";
 import { recomputeAnswerKey } from "./scoring.js";
-import { isRegisteredIntactRules, templateTrust, registeredTemplate } from "./templates/registry.js";
+import { isRegisteredIntactRules, templateTrust, registeredTemplate, TEMPLATE_REGISTRY, isTemplateRegistry } from "./templates/registry.js";
 
 export const LAYERS = Object.freeze(["structure", "state", "decision", "edu", "public"]);
 
@@ -115,10 +115,10 @@ export function validateScenarioBundle(bundle, options = {}) {
 /** The template judged against: the supplied one, or -- when it is omitted
  *  (undefined) -- the trusted registry's template for the scenario's
  *  provenance (null when there is none). */
-function currentTemplate(scenario, supplied) {
+function currentTemplate(scenario, supplied, lookup = registeredTemplate) {
   if (supplied !== undefined) return supplied;
   const p = scenario && scenario.provenance;
-  return p ? registeredTemplate({ templateId: p.templateId, templateVersion: p.templateVersion, rulesVersion: p.rulesVersion }) : null;
+  return p ? lookup({ templateId: p.templateId, templateVersion: p.templateVersion, rulesVersion: p.rulesVersion }) : null;
 }
 
 /** Freshness of a stored bundle against the CURRENT data, including the
@@ -180,6 +180,22 @@ const SERVABLE_ORIGINS = Object.freeze(["generated", "coach_crafted"]);
 
 const sameList = (a, b) => Array.isArray(a) && a.length === b.length && a.every((x, i) => x === b[i]);
 
+/** A serving gate bound to one template registry (the production gate is
+ *  isServable, below). A gate bound to any other registry -- a controlled test
+ *  registry -- always adds registry_not_production, so it can never serve
+ *  (TEMPLATE_TRUST_CONTRACT.md 5a). Throws TypeError at construction for
+ *  anything that is not a registry built by templates/registry.js. */
+export function createServingGate(registry) {
+  if (!isTemplateRegistry(registry)) throw new TypeError("createServingGate needs a registry built by templates/registry.js");
+  return function isServable(input) {
+    try {
+      return servingVerdict(input, registry);
+    } catch {
+      return { servable: false, blockers: ["gate_check_failed"] };
+    }
+  };
+}
+
 /** Serving gate, fail-closed.
  *  input = { scenario, answerKey, publicScenario, template?, constants, dataInputs }
  *  Returns { servable, blockers: [...] }; servable only when nothing blocks.
@@ -187,33 +203,32 @@ const sameList = (a, b) => Array.isArray(a) && a.length === b.length && a.every(
  *  exception (an exotic or malformed input) is the single blocker
  *  gate_check_failed. The template must be registered with intact content
  *  (template_unregistered / template_content_mismatch:<parts>); omitted, it is
- *  resolved from the registry. Statuses come from the CURRENT template, rule
- *  table and constants and from the server-side factor and principle
- *  registries (a scenario's own snapshot is provenance, not authority). The
- *  scenario's own factor and principle lists are compared with a re-derivation
- *  from its state, never trusted. The bundle must validate under the current
- *  template, constants and data, and freshness is always checked: dataInputs
- *  is required. */
-export function isServable(input) {
-  try {
-    return servingVerdict(input);
-  } catch {
-    return { servable: false, blockers: ["gate_check_failed"] };
-  }
-}
+ *  resolved from the registry. The template and rule-table approval statuses
+ *  come ONLY from the trusted registry entry for the template's labels, never
+ *  from the supplied template or the scenario's snapshot (unregistered labels:
+ *  template_not_approved:unregistered). The constants status comes from the
+ *  CURRENT constants, and factor and principle statuses from the server-side
+ *  registries. The scenario's own factor and principle lists are compared with
+ *  a re-derivation from its state, never trusted. The bundle must validate
+ *  under the current template, constants and data, and freshness is always
+ *  checked: dataInputs is required. */
+export const isServable = createServingGate(TEMPLATE_REGISTRY);
 
-function servingVerdict({ scenario, answerKey, publicScenario, template: supplied, constants, dataInputs }) {
-  const template = currentTemplate(scenario, supplied);
+function servingVerdict({ scenario, answerKey, publicScenario, template: supplied, constants, dataInputs }, registry) {
+  const template = currentTemplate(scenario, supplied, registry.registeredTemplate);
   if (supplied === undefined && !template) return { servable: false, blockers: ["template_unregistered"] };
   if (!template || !template.rules) return { servable: false, blockers: ["template_missing"] };
   const blockers = [];
+  if (registry !== TEMPLATE_REGISTRY) blockers.push("registry_not_production");
   const rulesOk = templateRuleIssues(template).length === 0;
   if (!rulesOk) blockers.push("rules_invalid");
-  const trust = rulesOk ? templateTrust(template) : { issue: null };
+  const trust = rulesOk ? registry.templateTrust(template) : { issue: null };
   if (trust.issue) blockers.push(trust.issue.code === "template_content_mismatch" ? `template_content_mismatch:${trust.issue.parts.join(",")}` : trust.issue.code);
   const usable = rulesOk && !trust.issue; // never re-derive or validate against content the engine does not trust
-  if (template.status !== "approved") blockers.push(`template_not_approved:${template.status}`);
-  if (template.rules.status !== "APPROVED") blockers.push(`rule_table_not_approved:${template.rules.status}`);
+  // Approval: only the registry entry's statuses. The supplied object's status fields are never read.
+  const approval = registry.registeredApproval(template);
+  if (!approval || approval.template !== "approved") blockers.push(`template_not_approved:${approval ? approval.template : "unregistered"}`);
+  if (!approval || approval.rules !== "APPROVED") blockers.push(`rule_table_not_approved:${approval ? approval.rules : "unregistered"}`);
   if (!constants || constants.status !== "VERIFIED") blockers.push(`constants_not_verified:${constants ? constants.status : "missing"}`);
   const p = scenario && scenario.provenance;
   if (!p || template.id !== p.templateId || template.version !== p.templateVersion || template.rules.version !== p.rulesVersion) blockers.push("template_mismatch");

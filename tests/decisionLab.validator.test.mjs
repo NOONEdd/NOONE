@@ -17,6 +17,7 @@ import { deepFreeze } from "../functions/_lib/decisionLab/config.js";
 import { FACTOR_IDS } from "../functions/_lib/decisionLab/factors.js";
 import { PRINCIPLE_IDS } from "../functions/_lib/decisionLab/principles.js";
 import { FIXTURE_CONSTANTS, copy, createHarness } from "./decisionLab.fixtures.mjs";
+import { approvingGate } from "./decisionLab.testRegistry.mjs";
 
 const { check, finish } = createHarness();
 const C = FIXTURE_CONSTANTS;
@@ -221,7 +222,10 @@ console.log("\n[5] Serving gate: draft or unverified content is never servable")
   check("engine fixtures are never servable", isServable({ scenario: fixtureOrigin.scenario, template: T, constants: C }).blockers.includes("origin_engine_fixture"));
   const stale = isServable({ scenario: b.scenario, template: T, constants: { ...C, version: "fixture.2" }, dataInputs: {} });
   check("a data change adds a staleness blocker", stale.blockers.some((x) => x.startsWith("stale:")), stale.blockers);
-  check("the gate reads CURRENT statuses, not the scenario's snapshot of them", b.scenario.template.status === "draft" && isServable({ scenario: b.scenario, template: { ...T, status: "approved" }, constants: C }).blockers.every((x) => !x.startsWith("template_not_approved")));
+  // Statuses are read from the trusted registry entry (TEMPLATE_TRUST_CONTRACT.md 5): a registry that approves the
+  // template clears the blocker although the scenario's snapshot says draft; a copy that approves itself does not.
+  check("the gate reads CURRENT statuses from the trusted registry, not the scenario's snapshot of them", b.scenario.template.status === "draft" && approvingGate({ scenario: b.scenario, template: T, constants: C }).blockers.every((x) => !x.startsWith("template_not_approved")));
+  check("...and not a supplied copy's own status: a self-approved copy is still template_not_approved:draft", isServable({ scenario: b.scenario, template: { ...T, status: "approved" }, constants: C }).blockers.includes("template_not_approved:draft"));
 }
 
 finish();
