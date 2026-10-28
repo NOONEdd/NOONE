@@ -28,8 +28,8 @@
 //   tiering        how outcome chains become option tiers
 //   signals        thresholds for factor performance signals
 
-import { deepFreeze, STATE_VOCAB } from "../config.js";
-import { FACTOR_IDS } from "../factors.js";
+import { deepFreeze, STATE_VOCAB, STAGES, CERTAINTY, isInt } from "../config.js";
+import { FACTORS, FACTOR_IDS } from "../factors.js";
 import { captureRank, punishRank } from "../relationships.js";
 
 export const OBJECTIVE_TRADE_TEMPLATE_VERSION = 3;
@@ -600,11 +600,19 @@ export function detectFactors(ctx) {
 }
 
 // --- Terms ------------------------------------------------------------------------
+// termValue, termEvidence and preconditionOf take the rule table being
+// evaluated (callers pass template.rules), so a template carrying another
+// table is evaluated entirely from that table. The default is this module's
+// table, which is what OBJECTIVE_TRADE_TEMPLATE.rules is.
+
+/** The derived terms termValue implements, the plain terms each one reads, and
+ *  the factor whose levels key those terms' values. */
+const DERIVED_TERM_READS = { vision_opportunity: {}, neglect_cost: { objective_value: "objective_value" }, trade_gain: { objective_value: "objective_value" }, trade_punish: {}, trade_punish_spill: {} };
 
 /** Integer value of a named term for this context (levels must be detected). */
-export function termValue(name, ctx) {
-  const def = OBJECTIVE_TRADE_RULES.terms[name];
-  const th = OBJECTIVE_TRADE_RULES.thresholds;
+export function termValue(name, ctx, rules = OBJECTIVE_TRADE_RULES) {
+  const def = rules.terms[name];
+  const th = rules.thresholds;
   switch (def.derived) {
     case undefined:
       return def.values[ctx.levels[def.factor]];
@@ -614,10 +622,10 @@ export function termValue(name, ctx) {
       return ctx.derived.vision[zone].setupOpportunity;
     }
     case "neglect_cost":
-      return ctx.raw.objectives[ctx.primary].activity === "enemy_taking" ? OBJECTIVE_TRADE_RULES.terms.objective_value.values[ctx.levels.objective_value] : 0;
+      return ctx.raw.objectives[ctx.primary].activity === "enemy_taking" ? rules.terms.objective_value.values[ctx.levels.objective_value] : 0;
     case "trade_gain": {
       if (ctx.levels.cross_map_trade === "none") return 0;
-      const worth = OBJECTIVE_TRADE_RULES.terms.objective_value.values[ctx.levels.objective_value]; // value rank of the primary, 0-2
+      const worth = rules.terms.objective_value.values[ctx.levels.objective_value]; // value rank of the primary, 0-2
       return Math.min(captureRank(ctx.derived.crossMap[ctx.primary].ourArrivals, th), 2 - worth);
     }
     case "trade_punish":
@@ -630,8 +638,8 @@ export function termValue(name, ctx) {
 }
 
 /** State paths that explain a term's value (for explainability/audit). */
-export function termEvidence(name, ctx) {
-  const def = OBJECTIVE_TRADE_RULES.terms[name];
+export function termEvidence(name, ctx, rules = OBJECTIVE_TRADE_RULES) {
+  const def = rules.terms[name];
   switch (def.derived) {
     case undefined:
       return ctx.evidence[def.factor];
@@ -663,10 +671,163 @@ const PRECONDITION_IMPLS = {
 };
 
 /** { ok, reason } for an action in this state. */
-export function preconditionOf(actionType, ctx) {
-  const pre = OBJECTIVE_TRADE_RULES.preconditions[actionType];
+export function preconditionOf(actionType, ctx, rules = OBJECTIVE_TRADE_RULES) {
+  const pre = rules.preconditions[actionType];
   if (!pre) return { ok: true, reason: null };
   return PRECONDITION_IMPLS[pre.rule](ctx) ? { ok: true, reason: null } : { ok: false, reason: pre.rule };
+}
+
+// --- Rule-table check -----------------------------------------------------------------
+
+const THRESHOLD_KEYS = ["strongMinArrivals", "partialMinArrivals", "compDeadzone", "itemDeadzone", "positionDeadzone", "enemyTakingMinAtObjective", "infoPoorStaleCount", "infoPartialStaleCount"];
+/** The levels relationships.js infoQualityOf assigns (certaintyShift may test them). */
+const INFO_QUALITY_LEVELS = ["clear", "partial", "poor"];
+
+/** Shape check of a rule table against the registries and the runtime above.
+ *  Returns a list of problems (empty when sound). It is the template's half of
+ *  the canonical rule-table check (validator.js templateRuleIssues), which
+ *  every public operation runs before it reads a table, so a gap is reported
+ *  instead of failing silently (a level with no term value would make a stage
+ *  sum NaN, which no band matches except the last one; a missing threshold
+ *  would quietly change every comparison). It says nothing about whether the
+ *  coaching content is right.
+ *  Total over JSON-shaped input: every container and entry is checked before it
+ *  is read, so a null, a primitive, an array in place of an object or a hole is
+ *  an issue, never an exception. Names (terms, actions, stages, factors, levels,
+ *  precondition rules) are looked up as OWN properties, so a prototype key such
+ *  as "constructor" or "toString" is not mistaken for an implemented name. It
+ *  covers every rule-table path the engine reads (tests: read-coverage audit). */
+export function checkRuleTable(rules) {
+  const p = [];
+  const isObj = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+  const has = (o, k) => isObj(o) && typeof k === "string" && Object.prototype.hasOwnProperty.call(o, k);
+  const levelsOf = (f) => (has(FACTORS, f) ? FACTORS[f].levels : null);
+  const show = (x) => {
+    if (typeof x === "string") return x;
+    try {
+      const s = JSON.stringify(x);
+      return s === undefined ? typeof x : s;
+    } catch {
+      return typeof x; // cyclic, BigInt, ...
+    }
+  };
+  if (!isObj(rules)) return ["rule table must be an object"];
+  if (typeof rules.version !== "string" || rules.version === "") p.push("version must be a non-empty string");
+  if (typeof rules.status !== "string" || rules.status === "") p.push("status must be a non-empty string");
+  for (const k of ["terms", "thresholds", "preconditions", "actions", "tiering", "signals"]) if (!isObj(rules[k])) p.push(`${k} must be an object`);
+  if (!Array.isArray(rules.certaintyShift)) p.push("certaintyShift must be an array");
+  if (p.length) return p;
+
+  // A plain term: a registry factor and an integer value for every one of its levels (and nothing else).
+  const plainTermIssues = (name, t, wantFactor) => {
+    const q = [];
+    const levels = levelsOf(t.factor);
+    if (!levels || !isObj(t.values)) return [`terms.${name}: a plain term needs a registry factor and values`];
+    if (wantFactor !== undefined && t.factor !== wantFactor) q.push(`terms.${name}: must be a term of factor ${wantFactor}`);
+    for (const level of levels) if (!isInt(t.values[level])) q.push(`terms.${name}: no integer value for ${t.factor} level ${level}`);
+    for (const level of Object.keys(t.values)) if (!levels.includes(level)) q.push(`terms.${name}: ${level} is not a level of ${t.factor}`);
+    return q;
+  };
+  for (const [name, t] of Object.entries(rules.terms)) {
+    if (!isObj(t)) {
+      p.push(`terms.${name} must be an object`);
+      continue;
+    }
+    if (t.factor !== null && !levelsOf(t.factor)) p.push(`terms.${name}: unknown factor ${show(t.factor)}`);
+    if (t.derived !== undefined) {
+      if (!has(DERIVED_TERM_READS, t.derived)) p.push(`terms.${name}: derived term ${show(t.derived)} is not implemented`);
+      else {
+        for (const [dep, factor] of Object.entries(DERIVED_TERM_READS[t.derived])) {
+          if (!has(rules.terms, dep) || !isObj(rules.terms[dep])) p.push(`terms.${name}: derived term ${t.derived} reads terms.${dep}, which is missing`);
+          else if (rules.terms[dep].derived !== undefined) p.push(`terms.${name}: derived term ${t.derived} reads terms.${dep}, which must be a plain term`);
+          else if (rules.terms[dep].factor !== factor) p.push(`terms.${name}: derived term ${t.derived} reads terms.${dep}, which must be a term of factor ${factor}`);
+        }
+      }
+    } else p.push(...plainTermIssues(name, t));
+  }
+
+  const th = rules.thresholds;
+  for (const k of THRESHOLD_KEYS) if (!(isInt(th[k]) && th[k] >= 0)) p.push(`thresholds.${k} must be a non-negative integer`);
+  for (const band of ["strong", "limited"]) for (const k of ["ourMin", "enemyMax"]) if (!(isObj(th.crossMap) && isObj(th.crossMap[band]) && isInt(th.crossMap[band][k]) && th.crossMap[band][k] >= 0)) p.push(`thresholds.crossMap.${band}.${k} must be a non-negative integer`);
+
+  for (const [action, pre] of Object.entries(rules.preconditions)) {
+    if (!has(rules.actions, action)) p.push(`preconditions.${action}: no such action`);
+    if (!isObj(pre)) p.push(`preconditions.${action} must be an object`);
+    else if (!has(PRECONDITION_IMPLS, pre.rule)) p.push(`preconditions.${action}: rule ${show(pre.rule)} is not implemented`);
+  }
+
+  // Every action the template offers needs a rule; a rule for anything else could never be presented.
+  const actions = OBJECTIVE_TRADE_DATA.allowedActions;
+  for (const action of actions) if (!has(rules.actions, action)) p.push(`actions.${action}: missing (the template offers it)`);
+  for (const [action, spec] of Object.entries(rules.actions)) {
+    if (!actions.includes(action)) p.push(`actions.${action}: not an action the template offers`);
+    if (!isObj(spec)) {
+      p.push(`actions.${action} must be an object`);
+      continue;
+    }
+    for (const stage of Object.keys(spec)) if (!STAGES.includes(stage)) p.push(`actions.${action}.${stage}: not a stage`);
+    STAGES.forEach((stage, si) => {
+      const s = has(spec, stage) ? spec[stage] : undefined;
+      const at = `actions.${action}.${stage}`;
+      if (!isObj(s) || !Array.isArray(s.terms) || !Array.isArray(s.bands) || s.bands.length === 0) return void p.push(`${at}: needs terms[] and a non-empty bands[]`);
+      for (let j = 0; j < s.terms.length; j++) {
+        const t = s.terms[j];
+        if (!isObj(t)) {
+          p.push(`${at}: terms[${j}] must be an object`);
+          continue;
+        }
+        if (t.carry !== undefined) {
+          if (!(STAGES.includes(t.carry) && STAGES.indexOf(t.carry) < si)) p.push(`${at}: carry must name an earlier stage (${show(t.carry)})`);
+        } else if (!has(rules.terms, t.term) || !isObj(rules.terms[t.term])) p.push(`${at}: unknown term ${show(t.term)}`);
+        if (t.max !== undefined && !isInt(t.max)) p.push(`${at}: max must be an integer`);
+        if (t.sign !== undefined && t.sign !== -1) p.push(`${at}: sign may only be -1`);
+      }
+      const outcomes = new Set();
+      for (let i = 0; i < s.bands.length; i++) {
+        const b = s.bands[i];
+        if (!isObj(b)) {
+          p.push(`${at}: band ${i} must be an object`);
+          continue;
+        }
+        const last = i === s.bands.length - 1;
+        const prev = i > 0 && isObj(s.bands[i - 1]) ? s.bands[i - 1].min : undefined;
+        if (last ? b.min !== null : !isInt(b.min)) p.push(`${at}: ${last ? "the last band needs min null" : `band ${i} needs an integer min`}`);
+        else if (!last && i > 0 && !(isInt(prev) && b.min < prev)) p.push(`${at}: band mins must strictly decrease`);
+        if (!(isInt(b.valence) && b.valence >= -2 && b.valence <= 2)) p.push(`${at}: band ${i} valence must be an integer in -2..2`);
+        if (!CERTAINTY.includes(b.certainty)) p.push(`${at}: band ${i} certainty ${show(b.certainty)} is not qualitative`);
+        if (typeof b.outcome !== "string" || b.outcome === "" || outcomes.has(b.outcome)) p.push(`${at}: band ${i} needs a unique outcome name`);
+        if (b.failure !== undefined && !(typeof b.failure === "string" && b.failure !== "")) p.push(`${at}: band ${i} failure must be a non-empty string when present`);
+        outcomes.add(b.outcome);
+      }
+    });
+  }
+
+  for (let i = 0; i < rules.certaintyShift.length; i++) {
+    const r = rules.certaintyShift[i];
+    if (!isObj(r)) {
+      p.push(`certaintyShift[${i}] must be an object`);
+      continue;
+    }
+    if (!STAGES.includes(r.stage)) p.push(`certaintyShift[${i}]: unknown stage ${show(r.stage)}`);
+    if (!Array.isArray(r.actions) || r.actions.some((a) => !has(rules.actions, a))) p.push(`certaintyShift[${i}]: actions must name rule-table actions`);
+    if (!(isInt(r.shift) && r.shift < 0)) p.push(`certaintyShift[${i}]: shift must be a negative integer (it may only lower certainty)`);
+    if (!isObj(r.when) || Object.keys(r.when).some((k) => k !== "infoQuality" && k !== "factorLevel")) {
+      p.push(`certaintyShift[${i}]: when may only test infoQuality and factorLevel`);
+      continue;
+    }
+    if (r.when.infoQuality !== undefined && !INFO_QUALITY_LEVELS.includes(r.when.infoQuality)) p.push(`certaintyShift[${i}]: infoQuality ${show(r.when.infoQuality)} is not an information level`);
+    if (r.when.factorLevel !== undefined && !isObj(r.when.factorLevel)) p.push(`certaintyShift[${i}]: factorLevel must be an object`);
+    else for (const [f, level] of Object.entries(r.when.factorLevel || {})) if (!(levelsOf(f) && levelsOf(f).includes(level))) p.push(`certaintyShift[${i}]: ${f}=${show(level)} is not a factor level`);
+  }
+
+  const tg = rules.tiering;
+  const weights = (k) => (isObj(tg[k]) ? tg[k] : {});
+  for (const stage of STAGES) if (!(isInt(weights("stageWeights")[stage]) && weights("stageWeights")[stage] > 0)) p.push(`tiering.stageWeights.${stage} must be a positive integer`);
+  for (const c of CERTAINTY) if (!isInt(weights("certaintyWeights")[c])) p.push(`tiering.certaintyWeights.${c} must be an integer`);
+  for (const k of ["strongMaxGap", "viableMaxGap", "strongMinScore", "viableMinScore", "situationalLowCertaintyPercent", "situationalMinScore"]) if (!isInt(tg[k])) p.push(`tiering.${k} must be an integer`);
+  if (typeof tg.situationalRequiresAlternative !== "boolean") p.push("tiering.situationalRequiresAlternative must be a boolean");
+  for (const k of ["positiveMin", "strongMin", "avoidedPositiveMin", "missedMin", "missedStrongMin", "minAttributionMass"]) if (!(isInt(rules.signals[k]) && rules.signals[k] >= 0)) p.push(`signals.${k} must be a non-negative integer`);
+  return p;
 }
 
 // --- Presentation (deterministic strings; no LLM) ---------------------------------
@@ -717,7 +878,7 @@ export function buildPresentation(raw, primary, alternative) {
 export const OBJECTIVE_TRADE_TEMPLATE = Object.freeze({
   ...OBJECTIVE_TRADE_DATA,
   rules: OBJECTIVE_TRADE_RULES,
-  runtime: Object.freeze({ detectFactors, termValue, termEvidence, preconditionOf, optionLabel, buildPresentation }),
+  runtime: Object.freeze({ detectFactors, termValue, termEvidence, preconditionOf, optionLabel, buildPresentation, checkRules: checkRuleTable }),
 });
 
 /** The template's data-only view (no functions) -- what gets hashed. */

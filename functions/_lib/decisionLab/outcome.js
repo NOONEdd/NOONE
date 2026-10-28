@@ -24,7 +24,7 @@
 // Term mods (data in the rule table): { max: N } caps the term's value
 // BEFORE { sign: -1 } negates it.
 
-import { STAGES, CERTAINTY } from "./config.js";
+import { STAGES, CERTAINTY, DecisionLabError } from "./config.js";
 import { FACTORS } from "./factors.js";
 
 /** CERTAINTY is ordered guaranteed -> low. A negative delta LOWERS certainty. */
@@ -83,7 +83,7 @@ function whenEvidence(when, ctx) {
  *  not "bad" -- it is unavailable, and the caller tiers it INVALID. */
 export function buildOptionChain(template, actionType, ctx, opts = {}) {
   const rules = template.rules;
-  const pre = template.runtime.preconditionOf(actionType, ctx);
+  const pre = template.runtime.preconditionOf(actionType, ctx, rules);
   if (!pre.ok) return { valid: false, reason: pre.reason, chain: [] };
 
   // Counterfactual (used to measure a factor's INFLUENCE, see scoring.js):
@@ -93,8 +93,12 @@ export function buildOptionChain(template, actionType, ctx, opts = {}) {
   const termCtx = opts.neutralFactor ? { ...ctx, levels: { ...ctx.levels, [opts.neutralFactor]: FACTORS[opts.neutralFactor].neutral } } : ctx;
 
   const chain = [];
+  // Last-resort guards (public operations check the table first, see validator.js templateRuleIssues):
+  // a malformed table must stop here, never fall through to an outcome band.
+  const malformed = (what) => new DecisionLabError("rules_invalid", `${actionType}: ${what}`);
   for (const stage of STAGES) {
-    const spec = rules.actions[actionType][stage];
+    const spec = rules.actions[actionType] && rules.actions[actionType][stage];
+    if (!spec) throw malformed(`no rule for stage ${stage}`);
     const entries = [];
     let sum = 0;
     for (const t of spec.terms) {
@@ -105,14 +109,16 @@ export function buildOptionChain(template, actionType, ctx, opts = {}) {
         sum += value;
         continue;
       }
-      let value = template.runtime.termValue(t.term, termCtx);
+      let value = template.runtime.termValue(t.term, termCtx, rules);
       if (t.max !== undefined) value = Math.min(value, t.max);
       if (t.sign === -1) value = 0 - value; // (0 - v, never -v: negating 0 would leave a negative zero in the audit data)
-      entries.push({ term: t.term, factor: rules.terms[t.term].factor, value, evidence: template.runtime.termEvidence(t.term, ctx) });
+      if (!Number.isInteger(value)) throw malformed(`${stage} term ${t.term} has no integer value (${value})`);
+      entries.push({ term: t.term, factor: rules.terms[t.term].factor, value, evidence: template.runtime.termEvidence(t.term, ctx, rules) });
       sum += value;
     }
 
     const band = spec.bands.find((b) => b.min === null || sum >= b.min);
+    if (!band || !CERTAINTY.includes(band.certainty)) throw malformed(`${stage} has no band with a qualitative certainty for sum ${sum}`);
     let certainty = band.certainty;
     const shiftEvidence = [];
     for (const rule of rules.certaintyShift) {

@@ -59,8 +59,23 @@ import { STATIC_PATCH_VERSION } from "../../../src/data/patch.js";
 
 // --- Canonical JSON + hash -------------------------------------------------------
 
+/** JSON string literal. Printable ASCII other than `"` and `\` is emitted
+ *  verbatim by JSON.stringify, so only other strings need it. */
+function quoteJson(s) {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x20 || c > 0x7e || c === 0x22 || c === 0x5c) return JSON.stringify(s);
+  }
+  return `"${s}"`;
+}
+
 /** Canonical JSON: sorted keys, no whitespace, undefined properties dropped.
- *  Throws on anything that cannot be represented deterministically. */
+ *  Throws on anything that cannot be represented deterministically.
+ *  Every scenarioRef, fingerprint and validator comparison is built on this
+ *  output, so it must stay byte-identical (tests/decisionLab.engineering
+ *  .test.mjs compares it with the original implementation). Built by string
+ *  concatenation rather than map/filter/join: it is the generator's hottest
+ *  function. Array holes are emitted empty, exactly as join() did. */
 export function stableStringify(value) {
   if (value === null) return "null";
   const t = typeof value;
@@ -68,13 +83,25 @@ export function stableStringify(value) {
     if (!Number.isFinite(value)) throw new TypeError("stableStringify: non-finite number");
     return JSON.stringify(value);
   }
-  if (t === "string" || t === "boolean") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (t === "string") return quoteJson(value);
+  if (t === "boolean") return value ? "true" : "false";
+  if (Array.isArray(value)) {
+    let out = "[";
+    for (let i = 0; i < value.length; i++) {
+      if (i > 0) out += ",";
+      if (i in value) out += stableStringify(value[i]);
+    }
+    return `${out}]`;
+  }
   if (t === "object") {
-    const keys = Object.keys(value)
-      .filter((k) => value[k] !== undefined)
-      .sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+    let out = "{";
+    for (const k of Object.keys(value).sort()) {
+      const v = value[k];
+      if (v === undefined) continue;
+      if (out.length > 1) out += ",";
+      out += `${quoteJson(k)}:${stableStringify(v)}`;
+    }
+    return `${out}}`;
   }
   throw new TypeError(`stableStringify: unsupported type ${t}`);
 }

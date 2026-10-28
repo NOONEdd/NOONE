@@ -535,7 +535,7 @@ def("decision.option_preconditions_hold", "Option availability matches the state
   const p = [];
   const ctx = { raw: s.state.raw, derived: s.state.derived, constants, primary: s.decision.primaryObjective, alternative: s.decision.alternativeObjective };
   for (const o of s.decision.options) {
-    const pre = template.runtime.preconditionOf(o.actionType, ctx);
+    const pre = template.runtime.preconditionOf(o.actionType, ctx, template.rules);
     const key = k.options[o.id];
     if (key && key.valid !== pre.ok) p.push(`${o.id}: answer key availability disagrees with the state`);
     if (s.origin === "generated" && !pre.ok) p.push(`${o.id}: a generated scenario offered an unavailable action (${pre.reason})`);

@@ -151,3 +151,43 @@ export const GENERATION_LIMITS = deepFreeze({
 export function isInt(n) {
   return typeof n === "number" && Number.isInteger(n);
 }
+
+// --- Error contract (v1.1) -------------------------------------------------------
+// Public operations (generateScenario, assembleScenario, evaluateAnswer) refuse
+// an input by returning { ok: false, error: { code, ...details } } and do not
+// throw for the conditions below. A code is a stable identifier: never renamed
+// and never reused for another meaning. Each entry names the operation and the
+// detail fields. generateScenario checks in this order: seed, constants, rules,
+// template content, difficulty, focus, selection context; evaluateAnswer:
+// answer key, rules version, template version, registry versions, template
+// labels, rules, template registration, template content, choice.
+
+export const ERROR_CODES = deepFreeze({
+  seed_invalid: "generateScenario: the seed is not a safe integer or a non-empty string { detail }",
+  constants_unverified: "generateScenario: the constants are UNVERIFIED (the shipped production state) { issues }",
+  constants_invalid: "generateScenario: the constants are missing or malformed { issues }",
+  rules_invalid: "the template's rule table is malformed, so it is never evaluated { issues }",
+  difficulty_out_of_range: "generateScenario: a pinned difficulty outside the template's range { difficulty }",
+  focus_invalid: "generateScenario: the focus is malformed { detail }",
+  selection_context_invalid: "generateScenario: the selection context is not a serializable object with string avoid lists { detail }",
+  generation_exhausted: "generateScenario: every candidate was rejected { attempts }, with stats beside the error",
+  answer_key_mismatch: "evaluateAnswer: the answer key belongs to another scenario",
+  rules_version_mismatch: "evaluateAnswer: the answer key was built under another rules version",
+  template_version_mismatch: "evaluateAnswer: the answer key was built under another template version",
+  registry_version_mismatch: "evaluateAnswer: the answer key was built under other registry versions",
+  template_mismatch: "evaluateAnswer: the template is not the one the scenario was built from",
+  template_unregistered: "evaluateAnswer: the template's labels are not in the trusted registry (templates/registry.js), so its content is not bound to them",
+  template_content_mismatch: "generateScenario, assembleScenario, evaluateAnswer: registered labels, but the content differs from the registered pins { parts }",
+  invalid_choice: "evaluateAnswer: the choice is not one of the offered option ids",
+});
+
+/** Thrown only by internal primitives, as a last-resort guard (public
+ *  operations check first and return an error instead). */
+export class DecisionLabError extends Error {
+  constructor(code, message, details = {}) {
+    super(`${code}: ${message}`);
+    this.name = "DecisionLabError";
+    this.code = code;
+    this.details = details;
+  }
+}

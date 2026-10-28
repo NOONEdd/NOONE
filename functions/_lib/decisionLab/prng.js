@@ -25,6 +25,11 @@ export function hash32(str) {
   return h >>> 0;
 }
 
+/** True for exactly the seeds seedToString accepts. */
+export function isValidSeed(seed) {
+  return (typeof seed === "number" && Number.isSafeInteger(seed)) || (typeof seed === "string" && seed.length > 0);
+}
+
 /** Canonical string for a seed. Integers and strings are distinct
  *  namespaces (1 vs "1"); anything else is a programming error. */
 export function seedToString(seed) {

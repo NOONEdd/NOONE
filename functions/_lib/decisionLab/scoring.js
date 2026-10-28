@@ -23,7 +23,7 @@
 //
 // The answer key is server-side only; it is never sent to the player.
 
-import { DEFENSIBLE_TIERS, TIER_RANK, VERSIONS, STAGES } from "./config.js";
+import { DEFENSIBLE_TIERS, TIER_RANK, VERSIONS, STAGES, DecisionLabError } from "./config.js";
 import { FACTORS, FACTOR_IDS, FACTORS_VERSION } from "./factors.js";
 import { TRACKS_VERSION } from "./tracks.js";
 import { PRINCIPLES_VERSION } from "./principles.js";
@@ -36,7 +36,9 @@ export function scoreChain(chain, tiering) {
   let abs = 0;
   let low = 0;
   for (const c of chain) {
-    const v = c.valence * tiering.certaintyWeights[c.certainty] * tiering.stageWeights[c.stage];
+    const weight = tiering.certaintyWeights[c.certainty] * tiering.stageWeights[c.stage];
+    if (!Number.isInteger(weight)) throw new DecisionLabError("rules_invalid", `tiering has no integer weight for ${c.stage}/${c.certainty}`); // last-resort guard, as in outcome.js
+    const v = c.valence * weight;
     score += v;
     abs += Math.abs(v);
     if (c.certainty === "low") low += Math.abs(v);
@@ -169,7 +171,7 @@ function computeInfluences({ template, ctx, decision, options, exposed, tiering 
       const paths = [];
       // Every term the chain read from this factor grounds the influence, including terms whose value is 0
       // because of the factor's level (conceding a low-value objective costs 0 where a neutral one costs 1).
-      for (const c of actual.outcomeChain) for (const t of c.terms) if (t.factor === factor && t.term !== "carry") paths.push(...template.runtime.termEvidence(t.term, ctx));
+      for (const c of actual.outcomeChain) for (const t of c.terms) if (t.factor === factor && t.term !== "carry") paths.push(...template.runtime.termEvidence(t.term, ctx, template.rules));
       out[opt.id][factor] = {
         effect: scoreDelta > 0 ? "supports" : scoreDelta < 0 ? "opposes" : "reshapes",
         scoreDelta,

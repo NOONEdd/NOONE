@@ -259,7 +259,7 @@ console.log("\n[7] Source purity: no clock, Math.random, locale, network, storag
       if (!ok) badImports.push(`${rel} imports ${spec}`);
     }
   }
-  check(`scanned all ${files.length} engine source files`, files.length === 16, files.length);
+  check(`scanned all ${files.length} engine source files (16 + templates/registry.js)`, files.length === 17, files.length);
   check("no banned API appears in any engine file", hits.length === 0, hits);
   check("engine files import only each other (plus fingerprint.js, which reads repo Academy data), never node:, API, UI or provider code", badImports.length === 0, badImports);
   check("only fingerprint.js reaches into src/ (the effective-data resolvers)", files.filter((f) => /from\s+"[^"]*src\//.test(readFileSync(f, "utf8"))).map((f) => f.replace(root, "")).join() === "fingerprint.js");

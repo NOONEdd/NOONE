@@ -52,8 +52,14 @@
 import { STAGES, DEFENSIBLE_TIERS, TIER_RANK, VERSIONS } from "./config.js";
 import { FACTOR_IDS } from "./factors.js";
 import { stableStringify, hash64 } from "./fingerprint.js";
+import { templateRuleIssues } from "./validator.js";
+import { registeredTemplate, templateTrust } from "./templates/registry.js";
 
-function signalFor({ factor, choiceId, answerKey, signals }) {
+/** The signal classifier: evidence for one factor, graded against `signals`
+ *  (the rule table's thresholds). Pure. evaluateAnswer always passes the
+ *  registered table's thresholds; exported so the classifier's contract can be
+ *  tested with other thresholds without evaluating against untrusted content. */
+export function signalFor({ factor, choiceId, answerKey, signals }) {
   const options = answerKey.options;
   const chosen = options[choiceId];
   const contrib = (id) => options[id].contributions[factor] || 0;
@@ -108,12 +114,28 @@ function outcomeAlignment(choiceId, answerKey) {
 }
 
 /** Evaluate one answer. Returns { ok: true, evaluation } or
- *  { ok: false, error: { code } }. */
-export function evaluateAnswer({ scenario, answerKey, answer, template }) {
+ *  { ok: false, error: { code } }. `template` must be the template (id,
+ *  version and rules version) the scenario was built from: template_mismatch
+ *  otherwise. When it is omitted (undefined), the trusted registry's template
+ *  for the scenario's provenance is used. Either way the template must be
+ *  registered (template_unregistered) and carry exactly the registered content
+ *  (template_content_mismatch): a copy that keeps the labels but changes the
+ *  content is never used to grade a scenario. */
+export function evaluateAnswer({ scenario, answerKey, answer, template: supplied }) {
   if (!answerKey || answerKey.scenarioRef !== scenario.scenarioRef) return { ok: false, error: { code: "answer_key_mismatch" } };
   if (answerKey.versions.rulesVersion !== scenario.provenance.rulesVersion) return { ok: false, error: { code: "rules_version_mismatch" } };
   if (answerKey.versions.templateVersion !== scenario.provenance.templateVersion) return { ok: false, error: { code: "template_version_mismatch" } };
   if (stableStringify(answerKey.versions.registries) !== stableStringify(scenario.provenance.registries)) return { ok: false, error: { code: "registry_version_mismatch" } };
+  // Signals are graded with template.rules, so the template must be the one the scenario was built from.
+  // Otherwise the evaluation would apply one rule table while its provenance names another.
+  const built = scenario.provenance;
+  const template = supplied === undefined ? registeredTemplate({ templateId: built.templateId, templateVersion: built.templateVersion, rulesVersion: built.rulesVersion }) : supplied;
+  if (supplied === undefined && !template) return { ok: false, error: { code: "template_unregistered" } };
+  if (!template || !template.rules || template.id !== built.templateId || template.version !== built.templateVersion || template.rules.version !== built.rulesVersion) return { ok: false, error: { code: "template_mismatch" } };
+  const ruleIssues = templateRuleIssues(template);
+  if (ruleIssues.length) return { ok: false, error: { code: "rules_invalid", issues: ruleIssues } };
+  const trust = templateTrust(template);
+  if (trust.issue) return { ok: false, error: trust.issue };
   const choiceId = answer && answer.choice;
   if (typeof choiceId !== "string" || !Object.prototype.hasOwnProperty.call(answerKey.options, choiceId)) return { ok: false, error: { code: "invalid_choice" } };
 

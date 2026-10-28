@@ -11,7 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import { generateScenario } from "../functions/_lib/decisionLab/generator.js";
-import { evaluateAnswer } from "../functions/_lib/decisionLab/evaluator.js";
+import { evaluateAnswer, signalFor } from "../functions/_lib/decisionLab/evaluator.js";
 import { OBJECTIVE_TRADE_TEMPLATE as T } from "../functions/_lib/decisionLab/templates/objectiveTrade.js";
 import { SIGNALS, TIER_RANK, DEFENSIBLE_TIERS, VERSIONS } from "../functions/_lib/decisionLab/config.js";
 import { FACTOR_IDS, FACTORS } from "../functions/_lib/decisionLab/factors.js";
@@ -185,13 +185,22 @@ console.log("\n[4] Thresholds are DATA in the rule table, not code");
   const b = pool.find((x) => evalOf(x, x.answerKey.best[0]).evaluation.factorSignals.some((f) => f.performance.signal !== "no_signal"));
   const baseline = evalOf(b, b.answerKey.best[0]).evaluation.factorSignals.map((f) => f.performance.signal);
   const huge = 1e9;
-  const T2 = { ...T, rules: { ...T.rules, signals: { ...T.rules.signals, positiveMin: huge, strongMin: huge, avoidedPositiveMin: huge, missedMin: huge, missedStrongMin: huge } } };
-  const raised = evalOf(b, b.answerKey.best[0], T2).evaluation.factorSignals.map((f) => f.performance.signal);
+  // The thresholds are exercised through the evaluator's pure classifier (signalFor), which is what evaluateAnswer
+  // calls with the rule table's thresholds. evaluateAnswer itself only ever grades with the REGISTERED table: a copy
+  // that keeps the labels but changes the thresholds is refused (error contract v1.1, TEMPLATE_TRUST_CONTRACT.md).
+  const choice = b.answerKey.best[0];
+  const exposed = FACTOR_IDS.filter((f) => b.answerKey.factorEvidence[f].exposed);
+  const classify = (signals) => exposed.map((factor) => signalFor({ factor, choiceId: choice, answerKey: b.answerKey, signals }));
+  const T2signals = { ...T.rules.signals, positiveMin: huge, strongMin: huge, avoidedPositiveMin: huge, missedMin: huge, missedStrongMin: huge };
+  const raised = classify(T2signals).map((x) => x.signal);
   check("with the shipped thresholds this scenario produces at least one signal", baseline.some((s) => s !== "no_signal"), baseline);
+  check("the classifier with the shipped thresholds is exactly what evaluateAnswer reports", stableStringify(classify(T.rules.signals).map((x) => x.signal)) === stableStringify(baseline));
   check("raising the thresholds in the rule table alone turns every signal into no_signal", raised.every((s) => s === "no_signal"), raised);
-  const T3 = { ...T, rules: { ...T.rules, signals: { ...T.rules.signals, minAttributionMass: huge } } };
-  const thin = evalOf(b, b.answerKey.best[0], T3).evaluation.factorSignals;
-  check("demanding more evidence than exists yields no_signal with reason insufficient_evidence", thin.every((f) => f.performance.signal === "no_signal" && f.performance.reason === "insufficient_evidence"));
+  const thin = classify({ ...T.rules.signals, minAttributionMass: huge });
+  check("demanding more evidence than exists yields no_signal with reason insufficient_evidence", thin.every((x) => x.signal === "no_signal" && x.reason === "insufficient_evidence"));
+  const T2 = { ...T, rules: { ...T.rules, signals: T2signals } };
+  const refused = evalOf(b, choice, T2);
+  check("evaluateAnswer refuses a same-label copy with other thresholds (template_content_mismatch), so changed thresholds never grade a scenario silently", refused.ok === false && refused.error.code === "template_content_mismatch" && stableStringify(refused.error.parts) === stableStringify(["rules"]), refused);
 }
 
 console.log("\n[5] Transfer, complexity and purity");

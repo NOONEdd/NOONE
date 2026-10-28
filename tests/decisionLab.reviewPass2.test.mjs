@@ -151,8 +151,13 @@ console.log("\n[3] Signal strength follows attributable evidence, not tier, corr
   const strongNeg = evaluateAnswer({ scenario: T0trade.scenario, answerKey: T0trade.answerKey, answer: { choice: "contest" }, template: T }).evaluation.factorSignals.find((f) => f.factor === "cross_map_trade");
   check("all five signal classes are reachable and each is pinned to a concrete, reproducible case: no_signal (K12/ignore), positive (K12/trade), strong_positive (T0/trade), negative, strong_negative (T0/contest)", ["no_signal", "positive"].every((c) => classes.has(c)) && strongPos.performance.signal === "strong_positive" && strongNeg.performance.signal === "strong_negative");
 
-  check("classification reads ONLY realized/missed/avoided evidence against the thresholds -- verified structurally: signalFor's inputs are the factor, the choice and the answer key's own recorded evidence, nothing about tier, rank or raw valence is passed in", (() => { const src = evaluateAnswer.toString(); return true; })() || true); // see evaluator.js signalFor signature (factor, choiceId, answerKey, signals)
-  check("tier is used only to select comparators for missed/avoided evidence (defensible alternatives), never to grade strength directly: T0's contest is WEAK yet loses on cross_map_trade (evidence-graded), and A1's trade is WEAK yet is graded on objective_value/team_access independently", T0trade.answerKey.options.contest.tier === "WEAK" && strongNeg.factor === "cross_map_trade");
+  // Checked behaviourally on copies of the answer keys: change the tier labels (within the defensible set), the
+  // ranking and the raw valences, keep the contributions -- every signal must stay the same.
+  const signalsOf = (s, k, choice) => stableStringify(evaluateAnswer({ scenario: s, answerKey: k, answer: { choice }, template: T }).evaluation.factorSignals.map((f) => [f.factor, f.performance, f.basis]));
+  const relabelled = (k) => { const c = JSON.parse(JSON.stringify(k)); const rot = { STRONG: "VIABLE", VIABLE: "SITUATIONAL", SITUATIONAL: "STRONG" }; for (const o of Object.values(c.options)) { if (rot[o.tier]) o.tier = rot[o.tier]; for (const st of o.outcomeChain) st.valence = 0 - st.valence; } c.ranking.reverse(); return c; };
+  const unchanged = [[g12, "ignore"], [g12, "trade"], [T0trade, "trade"], [T0trade, "contest"]].every(([x, choice]) => signalsOf(x.scenario, x.answerKey, choice) === signalsOf(x.scenario, relabelled(x.answerKey), choice));
+  check("classification reads ONLY realized/missed/avoided evidence against the thresholds -- checked behaviourally: relabelling the defensible tiers, reversing the ranking and negating every outcome valence in a copy of the K12 and T0 answer keys leaves all their signals unchanged", unchanged);
+  check("tier is used only to select comparators for missed/avoided evidence (defensible alternatives), never to grade strength directly: T0's contest is WEAK yet loses on cross_map_trade (evidence-graded)", T0trade.answerKey.options.contest.tier === "WEAK" && strongNeg.factor === "cross_map_trade");
 }
 
 // =============================================================================

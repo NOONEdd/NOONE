@@ -24,14 +24,14 @@
 // so they share one schema, one validator and one staleness model.
 
 import { VERSIONS, GENERATION_LIMITS, DIFFICULTY_PROFILES, DIFFICULTY_WEIGHTS, STATE_VOCAB, deepFreeze } from "./config.js";
-import { createRng, hash32, seedToString } from "./prng.js";
+import { createRng, hash32, seedToString, isValidSeed } from "./prng.js";
 import { FACTORS, FACTOR_IDS, nonNeutralLevels } from "./factors.js";
-import { checkConstants, constantsIdentity } from "./gameConstants.js";
+import { checkConstants, constantsIdentity, CONSTANTS_STATUS } from "./gameConstants.js";
 import { deriveState, crossMapLevel } from "./relationships.js";
 import { buildRawState, projectPublicState, FIGHTABILITY_DRIVERS } from "./stateBuilder.js";
 import { buildAnswerKey, recomputeAnswerKey } from "./scoring.js";
 import { buildDependencies, computeDataFingerprint, computeScenarioRef, registryVersions, materialSignature, materialKey, materialFingerprint, stableStringify, hash64 } from "./fingerprint.js";
-import { validateScenarioBundle } from "./validator.js";
+import { validateScenarioBundle, templateRuleIssues, templateContentIssue } from "./validator.js";
 import { effectiveFactorRules, difficultyProfileIssues, evaluabilityIssues, tierSpreadIssues } from "./invariants.js";
 import { OBJECTIVE_TRADE_TEMPLATE } from "./templates/objectiveTrade.js";
 
@@ -95,6 +95,18 @@ export function buildPublicScenario(scenario, template, constants) {
  *  state is copied, never frozen in place. */
 export function assembleScenario(input) {
   const { template, constants, dataInputs = {}, origin, structure, primary, alternative, actionTypes, difficulty, reproduction = null, versionOverrides = null } = input;
+  // A malformed rule table is never evaluated (see ERROR_CODES.rules_invalid): no scenario is built from it.
+  const ruleIssues = templateRuleIssues(template);
+  if (ruleIssues.length) {
+    const violations = [{ id: "template.rules_valid", layer: "template", message: ruleIssues.join("; ") }];
+    return { ok: false, error: { code: "rules_invalid", issues: ruleIssues }, violations, scenario: null, answerKey: null, publicScenario: null };
+  }
+  // Registered labels must carry exactly the registered content (TEMPLATE_TRUST_CONTRACT.md).
+  const content = templateContentIssue(template);
+  if (content) {
+    const violations = [{ id: "template.content_matches_registry", layer: "template", message: `the content differs from the registered pins: ${content.parts.join(", ")}` }];
+    return { ok: false, error: content, violations, scenario: null, answerKey: null, publicScenario: null };
+  }
   const raw = JSON.parse(JSON.stringify(input.raw));
   const versions = {
     templateVersion: (versionOverrides && versionOverrides.templateVersion) || template.version,
@@ -177,6 +189,25 @@ export function selectionDigest(selectionContext) {
   return hash64(stableStringify(selectionContext === undefined ? null : selectionContext));
 }
 
+/** Error string for a selection context the generator cannot use, or null.
+ *  It must be absent or a plain object; the avoid lists, when present, are
+ *  arrays of strings; and it must be canonically serializable, because its
+ *  digest is recorded in provenance. Other keys are allowed (they are digested). */
+function selectionContextIssue(selectionContext) {
+  if (selectionContext === null || selectionContext === undefined) return null;
+  if (typeof selectionContext !== "object" || Array.isArray(selectionContext)) return "selectionContext must be null or a plain object";
+  for (const k of ["avoidMaterialKeys", "avoidScenarioRefs"]) {
+    const list = selectionContext[k];
+    if (list !== undefined && list !== null && !(Array.isArray(list) && list.every((x) => typeof x === "string"))) return `selectionContext.${k} must be an array of strings`;
+  }
+  try {
+    stableStringify(selectionContext);
+  } catch (e) {
+    return `selectionContext must be canonically serializable (${e.message})`;
+  }
+  return null;
+}
+
 function intersectRange(a, b) {
   return { min: Math.max(a.min, b.min), max: Math.min(a.max, b.max) };
 }
@@ -249,15 +280,18 @@ function predictAnswerKey({ template, constants, plan }) {
   }).answerKey;
 }
 
+/** { key, issues } for a plan: the predicted key is returned so the accepted
+ *  plan's prediction is not computed a second time for stats.planned. */
 function planIssues({ template, plan, difficulty }) {
   const key = predictAnswerKey({ template, constants: plan.constants, plan });
   const active = FACTOR_IDS.filter((f) => key.factorEvidence[f].exposed);
-  return [
+  const issues = [
     ...(key.defensible.length >= 1 ? [] : ["no defensible option"]),
     ...difficultyProfileIssues(difficulty, key.analysis),
     ...evaluabilityIssues(active, key.options, template.rules.signals.minAttributionMass),
     ...tierSpreadIssues(difficulty, key.options, key.analysis),
   ];
+  return { key, issues };
 }
 
 // --- Stratified fightability coverage -------------------------------------------------------------
@@ -290,12 +324,12 @@ export function fightabilityStratumForSeed(seed) {
 
 /** One plan: decision structure, factor selection, target levels, objective
  *  window, options and information background -- everything except the state. */
-function makePlan({ template, constants, rng, difficulty, structureName, focus = null, stratum = null }) {
+function makePlan({ template, constants, rng, difficulty, structureName, factorRules, focus = null, stratum = null }) {
   const profile = DIFFICULTY_PROFILES[difficulty];
   const structure = template.structures[structureName];
 
   // Factor selection: required / allowed / forbidden, and count range.
-  const { required, forbidden, allowed } = effectiveFactorRules(template, structureName);
+  const { required, forbidden, allowed } = factorRules;
   if (required.some((f) => forbidden.includes(f) || !allowed.includes(f))) return { ok: false, reason: "factor_rules_conflict" };
   const range = intersectRange(template.factorCount, profile.factorCount);
   const minCount = Math.max(range.min, required.length);
@@ -367,9 +401,9 @@ function makePlan({ template, constants, rng, difficulty, structureName, focus =
   const rO = rng.fork("options");
   const pre = { raw: { objectives: { [primary]: { activity } } }, primary, alternative };
   const actions = structure.actions.slice();
-  for (const a of actions) if (!template.runtime.preconditionOf(a, pre).ok) return { ok: false, reason: `base_action_unavailable:${a}` };
+  for (const a of actions) if (!template.runtime.preconditionOf(a, pre, template.rules).ok) return { ok: false, reason: `base_action_unavailable:${a}` };
   if (difficulty >= template.constraints.extraOptionMinDifficulty) {
-    const extras = structure.extraActions.filter((a) => template.runtime.preconditionOf(a, pre).ok);
+    const extras = structure.extraActions.filter((a) => template.runtime.preconditionOf(a, pre, template.rules).ok);
     if (extras.length > 0 && rO.chance(1, 2)) actions.push(rO.pick(extras));
   }
   return {
@@ -392,15 +426,21 @@ function buildCandidate({ template, constants, seed, attempt, difficulty, struct
 
   // Planning loop (cheap: no state is built). Keep sampling plans until one is
   // predicted to satisfy the difficulty level; bounded.
+  const factorRules = effectiveFactorRules(template, structureName); // fixed for the seed: computed once, not per plan sample
   let plan = null;
+  let predictedKey = null;
   let lastReason = "plan_unsatisfiable";
   for (let i = 0; i < GENERATION_LIMITS.maxPlanSamples && !plan; i++) {
-    const made = makePlan({ template, constants, rng: rng.fork(`plan/${i}`), difficulty, structureName, focus, stratum: i < GENERATION_LIMITS.maxStratifiedPlanSamples ? stratum : null });
+    const made = makePlan({ template, constants, rng: rng.fork(`plan/${i}`), difficulty, structureName, factorRules, focus, stratum: i < GENERATION_LIMITS.maxStratifiedPlanSamples ? stratum : null });
     if (!made.ok) {
       lastReason = made.reason;
       continue;
     }
-    if (planIssues({ template, plan: made.plan, difficulty }).length === 0) plan = made.plan;
+    const verdict = planIssues({ template, plan: made.plan, difficulty });
+    if (verdict.issues.length === 0) {
+      plan = made.plan;
+      predictedKey = verdict.key;
+    }
   }
   if (!plan) return { ok: false, reason: `plan:${lastReason}` };
 
@@ -421,7 +461,6 @@ function buildCandidate({ template, constants, seed, attempt, difficulty, struct
   // sticky across retries (see generateScenario); it is never stored in the
   // scenario and never says what the answer will be.
   const planned = plan.targets.fightability === "even" ? null : { level: plan.targets.fightability, driver: plan.fightabilityDriver };
-  const predictedKey = predictAnswerKey({ template, constants: plan.constants, plan });
   const predicted = Object.fromEntries(Object.entries(predictedKey.options).map(([id, o]) => [id, o.tier])); // diagnostics only
   const built = buildRawState({ spec, constants, rules, rng: rng.fork("state") });
   if (!built.ok) return { ok: false, reason: `state:${built.reason}`, planned, predicted };
@@ -442,6 +481,9 @@ export function validateFocus(focus) {
   if (f === undefined) return null;
   if (!f || typeof f !== "object" || !["favorable", "even", "unfavorable"].includes(f.level)) return "focus.fightability.level must be favorable, even or unfavorable";
   if (f.driver !== undefined && !FIGHTABILITY_DRIVERS.includes(f.driver)) return `focus.fightability.driver must be one of ${FIGHTABILITY_DRIVERS.join(", ")}`;
+  // The focus is stored in provenance.reproduction, whose schema
+  // (structure.no_generation_metadata) permits only these two keys.
+  if (Object.keys(f).some((k) => k !== "level" && k !== "driver")) return "focus.fightability may only contain { level, driver }";
   return null;
 }
 
@@ -462,14 +504,22 @@ export function validateFocus(focus) {
  *          { ok: false, error: { code, ... }, stats? }. */
 export function generateScenario(request) {
   const { seed, constants, template = OBJECTIVE_TRADE_TEMPLATE, dataInputs = {}, difficulty = null, selectionContext = null, focus = null, origin = "generated", versionOverrides = null } = request;
+  // Input checks, in the order of the error contract (config.js ERROR_CODES).
+  if (!isValidSeed(seed)) return { ok: false, error: { code: "seed_invalid", detail: "seed must be a safe integer or a non-empty string" } };
   const check = checkConstants(constants);
-  if (!check.ok) return { ok: false, error: { code: "constants_unusable", issues: check.issues } };
+  if (!check.ok) return { ok: false, error: { code: constants && constants.status === CONSTANTS_STATUS.UNVERIFIED ? "constants_unverified" : "constants_invalid", issues: check.issues } };
+  const ruleIssues = templateRuleIssues(template);
+  if (ruleIssues.length) return { ok: false, error: { code: "rules_invalid", issues: ruleIssues } };
+  const content = templateContentIssue(template);
+  if (content) return { ok: false, error: content };
   if (difficulty !== null && !(Number.isInteger(difficulty) && difficulty >= template.difficultyRange.min && difficulty <= template.difficultyRange.max)) {
     return { ok: false, error: { code: "difficulty_out_of_range", difficulty } };
   }
 
   const focusIssue = validateFocus(focus);
   if (focusIssue) return { ok: false, error: { code: "focus_invalid", detail: focusIssue } };
+  const selectionIssue = selectionContextIssue(selectionContext);
+  if (selectionIssue) return { ok: false, error: { code: "selection_context_invalid", detail: selectionIssue } };
   const digest = selectionDigest(selectionContext);
   const avoidKeys = new Set((selectionContext && selectionContext.avoidMaterialKeys) || []);
   const avoidRefs = new Set((selectionContext && selectionContext.avoidScenarioRefs) || []);

@@ -42,13 +42,13 @@ console.log("\n[1] Registries, template and constants gating");
   check("production constants are UNVERIFIED and carry no values", OBJECTIVE_TRADE_CONSTANTS.status === "UNVERIFIED" && OBJECTIVE_TRADE_CONSTANTS.values === null);
   check("production constants are rejected by checkConstants", checkConstants(OBJECTIVE_TRADE_CONSTANTS).ok === false);
   const refused = generateScenario({ seed: 1, constants: OBJECTIVE_TRADE_CONSTANTS });
-  check("generation refuses UNVERIFIED production constants", refused.ok === false && refused.error.code === "constants_unusable", refused);
+  check("generation refuses UNVERIFIED production constants (error contract: constants_unverified)", refused.ok === false && refused.error.code === "constants_unverified", refused);
   check("fixture constants are usable and labelled TEST_FIXTURE", checkConstants(FIXTURE_CONSTANTS).ok === true && FIXTURE_CONSTANTS.status === "TEST_FIXTURE");
   const broken = withConstants((c) => {
     c.values.travelSec.far = 5; // far < near
   });
   check("structurally invalid constants are rejected", checkConstants(broken).ok === false);
-  check("a seed must be an integer or string", (() => { try { generateScenario({ seed: 1.5, constants: FIXTURE_CONSTANTS }); return false; } catch (e) { return e instanceof TypeError; } })());
+  check("a seed must be an integer or string (error contract: seed_invalid, returned rather than thrown)", (() => { try { const r = generateScenario({ seed: 1.5, constants: FIXTURE_CONSTANTS }); return r.ok === false && r.error.code === "seed_invalid"; } catch { return false; } })());
   check("pinning an out-of-range difficulty fails cleanly", generateScenario({ seed: 1, constants: FIXTURE_CONSTANTS, difficulty: 9 }).error.code === "difficulty_out_of_range");
 }
 
@@ -56,6 +56,8 @@ console.log("\n[1] Registries, template and constants gating");
 console.log(`\n[2] Stress test: ${SEEDS} seeds, every scenario independently re-validated`);
 const summaries = [];
 const stats = { ok: 0, failed: 0, violations: 0, attempts: 0, maxAttempts: 0, rejections: {} };
+const failedSeeds = []; // first few, with the error, so a failure names the seed to reproduce
+const violatingSeeds = [];
 const t0 = Date.now();
 const enough = { takingSeen: 0, behindSafe: 0, behindUnsafe: 0 };
 const servableSeen = { any: false };
@@ -64,6 +66,7 @@ for (let seed = 1; seed <= SEEDS; seed++) {
   for (const [k, v] of Object.entries((r.stats && r.stats.rejections) || {})) stats.rejections[k] = (stats.rejections[k] || 0) + v;
   if (!r.ok) {
     stats.failed += 1;
+    if (failedSeeds.length < 10) failedSeeds.push({ seed, error: r.error });
     continue;
   }
   stats.ok += 1;
@@ -73,7 +76,8 @@ for (let seed = 1; seed <= SEEDS; seed++) {
   const verdict = validateScenarioBundle({ scenario: r.scenario, answerKey: r.answerKey, publicScenario: r.publicScenario, template: T, constants: FIXTURE_CONSTANTS, dataInputs: {} });
   if (!verdict.ok) {
     stats.violations += verdict.violations.length;
-    if (stats.violations <= 3) console.log("  violation sample:", JSON.stringify(verdict.violations[0]));
+    if (violatingSeeds.length < 10) violatingSeeds.push({ seed, generatorVersion: r.scenario.provenance.generatorVersion, rulesVersion: r.scenario.provenance.rulesVersion, violation: verdict.violations[0] });
+    if (stats.violations <= 3) console.log("  violation sample:", JSON.stringify({ seed, ...verdict.violations[0] }));
   }
   const s = r.scenario;
   const k = r.answerKey;
@@ -111,8 +115,8 @@ const seconds = ((Date.now() - t0) / 1000).toFixed(1);
 console.log(`  STATS seeds=${SEEDS} ok=${stats.ok} failed=${stats.failed} violations=${stats.violations} seconds=${seconds}`);
 console.log(`  STATS attempts: mean=${(stats.attempts / Math.max(1, stats.ok)).toFixed(2)} max=${stats.maxAttempts} (limit ${GENERATION_LIMITS.maxCandidates})`);
 console.log(`  STATS rejections during generation: ${JSON.stringify(stats.rejections)}`);
-check(`all ${SEEDS} seeds produced a scenario`, stats.ok === SEEDS && stats.failed === 0, { ok: stats.ok, failed: stats.failed });
-check(`0 invariant violations across ${SEEDS} independently re-validated scenarios`, stats.violations === 0, stats.violations);
+check(`all ${SEEDS} seeds produced a scenario`, stats.ok === SEEDS && stats.failed === 0, { ok: stats.ok, failed: stats.failed, firstFailedSeeds: failedSeeds });
+check(`0 invariant violations across ${SEEDS} independently re-validated scenarios`, stats.violations === 0, { violations: stats.violations, firstViolatingSeeds: violatingSeeds });
 check("backtracking stays bounded (attempts never exceed the limit)", stats.maxAttempts <= GENERATION_LIMITS.maxCandidates);
 check("generation is cheap on average (mean attempts < 2)", stats.attempts / stats.ok < 2, stats.attempts / stats.ok);
 check("every stress scenario is stamped TEST_FIXTURE / generated", summaries.every((x) => x.status === "TEST_FIXTURE" && x.origin === "generated"));
