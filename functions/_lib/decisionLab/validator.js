@@ -21,10 +21,12 @@
 // constants, nothing is servable -- by design, not by omission.
 
 import { INVARIANT_LIST, INVARIANT_IDS } from "./invariants.js";
-import { checkStaleness } from "./fingerprint.js";
-import { FACTORS } from "./factors.js";
+import { checkStaleness, materialSignature, stableStringify } from "./fingerprint.js";
+import { STALENESS } from "./config.js";
+import { FACTORS, FACTOR_IDS } from "./factors.js";
 import { PRINCIPLES } from "./principles.js";
-import { isRegisteredIntactRules, templateTrust } from "./templates/registry.js";
+import { recomputeAnswerKey } from "./scoring.js";
+import { isRegisteredIntactRules, templateTrust, registeredTemplate } from "./templates/registry.js";
 
 export const LAYERS = Object.freeze(["structure", "state", "decision", "edu", "public"]);
 
@@ -110,6 +112,58 @@ export function validateScenarioBundle(bundle, options = {}) {
   }
 }
 
+/** The template judged against: the supplied one, or -- when it is omitted
+ *  (undefined) -- the trusted registry's template for the scenario's
+ *  provenance (null when there is none). */
+function currentTemplate(scenario, supplied) {
+  if (supplied !== undefined) return supplied;
+  const p = scenario && scenario.provenance;
+  return p ? registeredTemplate({ templateId: p.templateId, templateVersion: p.templateVersion, rulesVersion: p.rulesVersion }) : null;
+}
+
+/** Freshness of a stored bundle against the CURRENT data, including the
+ *  constants' VALUES. checkStaleness (fingerprint.js) compares versions and
+ *  dependency identities only, so a value edit made without a version bump is
+ *  invisible to it. This also re-validates the bundle under the current
+ *  template and constants and re-derives its material signature: a change that
+ *  matters to THIS scenario (its derived state, its answer key, a
+ *  constants-dependent invariant, its material timing bucket) makes it
+ *  review_required; a change that does not leaves it fresh. Scenario identity
+ *  (scenarioRef, dataFingerprint) and stored documents are untouched.
+ *  bundle = { scenario, answerKey, publicScenario }; current = { template?, constants, dataInputs }
+ *  (an omitted template is resolved from the registry).
+ *  Returns { status, reasons } as checkStaleness does. Never throws: any
+ *  exception (an exotic or malformed input) is review_required with the single
+ *  reason freshness_check_failed. The serving gate owns no validation of its
+ *  own: it calls this once (SERVING_FRESHNESS_CONTRACT_STAGE7.md 4). */
+export function checkFreshness(bundle, current) {
+  try {
+    return freshnessVerdict(bundle, current);
+  } catch {
+    return { status: STALENESS[1], reasons: ["freshness_check_failed"] };
+  }
+}
+
+function freshnessVerdict({ scenario, answerKey, publicScenario }, { template: supplied, constants, dataInputs }) {
+  let base;
+  try {
+    base = checkStaleness(scenario, { constants, dataInputs });
+  } catch {
+    return { status: STALENESS[1], reasons: ["staleness_check_failed"] };
+  }
+  if (base.status === STALENESS[2]) return base;
+  const reasons = base.reasons.slice();
+  const template = currentTemplate(scenario, supplied);
+  const v = validateScenarioBundle({ scenario, answerKey, publicScenario, template, constants, dataInputs: dataInputs || {} });
+  for (const id of new Set(v.violations.map((x) => x.id))) reasons.push(`revalidation_failed:${id}`);
+  try {
+    if (stableStringify(materialSignature({ scenario, answerKey, constants })) !== stableStringify(scenario.fingerprints.material.signature)) reasons.push("material_signature_changed");
+  } catch {
+    reasons.push("material_signature_unverifiable");
+  }
+  return { status: reasons.length ? STALENESS[1] : STALENESS[0], reasons };
+}
+
 /** The template declares which invariants it relies on; the registry must
  *  implement exactly those. Returns a list of problems (empty when aligned). */
 export function checkInvariantRegistry(template) {
@@ -121,22 +175,93 @@ export function checkInvariantRegistry(template) {
   return problems;
 }
 
-/** Serving gate. Uses the CURRENT statuses of the template / rule table /
- *  principles / factors / constants (a scenario's own snapshot of them is
- *  provenance, not authority). Optionally also checks staleness against the
- *  current data.
- *  Returns { servable, blockers: [...] }. */
-export function isServable({ scenario, template, constants, dataInputs }) {
+/** Origins that may be served once everything else is approved. */
+const SERVABLE_ORIGINS = Object.freeze(["generated", "coach_crafted"]);
+
+const sameList = (a, b) => Array.isArray(a) && a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** Serving gate, fail-closed.
+ *  input = { scenario, answerKey, publicScenario, template?, constants, dataInputs }
+ *  Returns { servable, blockers: [...] }; servable only when nothing blocks.
+ *  Every check that cannot be completed is a blocker, and it never throws: any
+ *  exception (an exotic or malformed input) is the single blocker
+ *  gate_check_failed. The template must be registered with intact content
+ *  (template_unregistered / template_content_mismatch:<parts>); omitted, it is
+ *  resolved from the registry. Statuses come from the CURRENT template, rule
+ *  table and constants and from the server-side factor and principle
+ *  registries (a scenario's own snapshot is provenance, not authority). The
+ *  scenario's own factor and principle lists are compared with a re-derivation
+ *  from its state, never trusted. The bundle must validate under the current
+ *  template, constants and data, and freshness is always checked: dataInputs
+ *  is required. */
+export function isServable(input) {
+  try {
+    return servingVerdict(input);
+  } catch {
+    return { servable: false, blockers: ["gate_check_failed"] };
+  }
+}
+
+function servingVerdict({ scenario, answerKey, publicScenario, template: supplied, constants, dataInputs }) {
+  const template = currentTemplate(scenario, supplied);
+  if (supplied === undefined && !template) return { servable: false, blockers: ["template_unregistered"] };
+  if (!template || !template.rules) return { servable: false, blockers: ["template_missing"] };
   const blockers = [];
+  const rulesOk = templateRuleIssues(template).length === 0;
+  if (!rulesOk) blockers.push("rules_invalid");
+  const trust = rulesOk ? templateTrust(template) : { issue: null };
+  if (trust.issue) blockers.push(trust.issue.code === "template_content_mismatch" ? `template_content_mismatch:${trust.issue.parts.join(",")}` : trust.issue.code);
+  const usable = rulesOk && !trust.issue; // never re-derive or validate against content the engine does not trust
   if (template.status !== "approved") blockers.push(`template_not_approved:${template.status}`);
   if (template.rules.status !== "APPROVED") blockers.push(`rule_table_not_approved:${template.rules.status}`);
-  if (constants.status !== "VERIFIED") blockers.push(`constants_not_verified:${constants.status}`);
-  if (scenario.origin === "engine_fixture") blockers.push("origin_engine_fixture");
-  for (const id of scenario.learningObjective.principles) if (PRINCIPLES[id].status !== "APPROVED") blockers.push(`principle_not_approved:${id}`);
-  for (const id of scenario.activeFactors) if (FACTORS[id].status !== "APPROVED") blockers.push(`factor_not_approved:${id}`);
-  if (dataInputs !== undefined) {
-    const st = checkStaleness(scenario, { constants, dataInputs });
-    if (st.status !== "fresh") blockers.push(`stale:${st.status}`);
+  if (!constants || constants.status !== "VERIFIED") blockers.push(`constants_not_verified:${constants ? constants.status : "missing"}`);
+  const p = scenario && scenario.provenance;
+  if (!p || template.id !== p.templateId || template.version !== p.templateVersion || template.rules.version !== p.rulesVersion) blockers.push("template_mismatch");
+  const origin = scenario && scenario.origin;
+  if (origin === "engine_fixture") blockers.push("origin_engine_fixture");
+  else if (!SERVABLE_ORIGINS.includes(origin)) blockers.push(`origin_not_servable:${origin}`);
+
+  // Trusted factors and principles: the exposed factors of a recomputed answer key and their
+  // principles from the registry (the generator's own learning-objective derivation).
+  let trusted = null;
+  if (usable && constants) {
+    try {
+      const versions = { templateVersion: p.templateVersion, generatorVersion: p.generatorVersion, rulesVersion: p.rulesVersion };
+      const key = recomputeAnswerKey({ template, constants, raw: scenario.state.raw, decision: scenario.decision, scenarioRef: scenario.scenarioRef, versions });
+      const factors = FACTOR_IDS.filter((f) => key.factorEvidence[f].exposed);
+      trusted = { factors, principles: Array.from(new Set(factors.flatMap((f) => FACTORS[f].principles))).sort() };
+    } catch {
+      trusted = null;
+    }
+  }
+  if (!trusted) blockers.push("scenario_unreadable");
+  else {
+    if (!sameList(scenario.activeFactors, trusted.factors)) blockers.push("scenario_metadata_mismatch:activeFactors");
+    if (!sameList(scenario.learningObjective && scenario.learningObjective.principles, trusted.principles)) blockers.push("scenario_metadata_mismatch:principles");
+    for (const id of trusted.principles) if (PRINCIPLES[id].status !== "APPROVED") blockers.push(`principle_not_approved:${id}`);
+    for (const id of trusted.factors) if (FACTORS[id].status !== "APPROVED") blockers.push(`factor_not_approved:${id}`);
+  }
+
+  // Freshness is mandatory, and validity under the current data is part of it: checkFreshness owns
+  // staleness, re-validation (every invariant, once) and the material signature. Without the full
+  // bundle only identity staleness can be checked, and bundle_incomplete already blocks.
+  const complete = Boolean(answerKey && publicScenario);
+  if (!complete) blockers.push("bundle_incomplete");
+  if (dataInputs === undefined || dataInputs === null) blockers.push("freshness_unverifiable:data_inputs_missing");
+  else {
+    if (complete && usable) {
+      const f = checkFreshness({ scenario, answerKey, publicScenario }, { template, constants, dataInputs });
+      if (f.status !== "fresh") blockers.push(`stale:${f.status}`);
+      for (const r of f.reasons) blockers.push(r.startsWith("revalidation_failed:") ? `invalid_bundle:${r.slice("revalidation_failed:".length)}` : `freshness:${r}`);
+    } else {
+      try {
+        const st = checkStaleness(scenario, { constants, dataInputs });
+        if (st.status !== "fresh") blockers.push(`stale:${st.status}`);
+      } catch {
+        blockers.push("freshness_unverifiable:staleness_check_failed");
+      }
+    }
+    if (constants && constants.status === "VERIFIED" && typeof dataInputs.effectivePatch !== "string") blockers.push("freshness_unverifiable:patch_unknown");
   }
   return { servable: blockers.length === 0, blockers };
 }
