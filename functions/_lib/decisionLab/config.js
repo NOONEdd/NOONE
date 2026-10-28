@@ -163,6 +163,7 @@ export function isInt(n) {
 // labels, rules, template registration, template content, choice.
 
 export const ERROR_CODES = deepFreeze({
+  request_invalid: "generateScenario, assembleScenario, evaluateAnswer: the request argument is not a non-null, non-array object { detail }",
   seed_invalid: "generateScenario: the seed is not a safe integer or a non-empty string { detail }",
   constants_unverified: "generateScenario: the constants are UNVERIFIED (the shipped production state) { issues }",
   constants_invalid: "generateScenario: the constants are missing or malformed { issues }",
@@ -179,6 +180,9 @@ export const ERROR_CODES = deepFreeze({
   template_unregistered: "evaluateAnswer: the template's labels are not in the trusted registry (templates/registry.js), so its content is not bound to them",
   template_content_mismatch: "generateScenario, assembleScenario, evaluateAnswer: registered labels, but the content differs from the registered pins { parts }",
   invalid_choice: "evaluateAnswer: the choice is not one of the offered option ids",
+  bundle_invalid: "evaluateAnswer: the stored scenario or answer key lacks a field evaluation reads, or has the wrong type { issues }",
+  assembly_input_invalid: "assembleScenario: the build failed on a malformed raw state, decision field or constants { issues }",
+  operation_failed: "generateScenario, assembleScenario, evaluateAnswer: an exception no other check explains (exotic objects, a malformed custom template) { detail }",
 });
 
 /** Thrown only by internal primitives, as a last-resort guard (public

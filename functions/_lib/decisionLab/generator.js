@@ -31,8 +31,8 @@ import { deriveState, crossMapLevel } from "./relationships.js";
 import { buildRawState, projectPublicState, FIGHTABILITY_DRIVERS } from "./stateBuilder.js";
 import { buildAnswerKey, recomputeAnswerKey } from "./scoring.js";
 import { buildDependencies, computeDataFingerprint, computeScenarioRef, registryVersions, materialSignature, materialKey, materialFingerprint, stableStringify, hash64 } from "./fingerprint.js";
-import { validateScenarioBundle, templateRuleIssues, templateContentIssue } from "./validator.js";
-import { effectiveFactorRules, difficultyProfileIssues, evaluabilityIssues, tierSpreadIssues } from "./invariants.js";
+import { validateScenarioBundle, templateRuleIssues, templateContentIssue, errorText, isRequestObject } from "./validator.js";
+import { effectiveFactorRules, difficultyProfileIssues, evaluabilityIssues, tierSpreadIssues, INVARIANT_LIST } from "./invariants.js";
 import { OBJECTIVE_TRADE_TEMPLATE } from "./templates/objectiveTrade.js";
 
 // --- Learning objective (spec section 6: every scenario teaches something specific) ---
@@ -92,8 +92,96 @@ export function buildPublicScenario(scenario, template, constants) {
  *    difficulty, reproduction?, versionOverrides?
  *  }
  *  Returns { ok, violations, scenario, answerKey, publicScenario }. The raw
- *  state is copied, never frozen in place. */
+ *  state is copied, never frozen in place. Never throws
+ *  (ERROR_CONTRACT_v1_1.md 5): an input that is not an object is
+ *  request_invalid; an input that makes the build throw is
+ *  assembly_input_invalid { issues } when the guarded input check names a
+ *  problem, otherwise operation_failed { detail }. Both carry one violation
+ *  (assembly.input_valid / assembly.internal_error). */
 export function assembleScenario(input) {
+  if (!isRequestObject(input)) return assemblyRefusal({ code: "request_invalid", detail: "the assembly input must be an object" }, "assembly.input_valid");
+  try {
+    return assemble(input);
+  } catch (e) {
+    let issues;
+    try {
+      issues = assemblyInputIssues(input);
+    } catch {
+      issues = [];
+    }
+    if (issues.length) return assemblyRefusal({ code: "assembly_input_invalid", issues }, "assembly.input_valid");
+    return assemblyRefusal({ code: "operation_failed", detail: errorText(e) }, "assembly.internal_error");
+  }
+}
+
+function assemblyRefusal(error, id) {
+  const message = error.issues ? error.issues.join("; ") : error.detail;
+  return { ok: false, error, violations: [{ id, layer: "assembly", message }], scenario: null, answerKey: null, publicScenario: null };
+}
+
+const isObj = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const RAW_INVARIANTS = ["structure.enums_valid", "structure.raw_state_closed", "state.members_complete", "structure.entity_refs_shape"];
+
+/** Problems in an assembly input that can make the build throw: the raw
+ *  state's containers, then its values (the validator's own raw-state
+ *  invariants), the decision fields and the constants' shape. Called only
+ *  after the build has thrown, so every input the build survives keeps its
+ *  validation outcome (ERROR_CONTRACT_v1_1.md 5.3, U4). */
+function assemblyInputIssues(input) {
+  const { template, constants, dataInputs = {}, raw, structure, primary, alternative, actionTypes, difficulty, origin } = input;
+  const V = STATE_VOCAB;
+  const issues = [];
+  const container = (x, path) => {
+    if (isObj(x)) return true;
+    issues.push(`${path} must be an object`);
+    return false;
+  };
+  if (container(raw, "raw")) {
+    try {
+      JSON.stringify(raw);
+    } catch (e) {
+      issues.push(`raw must be JSON data: ${errorText(e)}`);
+    }
+    container(raw.gameContext, "raw.gameContext");
+    if (container(raw.teams, "raw.teams")) {
+      for (const team of ["allies", "enemies"]) {
+        if (!container(raw.teams[team], `raw.teams.${team}`)) continue;
+        container(raw.teams[team].composition, `raw.teams.${team}.composition`);
+        if (container(raw.teams[team].members, `raw.teams.${team}.members`)) for (const slot of V.slots) container(raw.teams[team].members[slot], `raw.teams.${team}.members.${slot}`);
+      }
+    }
+    if (container(raw.lanes, "raw.lanes")) for (const lane of V.lanes) if (container(raw.lanes[lane], `raw.lanes.${lane}`)) container(raw.lanes[lane].turret, `raw.lanes.${lane}.turret`);
+    container(raw.waves, "raw.waves");
+    if (container(raw.objectives, "raw.objectives")) for (const id of V.objectiveIds) container(raw.objectives[id], `raw.objectives.${id}`);
+    if (container(raw.vision, "raw.vision")) for (const k of ["allies", "enemies", "fogRisk", "safeToClear"]) container(raw.vision[k], `raw.vision.${k}`);
+    if (issues.length === 0) {
+      for (const id of RAW_INVARIANTS) {
+        const inv = INVARIANT_LIST.find((i) => i.id === id);
+        let found;
+        try {
+          found = inv.check({ scenario: { state: { raw } }, constants, dataInputs });
+        } catch (e) {
+          found = [`could not be checked: ${errorText(e)}`];
+        }
+        for (const m of found) issues.push(`raw (${id}): ${m}`);
+      }
+    }
+  }
+  const structures = isObj(template) ? template.structures : undefined;
+  if (typeof structure !== "string" || !isObj(structures) || !hasOwn(structures, structure)) issues.push("structure must name one of the template's decision structures");
+  if (!V.objectiveIds.includes(primary)) issues.push(`primary must be one of ${V.objectiveIds.join(", ")}`);
+  if (alternative !== null && (!V.objectiveIds.includes(alternative) || alternative === primary)) issues.push("alternative must be null or another objective id");
+  const actions = isObj(template) && isObj(template.rules) ? template.rules.actions : undefined;
+  if (!Array.isArray(actionTypes) || actionTypes.length === 0 || actionTypes.some((a) => typeof a !== "string" || !isObj(actions) || !hasOwn(actions, a))) issues.push("actionTypes must be a non-empty list of the rule table's action types");
+  if (!Number.isInteger(difficulty)) issues.push("difficulty must be an integer");
+  if (typeof origin !== "string") issues.push("origin must be a string");
+  const c = checkConstants(constants);
+  if (!c.ok) for (const i of c.issues) if (i.code !== "constants_unverified") issues.push(`constants.${i.path}: ${i.message}`);
+  return issues;
+}
+
+function assemble(input) {
   const { template, constants, dataInputs = {}, origin, structure, primary, alternative, actionTypes, difficulty, reproduction = null, versionOverrides = null } = input;
   // A malformed rule table is never evaluated (see ERROR_CODES.rules_invalid): no scenario is built from it.
   const ruleIssues = templateRuleIssues(template);
@@ -501,8 +589,19 @@ export function validateFocus(focus) {
  *    versionOverrides?     tests only
  *  }
  *  Returns { ok: true, scenario, answerKey, publicScenario, stats } or
- *          { ok: false, error: { code, ... }, stats? }. */
+ *          { ok: false, error: { code, ... }, stats? }. Never throws
+ *  (ERROR_CONTRACT_v1_1.md 5): a request that is not an object is
+ *  request_invalid, and any exception is operation_failed { detail }. */
 export function generateScenario(request) {
+  if (!isRequestObject(request)) return { ok: false, error: { code: "request_invalid", detail: "the request must be an object" } };
+  try {
+    return generate(request);
+  } catch (e) {
+    return { ok: false, error: { code: "operation_failed", detail: errorText(e) } };
+  }
+}
+
+function generate(request) {
   const { seed, constants, template = OBJECTIVE_TRADE_TEMPLATE, dataInputs = {}, difficulty = null, selectionContext = null, focus = null, origin = "generated", versionOverrides = null } = request;
   // Input checks, in the order of the error contract (config.js ERROR_CODES).
   if (!isValidSeed(seed)) return { ok: false, error: { code: "seed_invalid", detail: "seed must be a safe integer or a non-empty string" } };
@@ -550,7 +649,7 @@ export function generateScenario(request) {
       reject(cand.reason);
       continue;
     }
-    const asm = assembleScenario({
+    const asm = assemble({
       template,
       constants,
       dataInputs,

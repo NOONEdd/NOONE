@@ -31,11 +31,22 @@ import { isRegisteredIntactRules, templateTrust, registeredTemplate, TEMPLATE_RE
 export const LAYERS = Object.freeze(["structure", "state", "decision", "edu", "public"]);
 
 /** Message of a thrown value, even an exotic one (never throws itself). */
-function errorText(e) {
+export function errorText(e) {
   try {
     return e && e.message ? String(e.message) : String(e);
   } catch {
     return "unprintable error";
+  }
+}
+
+/** True when a public operation's request argument is a non-null, non-array
+ *  object (request_invalid otherwise; ERROR_CONTRACT_v1_1.md 5). Never throws:
+ *  a revoked Proxy is not a request. */
+export function isRequestObject(x) {
+  try {
+    return x !== null && typeof x === "object" && !Array.isArray(x);
+  } catch {
+    return false;
   }
 }
 

@@ -52,7 +52,7 @@
 import { STAGES, DEFENSIBLE_TIERS, TIER_RANK, VERSIONS } from "./config.js";
 import { FACTOR_IDS } from "./factors.js";
 import { stableStringify, hash64 } from "./fingerprint.js";
-import { templateRuleIssues } from "./validator.js";
+import { templateRuleIssues, errorText, isRequestObject } from "./validator.js";
 import { registeredTemplate, templateTrust } from "./templates/registry.js";
 
 /** The signal classifier: evidence for one factor, graded against `signals`
@@ -113,6 +113,48 @@ function outcomeAlignment(choiceId, answerKey) {
   return { label, comparedWith: bestId, stages };
 }
 
+const isObj = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+const isNum = (x) => typeof x === "number" && Number.isFinite(x);
+
+/** Structural problems in the stored scenario and answer key, limited to what
+ *  evaluateAnswer reads (bundle_invalid; ERROR_CONTRACT_v1_1.md 5.3, U3).
+ *  Semantic validity -- a forged tier or score in a well-shaped document -- is
+ *  not checked here: validateScenarioBundle and the serving gate own that. */
+function storedBundleIssues(scenario, answerKey) {
+  if (!isObj(scenario)) return ["scenario must be an object"];
+  if (!isObj(answerKey)) return ["answerKey must be an object"];
+  const p = [];
+  if (typeof scenario.scenarioRef !== "string") p.push("scenario.scenarioRef must be a string");
+  if (!isObj(scenario.provenance) || !isObj(scenario.provenance.registries)) p.push("scenario.provenance must be an object with registries");
+  const d = scenario.decision;
+  if (!isObj(d) || typeof d.structure !== "string" || typeof d.primaryObjective !== "string") p.push("scenario.decision needs structure and primaryObjective");
+  const raw = isObj(scenario.state) ? scenario.state.raw : undefined;
+  if (!isObj(raw) || !isObj(raw.gameContext) || !isObj(raw.objectives) || !isObj(d) || !isObj(raw.objectives[d.primaryObjective])) p.push("scenario.state.raw needs gameContext and the primary objective");
+  if (!Number.isInteger(scenario.difficulty)) p.push("scenario.difficulty must be an integer");
+  if (!isObj(answerKey.versions) || !isObj(answerKey.versions.registries)) p.push("answerKey.versions must be an object with registries");
+  const options = answerKey.options;
+  if (!isObj(options) || Object.keys(options).length === 0) p.push("answerKey.options must be a non-empty object");
+  else {
+    for (const [id, o] of Object.entries(options)) {
+      if (!isObj(o)) {
+        p.push(`answerKey.options.${id} must be an object`);
+        continue;
+      }
+      if (typeof o.valid !== "boolean" || typeof o.actionType !== "string" || !Object.prototype.hasOwnProperty.call(TIER_RANK, o.tier)) p.push(`answerKey.options.${id} needs valid, actionType and a tier`);
+      if (!isObj(o.contributions) || Object.values(o.contributions).some((v) => !isNum(v))) p.push(`answerKey.options.${id}.contributions must map factors to numbers`);
+      if (!isObj(o.influences) || Object.values(o.influences).some((v) => !isObj(v))) p.push(`answerKey.options.${id}.influences must map factors to objects`);
+      if (o.valid === true && (!isNum(o.score) || !Array.isArray(o.outcomeChain) || o.outcomeChain.length !== STAGES.length || o.outcomeChain.some((c) => !isObj(c) || !isNum(c.valence)))) p.push(`answerKey.options.${id}: a valid option needs a score and one outcome per stage`);
+    }
+  }
+  const fe = answerKey.factorEvidence;
+  if (!isObj(fe) || FACTOR_IDS.some((f) => !isObj(fe[f]) || typeof fe[f].exposed !== "boolean")) p.push("answerKey.factorEvidence needs an entry with exposed for every factor");
+  const ids = isObj(options) ? Object.keys(options) : [];
+  for (const list of ["best", "defensible"]) if (!Array.isArray(answerKey[list]) || answerKey[list].some((id) => !ids.includes(id))) p.push(`answerKey.${list} must list option ids`);
+  if (!isObj(answerKey.analysis) || !Number.isInteger(answerKey.analysis.defensibleCount)) p.push("answerKey.analysis needs defensibleCount");
+  if (!isObj(answerKey.derivedSignals) || !isObj(answerKey.derivedSignals.infoQuality)) p.push("answerKey.derivedSignals needs infoQuality");
+  return p;
+}
+
 /** Evaluate one answer. Returns { ok: true, evaluation } or
  *  { ok: false, error: { code } }. `template` must be the template (id,
  *  version and rules version) the scenario was built from: template_mismatch
@@ -120,8 +162,26 @@ function outcomeAlignment(choiceId, answerKey) {
  *  for the scenario's provenance is used. Either way the template must be
  *  registered (template_unregistered) and carry exactly the registered content
  *  (template_content_mismatch): a copy that keeps the labels but changes the
- *  content is never used to grade a scenario. */
-export function evaluateAnswer({ scenario, answerKey, answer, template: supplied }) {
+ *  content is never used to grade a scenario. Never throws
+ *  (ERROR_CONTRACT_v1_1.md 5): a request that is not an object is
+ *  request_invalid; stored documents missing a field this reads are
+ *  bundle_invalid { issues }; any other exception is operation_failed { detail }. */
+export function evaluateAnswer(request) {
+  if (!isRequestObject(request)) return { ok: false, error: { code: "request_invalid", detail: "the request must be an object" } };
+  try {
+    return evaluate(request);
+  } catch (e) {
+    let issues;
+    try {
+      issues = storedBundleIssues(request.scenario, request.answerKey);
+    } catch {
+      issues = [];
+    }
+    return issues.length ? { ok: false, error: { code: "bundle_invalid", issues } } : { ok: false, error: { code: "operation_failed", detail: errorText(e) } };
+  }
+}
+
+function evaluate({ scenario, answerKey, answer, template: supplied }) {
   if (!answerKey || answerKey.scenarioRef !== scenario.scenarioRef) return { ok: false, error: { code: "answer_key_mismatch" } };
   if (answerKey.versions.rulesVersion !== scenario.provenance.rulesVersion) return { ok: false, error: { code: "rules_version_mismatch" } };
   if (answerKey.versions.templateVersion !== scenario.provenance.templateVersion) return { ok: false, error: { code: "template_version_mismatch" } };
@@ -138,6 +198,8 @@ export function evaluateAnswer({ scenario, answerKey, answer, template: supplied
   if (trust.issue) return { ok: false, error: trust.issue };
   const choiceId = answer && answer.choice;
   if (typeof choiceId !== "string" || !Object.prototype.hasOwnProperty.call(answerKey.options, choiceId)) return { ok: false, error: { code: "invalid_choice" } };
+  const shape = storedBundleIssues(scenario, answerKey);
+  if (shape.length) return { ok: false, error: { code: "bundle_invalid", issues: shape } };
 
   const rules = template.rules;
   const chosen = answerKey.options[choiceId];

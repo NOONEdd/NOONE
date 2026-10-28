@@ -11,7 +11,9 @@
 //   [4] a malformed focus and a mismatched template are refused up front
 //       (diff B: focus_invalid, template_mismatch);
 //   [5] a malformed rule table is reported at every public entry point and
-//       never evaluated, and every error follows the contract (diff C).
+//       never evaluated, and every error follows the contract (diff C; the
+//       boundary codes of diff H are produced here once each, and swept in
+//       decisionLab.boundaries.test.mjs).
 // The total rule-table check is tested in decisionLab.ruleTable.test.mjs and
 // the trusted template registry in decisionLab.templateTrust.test.mjs.
 // Nothing here says the DRAFT rules are correct Wild Rift coaching. Expected
@@ -306,7 +308,29 @@ console.log("\n[5] A malformed rule table is reported at every public entry poin
     check(`generateScenario, ${label}: ${code} (returned, not thrown)`, got === code, got);
   }
   check("still accepted: a selection context with null avoid lists and extra keys", genErr({ seed: 1, constants: C, selectionContext: { avoidMaterialKeys: null, player: "p1" } }) === "ok");
-  const produced = new Set([...contract.map((c) => c[2]), "rules_invalid", "focus_invalid", "answer_key_mismatch", "rules_version_mismatch", "template_version_mismatch", "registry_version_mismatch", "template_mismatch", "template_unregistered", "template_content_mismatch", "invalid_choice"]);
+  // Diff H (ERROR_CONTRACT_v1_1.md 5): the boundary codes, each returned, never thrown.
+  const asmErr = (input) => { try { const r = assembleScenario(input); return r.ok ? "ok" : r.error ? r.error.code : `violation ${r.violations[0].id}`; } catch (e) { return `threw ${e.constructor.name}`; } };
+  const evalErr = (req) => { try { const r = evaluateAnswer(req); return r.ok ? "ok" : r.error.code; } catch (e) { return `threw ${e.constructor.name}`; } };
+  const throwing = new Proxy({}, { get() { throw new Error("getter"); } });
+  const b1 = generateScenario({ seed: 1, constants: C });
+  const asmInput = (patch) => ({ template: T, constants: C, origin: "coach_crafted", raw: b1.scenario.state.raw, structure: b1.scenario.decision.structure, primary: b1.scenario.decision.primaryObjective, alternative: b1.scenario.decision.alternativeObjective, actionTypes: b1.scenario.decision.options.map((o) => o.actionType), difficulty: b1.scenario.difficulty, ...patch });
+  const choice = { choice: b1.scenario.decision.options[0].id };
+  const boundary = [
+    ["generateScenario(undefined)", () => genErr(undefined), "request_invalid"],
+    ["assembleScenario(null)", () => asmErr(null), "request_invalid"],
+    ["evaluateAnswer(undefined)", () => evalErr(undefined), "request_invalid"],
+    ["assembleScenario with no raw.teams (a hand-crafted state the build cannot read)", () => asmErr(asmInput({ raw: { ...b1.scenario.state.raw, teams: undefined } })), "assembly_input_invalid"],
+    ["evaluateAnswer with a stored answer key without options", () => evalErr({ scenario: b1.scenario, answerKey: { ...b1.answerKey, options: undefined }, answer: choice, template: T }), "bundle_invalid"],
+    ["generateScenario with constants whose getters throw", () => genErr({ seed: 1, constants: throwing }), "operation_failed"],
+    ["assembleScenario with constants whose getters throw", () => asmErr(asmInput({ constants: throwing })), "operation_failed"],
+    ["evaluateAnswer with an answer whose reasoning getter throws", () => evalErr({ scenario: b1.scenario, answerKey: b1.answerKey, answer: { ...choice, get reasoning() { throw new Error("getter"); } }, template: T }), "operation_failed"],
+    ["(unchanged) the same assembly input, well formed", () => asmErr(asmInput({})), "ok"],
+  ];
+  for (const [label, run, code] of boundary) {
+    const got = run();
+    check(`${label}: ${code} (returned, not thrown)`, got === code, got);
+  }
+  const produced = new Set([...contract.map((c) => c[2]), ...boundary.map((c) => c[2]).filter((c) => c !== "ok"), "rules_invalid", "focus_invalid", "answer_key_mismatch", "rules_version_mismatch", "template_version_mismatch", "registry_version_mismatch", "template_mismatch", "template_unregistered", "template_content_mismatch", "invalid_choice"]);
   check("every code the engine produces is registered in ERROR_CODES, and every registered code is produced by a case above or in [4]", [...produced].every((c) => c in ERROR_CODES) && Object.keys(ERROR_CODES).every((c) => produced.has(c)), { unregistered: [...produced].filter((c) => !(c in ERROR_CODES)), unproduced: Object.keys(ERROR_CODES).filter((c) => !produced.has(c)) });
 }
 
