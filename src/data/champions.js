@@ -809,7 +809,7 @@ export const CHAMPIONS = [
     ],
   }
 ],},
-  { id: "senna", name: "Senna", role: "Off-Meta Flex", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps.",
+  { id: "senna", name: "Senna", role: "Marksman/ Utility Support", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps.",
        builds: [
     {
     name: "Full Damage one shot late game",
@@ -1121,6 +1121,14 @@ export const CHAMPIONS = [
  builds: [
     {
       name: "Utility Support",
+    
+    }
+  ],
+},
+{id: "camille",name: "Camille",role: "Fighter",tier: "B",blurb: "Camille is a versatile fighter who can adapt to various roles on the battlefield. Her ability to reposition and deal damage makes her a formidable opponent in both skirmishes and team fights. her Ultimate is a game changer for catching enemy's carries.",
+ builds: [
+    {
+      name: " Fighter Support",
     
     }
   ],
