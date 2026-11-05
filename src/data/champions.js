@@ -809,7 +809,7 @@ export const CHAMPIONS = [
     ],
   }
 ],},
-  { id: "senna", name: "Senna", role: "Marksman/ Utility Support", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps.",
+  { id: "senna", name: "Senna", role: "Marksman Support", tier: "S", blurb: "Scales hard into late game if you secure stacks; solid damage and some CC, great in teamfight comps.",
        builds: [
     {
     name: "Full Damage one shot late game",
