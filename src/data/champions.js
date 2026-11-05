@@ -1128,7 +1128,7 @@ export const CHAMPIONS = [
 {id: "camille",name: "Camille",role: "Catcher",tier: "B",blurb: "Camille is a versatile fighter who can adapt to various roles on the battlefield. Her ability to reposition and deal damage makes her a formidable opponent in both skirmishes and team fights. her Ultimate is a game changer for catching enemy's carries.",
  builds: [
     {
-      name: " Fighter Support",
+      name: "Fighter Support",
     
     }
   ],
@@ -1159,7 +1159,6 @@ export const CHAMPIONS = [
   { id: "aurora", name: "Aurora", role: "Mid", tier: "Unranked" },
   { id: "brand", name: "Brand", role: "Mid", tier: "Unranked" },
   { id: "caitlyn", name: "Caitlyn", role: "Dragon", tier: "Unranked" },
-  { id: "camille", name: "Camille", role: "Baron", tier: "Unranked" },
   { id: "chogath", name: "Cho'Gath", role: "Baron", tier: "Unranked" },
   { id: "corki", name: "Corki", role: "Mid", tier: "Unranked" },
   { id: "darius", name: "Darius", role: "Baron", tier: "Unranked" },

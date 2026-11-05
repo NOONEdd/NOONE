@@ -41,7 +41,7 @@ const sourceDir = path.resolve(process.argv[2] || path.join(ROOT, "raw-images"))
 const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 
 const CHAMPION_IDS = [
-  "alistar","bard","blitzcrank","braum","galio","gragas","janna","jarvan-iv","karma","leona",
+  "alistar","bard","blitzcrank","braum","camille","galio","gragas","hwei","janna","jarvan-iv","karma","leona",
   "lulu","lux","maokai","mel","milio","nami","nautilus","norra","ornn","poppy","pyke","rakan",
   "rell","senna","seraphine","sett","sona","soraka","swain","taliyah","thresh","yuumi","zilean","zyra","Morgana",
 ];

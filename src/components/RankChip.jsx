@@ -12,7 +12,15 @@ export default function RankChip({ id, name, tag, tier, note, info, icon: Icon, 
     if (clickable) { navigate(`/guides/${id}`); return; }
     if (onTapForDetail) onTapForDetail({ id, name, tag, tier, note, info, paths });
   }
-
+if (!Icon) {
+  console.error("[RankChip] Missing Icon:", {
+    id,
+    name,
+    tag,
+    tier,
+    icon: Icon,
+  });
+}
   return (
     <div
       className={"rank-chip" + (mini ? " mini" : "") + (clickable && !editMode ? "" : " not-clickable")}
