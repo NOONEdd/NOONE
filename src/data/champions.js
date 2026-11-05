@@ -1125,7 +1125,7 @@ export const CHAMPIONS = [
     }
   ],
 },
-{id: "camille",name: "Camille",role: "Fighter",tier: "B",blurb: "Camille is a versatile fighter who can adapt to various roles on the battlefield. Her ability to reposition and deal damage makes her a formidable opponent in both skirmishes and team fights. her Ultimate is a game changer for catching enemy's carries.",
+{id: "camille",name: "Camille",role: "Catcher",tier: "B",blurb: "Camille is a versatile fighter who can adapt to various roles on the battlefield. Her ability to reposition and deal damage makes her a formidable opponent in both skirmishes and team fights. her Ultimate is a game changer for catching enemy's carries.",
  builds: [
     {
       name: " Fighter Support",
@@ -1293,7 +1293,7 @@ export const CHAMPIONS = [
 // same set; it isn't meant to diverge from that as its own separate
 // judgment call.
 const ACADEMY_COVERED_IDS = new Set([
-  "alistar", "bard", "blitzcrank", "braum", "galio", "gragas","hwei", "janna", "jarvan-iv",
+  "alistar", "bard", "blitzcrank", "braum", "galio", "gragas","camille","hwei", "janna", "jarvan-iv",
   "karma", "leona", "lulu", "lux", "maokai", "mel", "milio", "morgana", "nami",
   "nautilus", "norra", "ornn", "poppy", "pyke", "rakan", "rell", "senna", "seraphine",
   "sett", "skarner", "sona", "soraka", "swain", "taliyah", "thresh", "yuumi", "zilean", "zyra",
