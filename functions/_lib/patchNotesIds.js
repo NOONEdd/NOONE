@@ -30,10 +30,9 @@ export function normText(value) {
     .trim();
 }
 
-/** Compact alphanumeric form of an entity/heading name ("Kha'Zix" -> "khazix"). */
-export function normName(value) {
-  return String(value ?? "").toLowerCase().replace(/[\u2018\u2019`\u00B4]/g, "'").replace(/[^a-z0-9]+/g, "");
-}
+/** Compact alphanumeric form of an entity/heading name ("Kha'Zix" -> "khazix"). Defined once in the shared Patch Notes
+ *  identity module (the admin UI needs the identical function); re-exported here unchanged for every existing import. */
+export { normName } from "../../src/lib/patchNotesClassification.js";
 
 function hash32a(str) { // FNV-1a
   let h = 0x811c9dc5;

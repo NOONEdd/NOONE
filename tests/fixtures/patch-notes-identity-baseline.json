@@ -1,0 +1,439 @@
+{
+ "generatedBy": "pre-Stage-1 extractor (git HEAD d0a6799)",
+ "cases": {
+  "riot-7-3a-real-rosters": [
+   {
+    "changeId": "pn_2b620e7bd90436e1",
+    "sectionKey": "entity:champion:hwei",
+    "entityKey": "champion:hwei",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_45a7682f82539de6",
+    "sectionKey": "entity:champion:hwei",
+    "entityKey": "champion:hwei",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_fae1ea426382e841",
+    "sectionKey": "entity:champion:hwei",
+    "entityKey": "champion:hwei",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_a5c1300714ebdd21",
+    "sectionKey": "entity:champion:hwei",
+    "entityKey": "champion:hwei",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_bd3ff06151ecd15f",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_ac68b9e6f5dfda37",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_88325453bb72f170",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_d24c9c1d1c2ed9bc",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_440a416b63a80ebb",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_5c12cb14185ef05b",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_b8c62f78afe9e15a",
+    "sectionKey": "entity:champion:samira",
+    "entityKey": "champion:samira",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_3a52399dfbfd0260",
+    "sectionKey": "entity:champion:rammus",
+    "entityKey": "champion:rammus",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_20f95910beee3853",
+    "sectionKey": "entity:champion:rammus",
+    "entityKey": "champion:rammus",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_d1affdff4e95515e",
+    "sectionKey": "entity:champion:malphite",
+    "entityKey": "champion:malphite",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_5b2a171bb3b23640",
+    "sectionKey": "entity:champion:malphite",
+    "entityKey": "champion:malphite",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_155d27879e145e86",
+    "sectionKey": "entity:champion:malphite",
+    "entityKey": "champion:malphite",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_b36bc059a471e9b8",
+    "sectionKey": "entity:champion:tristana",
+    "entityKey": "champion:tristana",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_73b0c6898fb30d28",
+    "sectionKey": "entity:champion:tristana",
+    "entityKey": "champion:tristana",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_b59cb5192b149e05",
+    "sectionKey": "entity:champion:tristana",
+    "entityKey": "champion:tristana",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_3d33d49bf238babd",
+    "sectionKey": "entity:champion:draven",
+    "entityKey": "champion:draven",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_1472522dd0a016c9",
+    "sectionKey": "entity:champion:draven",
+    "entityKey": "champion:draven",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_04c7e247c2932738",
+    "sectionKey": "entity:champion:draven",
+    "entityKey": "champion:draven",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_a3e144cea403d4e8",
+    "sectionKey": "entity:champion:caitlyn",
+    "entityKey": "champion:caitlyn",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_fab346c46d1fd17b",
+    "sectionKey": "entity:champion:caitlyn",
+    "entityKey": "champion:caitlyn",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_087e7b1e08851417",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_a0c612b6d316aba3",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_2b9bb43f26ab9ecd",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_4667eaaccb07d5fc",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_ddf4f59dd092e511",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_b399bbbcf50d5583",
+    "sectionKey": "entity:champion:syndra",
+    "entityKey": "champion:syndra",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_690244e467717343",
+    "sectionKey": "entity:champion:syndra",
+    "entityKey": "champion:syndra",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_412b41416009c4cf",
+    "sectionKey": "entity:champion:syndra",
+    "entityKey": "champion:syndra",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_9614e72c0ee87ef2",
+    "sectionKey": "entity:champion:swain",
+    "entityKey": "champion:swain",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_336899d4e9bafcb7",
+    "sectionKey": "entity:champion:swain",
+    "entityKey": "champion:swain",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_3280ab3639b4711c",
+    "sectionKey": "entity:champion:yuumi",
+    "entityKey": "champion:yuumi",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_b81a9c99b168db6c",
+    "sectionKey": "entity:champion:viego",
+    "entityKey": "champion:viego",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_0d73bd5a972734a4",
+    "sectionKey": "entity:champion:viego",
+    "entityKey": "champion:viego",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_e09a2332ae4c555e",
+    "sectionKey": "entity:champion:viego",
+    "entityKey": "champion:viego",
+    "status": "UNMATCHED"
+   }
+  ],
+  "all-paths-real-rosters": [
+   {
+    "changeId": "pn_7e4cb3ad2653efec",
+    "sectionKey": "system:other:wildriftpatchnotes91",
+    "entityKey": null,
+    "status": "SYSTEM"
+   },
+   {
+    "changeId": "pn_220ad3c2fa906efc",
+    "sectionKey": "entity:champion:leona",
+    "entityKey": "champion:leona",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_1941233b1d8155b0",
+    "sectionKey": "entity:champion:ezreal",
+    "entityKey": "champion:ezreal",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_b29eb4fadf1dacaf",
+    "sectionKey": "entity:champion:luluandjanna",
+    "entityKey": "champion:luluandjanna",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_84f4e163db622643",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_9296fb34dddf47d5",
+    "sectionKey": "entity:item:ardent-censer",
+    "entityKey": "item:ardent-censer",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_748b47438833a68f",
+    "sectionKey": "entity:item:harmonic-echo",
+    "entityKey": "item:harmonic-echo",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_fd91b835f66319da",
+    "sectionKey": "entity:item:bulwarkofthemountain",
+    "entityKey": "item:bulwarkofthemountain",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_df41bad285bd2cc2",
+    "sectionKey": "entity:item:mysteryblade",
+    "entityKey": "item:mysteryblade",
+    "status": "NEW_CANDIDATE"
+   },
+   {
+    "changeId": "pn_184fd938e297434e",
+    "sectionKey": "entity:item:blackmistscythe",
+    "entityKey": "item:blackmistscythe",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_6123cd913928fc4c",
+    "sectionKey": "entity:item:searingcrown",
+    "entityKey": "item:searingcrown",
+    "status": "UNMATCHED"
+   },
+   {
+    "changeId": "pn_d1e15836fb5a4635",
+    "sectionKey": "entity:item:knights-vow",
+    "entityKey": "item:knights-vow",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_dc3075a174e92f8c",
+    "sectionKey": "entity:rune:summon-aery",
+    "entityKey": "rune:summon-aery",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_e32ab16c43c3249e",
+    "sectionKey": "system:other:bulwarkofthemountain",
+    "entityKey": null,
+    "status": "SYSTEM"
+   },
+   {
+    "changeId": "pn_b4f1dec74ea64efa",
+    "sectionKey": "system:jungle:jungleadjustments",
+    "entityKey": null,
+    "status": "SYSTEM"
+   },
+   {
+    "changeId": "pn_36eea12208e97195",
+    "sectionKey": "system:live_service:heartsteel",
+    "entityKey": null,
+    "status": "SYSTEM"
+   }
+  ],
+  "api-page-real-rosters": [
+   {
+    "changeId": "pn_8b161c5015d8a0cc",
+    "sectionKey": "system:other:wildriftpatchnotes75",
+    "entityKey": null,
+    "status": "SYSTEM"
+   },
+   {
+    "changeId": "pn_685beccfd7e20541",
+    "sectionKey": "entity:champion:leona",
+    "entityKey": "champion:leona",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_6baa240c958fc7f3",
+    "sectionKey": "entity:champion:leona",
+    "entityKey": "champion:leona",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_39d56d7fb0889aef",
+    "sectionKey": "system:marksman_system:marksmanitemadjustments",
+    "entityKey": null,
+    "status": "SYSTEM"
+   },
+   {
+    "changeId": "pn_be8a0e85e53f9563",
+    "sectionKey": "entity:item:mysteryblade",
+    "entityKey": "item:mysteryblade",
+    "status": "NEW_CANDIDATE"
+   },
+   {
+    "changeId": "pn_13f0b1454ea6c2fd",
+    "sectionKey": "system:jungle:jungleadjustments",
+    "entityKey": null,
+    "status": "SYSTEM"
+   }
+  ],
+  "senna-73-helper-rosters": [
+   {
+    "changeId": "pn_2f48579661db013e",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_1880975e222916f1",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_1ac6d047e8f13102",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_fefda1e4ee629bc5",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_b68bd1cfc791f45e",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_91d510d61bbd25d1",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_7fb95dea3b202993",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_7250013757aa88a5",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_a95260b8a7282f92",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_c97b7808282f1e38",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   },
+   {
+    "changeId": "pn_b04fee47db62d33e",
+    "sectionKey": "entity:champion:senna",
+    "entityKey": "champion:senna",
+    "status": "EXISTING"
+   }
+  ]
+ }
+}

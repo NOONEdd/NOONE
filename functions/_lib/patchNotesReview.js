@@ -41,6 +41,7 @@ import { normalizeChangeEntry, normalizeSystemChangeEntry, mergeDuplicateEntitie
 import { normName } from "./patchNotesIds.js";
 import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel, normalizeScope, isAbilityScope, SUBSECTION_SCOPE_OPTIONS, normalizeVisualOverride, effectiveVisual, defaultVisualForScope, VISUAL } from "../../src/lib/patchNotesPresentation.js";
 import { classifyChangeScope } from "./patchChangeScope.js";
+import { sectionKeyOf, sourceNameOf, matchResultOf } from "../../src/lib/patchNotesClassification.js";
 
 export const REVIEW_STATE = Object.freeze({ PENDING: "pending", KEPT: "kept", EDITED: "edited", REMOVED: "removed", REJECTED: "rejected" });
 export const SECTION_STATE = Object.freeze({ VISIBLE: "visible", REMOVED: "removed", REJECTED: "rejected" });
@@ -48,9 +49,8 @@ const STATES = new Set(Object.values(REVIEW_STATE));
 const SECTION_STATES = new Set(Object.values(SECTION_STATE));
 const LIMITS = { title: 300, text: 4000, note: 2000, summary: 1000 };
 
-export function sectionKeyOf(change) {
-  return change.kind === "system" ? `system:${change.system.category}:${normName(change.system.area)}` : `entity:${change.entity.key}`;
-}
+// One implementation, shared with the admin UI (src/lib/patchNotesClassification.js).
+export { sectionKeyOf };
 export function sectionTitleOf(change) {
   return change.kind === "system" ? change.system.area || change.system.category : change.entity.name;
 }
@@ -81,7 +81,7 @@ const humanTouched = (c) => Boolean(c.review && (c.review.state !== REVIEW_STATE
 export function mergeReviewState(fresh, previous) {
   initReview(fresh);
   const stats = { preserved: 0, refreshed: 0, sourceChanged: 0, orphaned: 0, newChanges: 0, migrated: 0 };
-  if (!previous || !Array.isArray(previous.changes)) { stats.newChanges = fresh.changes.length; fresh.mergeStats = stats; return fresh; }
+  if (!previous || !Array.isArray(previous.changes)) { stats.newChanges = fresh.changes.length; stats.sectionsMigrated = 0; fresh.sectionMigrations = []; fresh.orphanedSectionReviews = []; fresh.mergeStats = stats; return fresh; }
   const prevById = new Map(previous.changes.map((c) => [c.changeId, c]));
   const freshIds = new Set(fresh.changes.map((c) => c.changeId));
   // IDENTITY BRIDGE. A parser improvement can change what feeds a change's ID (e.g. its ability label is now recognised) while the Riot
@@ -97,6 +97,26 @@ export function mergeReviewState(fresh, previous) {
   for (const c of freshLoose) {
     const k = bridgeKey(c);
     if (freshCount.get(k) === 1 && prevCount.get(k) === 1) bridge.set(c.changeId, prevLoose.find((p) => bridgeKey(p) === k));
+  }
+  // MATCH-RESULT BRIDGE. The key above contains the entity key, which changes when the MATCH RESULT changes: an untracked
+  // "Bulwark of the Mountain" gains a canonical catalog record, a tracked item is retired, a block moves between "system" and "entity".
+  // This second pass pairs what is left on Riot's OWN name for the owner (src/lib/patchNotesClassification.js sourceNameOf) + the same
+  // source path + the same exact source fingerprint, one-to-one on both sides, and ONLY when the two sides' match results differ
+  // (matchResultOf) -- a key change NOT explained by a changed match is never bridged. Untouched previous changes take part in the
+  // pairing (so their SECTION can be followed -- section migration below), but only human-touched ones carry review and lineage.
+  const identityKey = (c) => `${normName(sourceNameOf(c))}\u241F${c.provenance.sourcePath}\u241F${c.provenance.sourceFingerprint}`;
+  const bridgedPrev = new Set([...bridge.values()].map((p) => p.changeId));
+  const freshLoose2 = freshLoose.filter((c) => !bridge.has(c.changeId));
+  const prevLoose2 = previous.changes.filter((p) => p.provenance && p.kind && !freshIds.has(p.changeId) && !bridgedPrev.has(p.changeId));
+  const freshCount2 = count2(freshLoose2, identityKey); const prevCount2 = count2(prevLoose2, identityKey);
+  const sectionPair = new Map(bridge); // fresh changeId -> previous change, for following SECTIONS (includes untouched pairs)
+  for (const c of freshLoose2) {
+    const k = identityKey(c);
+    if (freshCount2.get(k) !== 1 || prevCount2.get(k) !== 1) continue;
+    const p = prevLoose2.find((x) => identityKey(x) === k);
+    if (matchResultOf(p) === matchResultOf(c)) continue;
+    sectionPair.set(c.changeId, p);
+    if (p.review && humanTouched(p)) bridge.set(c.changeId, p);
   }
   const seen = new Set();
   for (const c of fresh.changes) {
@@ -127,9 +147,48 @@ export function mergeReviewState(fresh, previous) {
   // subsection heading edits and the custom patch summary are review-layer state keyed by Riot's own structure, so they ride along too
   fresh.subsectionReview = { ...(previous.subsectionReview || {}), ...(fresh.subsectionReview || {}) };
   if (previous.summaryReview && previous.summaryReview.text) fresh.summaryReview = previous.summaryReview;
+
+  // SECTION MIGRATION. Section-level review (removed/rejected, title, badge, impact, classification) and subsection review are keyed
+  // by sectionKey, which changes together with the entity key. A previous section whose key no longer exists, and whose carried changes
+  // ALL landed in exactly ONE new section that has no review of its own, is moved there (subsection keys re-prefixed). Anything
+  // ambiguous is left exactly where it was and listed in `orphanedSectionReviews` -- never guessed onto a section, never deleted.
+  const freshSections = new Set(fresh.changes.map(sectionKeyOf));
+  const targets = new Map(); // previous sectionKey -> Set(fresh sectionKey)
+  for (const c of fresh.changes) {
+    const p = prevById.get(c.changeId) || sectionPair.get(c.changeId);
+    if (!p || !p.kind) continue;
+    const from = sectionKeyOf(p);
+    if (!targets.has(from)) targets.set(from, new Set());
+    targets.get(from).add(sectionKeyOf(c));
+  }
+  const incoming = new Map(); // fresh sectionKey -> previous sectionKeys moving into it
+  for (const [from, tos] of targets) {
+    if (freshSections.has(from) || tos.size !== 1) continue;
+    const to = [...tos][0];
+    if (!incoming.has(to)) incoming.set(to, []);
+    incoming.get(to).push(from);
+  }
+  fresh.sectionMigrations = [];
+  for (const [to, froms] of incoming) {
+    if (froms.length !== 1 || fresh.sectionReview[to]) continue; // two old sections claim it, or it already has its own review: ambiguous
+    const from = froms[0];
+    if (fresh.sectionReview[from]) { fresh.sectionReview[to] = { ...fresh.sectionReview[from], migratedFrom: from }; delete fresh.sectionReview[from]; }
+    for (const k of Object.keys(fresh.subsectionReview)) {
+      if (!k.startsWith(`${from}|`)) continue;
+      const nk = `${to}${k.slice(from.length)}`;
+      if (!fresh.subsectionReview[nk]) fresh.subsectionReview[nk] = fresh.subsectionReview[k];
+      delete fresh.subsectionReview[k];
+    }
+    fresh.sectionMigrations.push({ from, to });
+  }
+  // carried forward untouched (never lost), but surfaced: section review whose section the new extraction no longer produces
+  fresh.orphanedSectionReviews = Object.keys(fresh.sectionReview).filter((k) => !freshSections.has(k)).map((sectionKey) => ({ sectionKey, review: fresh.sectionReview[sectionKey] }));
+  stats.sectionsMigrated = fresh.sectionMigrations.length;
   fresh.mergeStats = stats;
   return fresh;
 }
+
+const count2 = (list, keyOf) => list.reduce((m, c) => m.set(keyOf(c), (m.get(keyOf(c)) || 0) + 1), new Map());
 
 /** Merge fields into dataset.subsectionReview[key]; an `undefined` value removes that field; an entry with no fields left is deleted. */
 function setSubsectionReview(dataset, key, patch, now) {

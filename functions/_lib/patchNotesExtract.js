@@ -308,6 +308,10 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
         sourceBlockIndex: blockIndex, sourceLineIndex: lineIndex, sourceNodePath: `${sec.sourcePath} #${blockIndex}${lineIndex != null ? `:${lineIndex}` : ""}`,
         sourceAnchor: null, // the structured text carries no anchors; never invented
         sourceFingerprint: fingerprint, parserVersion: PARSER_VERSION, extractorVersion: PATCH_NOTES_EXTRACT_VERSION, extractedAt,
+        // Riot's own name for the owning entity, exactly as written (heading / "Name / Base Stats" line / lifecycle bullet) -- a source
+        // fact, independent of whether Academy matched it. The match-independent identity (src/lib/patchNotesClassification.js
+        // sourceKeyOf) is built from it; entity.key -- and therefore changeId -- still depends on the match result, unchanged.
+        sourceOwnerName: owner.kind === "entity" ? owner.sourceName ?? owner.name : null,
       },
       subsection,
       duplicates: [],
@@ -353,8 +357,8 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
         const evidence = !accepted && added ? { unitId: unit.id, sentence: `explicit lifecycle section: ${(unit.headingPath || []).slice(-2).join(" > ")}` } : null;
         const src = lifecycle.form === "child" ? { text: text.trim() || name, lineIndex: null } : lifecycleSourceText(unit, name); // sub-heading form (New Champions > Hwei): Riot's own description is the source
         const owner = accepted
-          ? { kind: "entity", entityKey: academy.key, academy, name: academy.name, type: academy.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.LIFECYCLE_BLOCK, reason: `explicit lifecycle list "${heading}"` }
-          : { kind: "entity", entityKey: `${lifecycle.kind}:${normName(name)}`, academy: null, name, type: lifecycle.kind, status: added ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.LIFECYCLE_BLOCK, reason: `explicit lifecycle list "${heading}"`, evidence };
+          ? { kind: "entity", entityKey: academy.key, academy, name: academy.name, sourceName: name, type: academy.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.LIFECYCLE_BLOCK, reason: `explicit lifecycle list "${heading}"` }
+          : { kind: "entity", entityKey: `${lifecycle.kind}:${normName(name)}`, academy: null, name, sourceName: name, type: lifecycle.kind, status: added ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.LIFECYCLE_BLOCK, reason: `explicit lifecycle list "${heading}"`, evidence };
         const ch = pushChange({ unit, blockIndex, rec: { lifecycle: { action: lifecycle.action, kind: lifecycle.kind, name }, raw: src.text, lineIndex: src.lineIndex, changeType: lifecycle.action === "added" ? "effect_added" : "effect_removed", effect: name, kind: "effect", traits: [] }, owner, originalSourceText: src.text });
         if (!block.changeIds.includes(ch.changeId)) block.changeIds.push(ch.changeId);
       }
@@ -377,16 +381,16 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
     let blockOwner;
     if (entityMatchAllowed && headingEntities.length === 1) {
       const a = headingEntities[0];
-      blockOwner = { kind: "entity", entityKey: a.key, academy: a, name: a.name, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.ENTITY_HEADING, reason: `heading "${heading}" equals the tracked ${a.type} name` };
+      blockOwner = { kind: "entity", entityKey: a.key, academy: a, name: a.name, sourceName: heading, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.ENTITY_HEADING, reason: `heading "${heading}" equals the tracked ${a.type} name` };
     } else if (entityMatchAllowed && headingEntities.length > 1) {
-      blockOwner = { kind: "entity", entityKey: `unknown:${normName(heading)}`, academy: null, name: heading, type: typeFromCategory(unit), status: ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.UNMATCHED, reason: `heading "${heading}" equals more than one tracked entity name (ambiguous owner)`, suspectedReferences: headingEntities.map((e) => e.key) };
+      blockOwner = { kind: "entity", entityKey: `unknown:${normName(heading)}`, academy: null, name: heading, sourceName: heading, type: typeFromCategory(unit), status: ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.UNMATCHED, reason: `heading "${heading}" equals more than one tracked entity name (ambiguous owner)`, suspectedReferences: headingEntities.map((e) => e.key) };
     } else if (entityMatchAllowed && headingEntities.length === 0 && trackedEntityAncestor(unit)) {
       const anc = trackedEntityAncestor(unit);
       const a = anc.entity;
-      blockOwner = { kind: "entity", entityKey: a.key, academy: a, name: a.name, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.ENTITY_SUBSECTION, reason: `heading \"${heading}\" is a subsection of the tracked ${a.type} \"${anc.heading}\" (document hierarchy)` };
+      blockOwner = { kind: "entity", entityKey: a.key, academy: a, name: a.name, sourceName: anc.heading, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.ENTITY_SUBSECTION, reason: `heading \"${heading}\" is a subsection of the tracked ${a.type} \"${anc.heading}\" (document hierarchy)` };
     } else if (entityBearing && categoryForHeading(heading) === null && typeFromCategory(unit) !== "unknown") {
       const ev = newness(heading);
-      blockOwner = { kind: "entity", entityKey: `${typeFromCategory(unit)}:${normName(heading)}`, academy: null, name: heading, type: typeFromCategory(unit), status: ev ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.ENTITY_HEADING, reason: ev ? `entity-shaped block "${heading}" not tracked by Academy; newness proven by Riot wording` : `entity-shaped block "${heading}" not tracked by Academy; newness not provable`, evidence: ev };
+      blockOwner = { kind: "entity", entityKey: `${typeFromCategory(unit)}:${normName(heading)}`, academy: null, name: heading, sourceName: heading, type: typeFromCategory(unit), status: ev ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.ENTITY_HEADING, reason: ev ? `entity-shaped block "${heading}" not tracked by Academy; newness proven by Riot wording` : `entity-shaped block "${heading}" not tracked by Academy; newness not provable`, evidence: ev };
     } else {
       const category = SYSTEM_LABEL[unit.category] || "other";
       blockOwner = { kind: "system", category, ownershipSource: OWNERSHIP_SOURCE.SECTION_STRUCTURE, reason: `section "${sec.sourceSection || heading}" is a ${category} section; heading "${heading}" names no tracked entity` };
@@ -403,8 +407,8 @@ export function extractPatchNotes({ units, championRoster = [], itemRoster = [],
         const type = a ? a.type : typeFromCategory(unit);
         const ev = a ? null : newness(seg.ownerName);
         owner = a
-          ? { kind: "entity", entityKey: a.key, academy: a, name: a.name, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.EXPLICIT_BLOCK, reason: `"${seg.ownerName} / Base Stats" sub-block inside "${heading}"`, suspectedReferences: [] }
-          : { kind: "entity", entityKey: `${type}:${normName(seg.ownerName)}`, academy: null, name: seg.ownerName, type, status: ev ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.EXPLICIT_BLOCK, reason: `"${seg.ownerName} / Base Stats" sub-block inside "${heading}"; not tracked by Academy`, evidence: ev, suspectedReferences: [] };
+          ? { kind: "entity", entityKey: a.key, academy: a, name: a.name, sourceName: seg.ownerName, type: a.type, status: ENTITY_STATUS.EXISTING, ownershipSource: OWNERSHIP_SOURCE.EXPLICIT_BLOCK, reason: `"${seg.ownerName} / Base Stats" sub-block inside "${heading}"`, suspectedReferences: [] }
+          : { kind: "entity", entityKey: `${type}:${normName(seg.ownerName)}`, academy: null, name: seg.ownerName, sourceName: seg.ownerName, type, status: ev ? ENTITY_STATUS.NEW_CANDIDATE : ENTITY_STATUS.UNMATCHED, ownershipSource: OWNERSHIP_SOURCE.EXPLICIT_BLOCK, reason: `"${seg.ownerName} / Base Stats" sub-block inside "${heading}"; not tracked by Academy`, evidence: ev, suspectedReferences: [] };
       }
       const segText = seg.lines.join("\n");
       const abilitySlots = owner.kind === "entity" && owner.academy && abilitySlotsByEntity ? abilitySlotsByEntity.get(owner.academy.key) || null : null;
