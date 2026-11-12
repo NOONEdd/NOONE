@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useHashRoute } from "./hooks/useHashRoute.js";
 import { useCoachOverrides } from "./hooks/useCoachOverrides.js";
 import { CHAMPIONS, isAcademyCovered } from "./data/champions.js";
@@ -12,6 +12,24 @@ import HomePage from "./pages/HomePage.jsx";
 import { ChampionTierListPage, ItemTierListPage, RuneTierListPage } from "./pages/TierListPages.jsx";
 import { GuidesPage, NotFoundPage } from "./pages/GuidesPage.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import { DISPLAY_REGISTRIES } from "./data/constants.js";
+import { validateAcademyMappings, formatMappingReport } from "./lib/mappingValidation.js";
+
+// Dev-only mapping integrity check at the DATA BOUNDARY: runs when Coach Mode overrides (re)load or change -- never per
+// render -- against the canonical data plus those overrides, and prints the report only when its content changes. Production
+// builds drop this block entirely (import.meta.env.DEV is a compile-time false there); production still gets the one-time
+// per-value warning from the display registries, and tests/mappingIntegrity.test.mjs is the release gate.
+let lastMappingReport = "";
+function useMappingIntegrityCheck(overrides) {
+  useEffect(() => {
+    if (import.meta.env && import.meta.env.DEV) {
+      const report = validateAcademyMappings({ registries: DISPLAY_REGISTRIES, champions: CHAMPIONS, items: ITEMS, runes: RUNES, overrides, isCovered: isAcademyCovered });
+      const text = report.counts.fatal + report.counts.recoverable + report.counts.warning > 0 ? formatMappingReport(report) : "";
+      if (text && text !== lastMappingReport) console.warn(text);
+      lastMappingReport = text;
+    }
+  }, [overrides]);
+}
 
 // Code-split routes that aren't the common landing path -- these were
 // previously bundled eagerly into the single main chunk (~479KB) that
@@ -38,6 +56,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [overrides, updateOverride, syncStatus, auth, decisionTreeActions, updatePatch, patchVerification] = useCoachOverrides();
+  useMappingIntegrityCheck(overrides);
 
   // Same resolveEffective*() functions the AI Coach backend uses (see
   // functions/_lib/extractChampionContext.js, extractItemRuneContext.js)

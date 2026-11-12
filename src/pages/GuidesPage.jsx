@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { navigate } from "../hooks/useHashRoute.js";
-import { ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
+import { roleDisplay } from "../data/constants.js";
 import RankChip from "../components/RankChip.jsx";
 
 export function GuidesPage({ champions }) {
@@ -13,10 +13,13 @@ export function GuidesPage({ champions }) {
           <p>Matchups, combos, and the macro calls that win lane.</p>
         </div>
         <div className="roster-grid">
-          {champions.map((c) => (
-            <RankChip key={c.id} id={c.id} name={c.name} tag={c.role} tier={c.tier} note={c.note}
-              icon={ROLE_ICONS[c.role]} accent={ROLE_COLORS[c.role]} clickable _type="c" />
-          ))}
+          {champions.map((c) => {
+            const role = roleDisplay(c.role, { dataset: "champions", entityId: c.id, entityName: c.name });
+            return (
+              <RankChip key={c.id} id={c.id} name={c.name} tag={c.role} tier={c.tier} note={c.note}
+                icon={role.icon} accent={role.color} clickable _type="c" />
+            );
+          })}
         </div>
       </div>
     </section>

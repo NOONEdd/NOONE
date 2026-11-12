@@ -28,6 +28,9 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run build --if-present
+    # Mapping integrity gate: fails when the data uses a role / item category / rune path / tier
+    # with no complete icon + color mapping in src/data/constants.js (the React #130 class of crash).
+    - run: npm run check:mappings
     # No "test" script exists in package.json yet (npm test with none
     # defined fails the whole workflow with "Missing script: test").
     # Add one and restore this step whenever real tests get written:

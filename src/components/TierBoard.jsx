@@ -1,21 +1,27 @@
 import { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import { TIER_ORDER, TIER_COLORS } from "../data/constants.js";
+import { TIER_ORDER, tierDisplay } from "../data/constants.js";
 import { PatchStatusPill } from "./PatchStatus.jsx";
 import RankChip from "./RankChip.jsx";
 import BuildPanel from "./BuildPanel.jsx";
 
 export function TierBoard({ entries, editMode, onUpdate }) {
   const [active, setActive] = useState(null);
+  // Rows come from TIER_ORDER. An entry whose tier is NOT one of those (e.g. a hand-edited Coach Mode override) used to match
+  // no row and silently vanish from the board; it now gets its own trailing row labelled with the raw value, in the neutral
+  // fallback color (tierDisplay reports the unknown value once, and tests/mappingIntegrity.test.mjs flags it in overrides).
+  const extraTiers = [...new Set(entries.map((e) => e.tier).filter((t) => !TIER_ORDER.includes(t)))];
 
   return (
     <>
-      {TIER_ORDER.map((tier) => {
+      {[...TIER_ORDER, ...extraTiers].map((tier) => {
         const list = entries.filter((e) => e.tier === tier);
+        const known = TIER_ORDER.includes(tier);
+        const { color } = tierDisplay(tier, { component: "TierBoard" });
         return (
-          <div className="tier-row" key={tier}>
-            <div className="tier-label" style={{ color: TIER_COLORS[tier], borderColor: TIER_COLORS[tier] }}>
-              {tier === "Unranked" ? "—" : tier}
+          <div className="tier-row" key={known ? tier : `unrecognized:${String(tier)}`}>
+            <div className="tier-label" style={{ color, borderColor: color }} title={known ? undefined : "Unrecognized tier -- not one of " + TIER_ORDER.join(", ")}>
+              {tier === "Unranked" ? "—" : known ? tier : String(tier ?? "?")}
             </div>
             <div className="tier-champs">
               {list.length === 0 && <span className="tier-empty">— empty —</span>}

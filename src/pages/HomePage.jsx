@@ -2,7 +2,7 @@ import { ArrowRight, Play, Swords, Shield, BookOpen } from "lucide-react";
 import { navigate } from "../hooks/useHashRoute.js";
 import { useHeroParallax } from "../hooks/useHeroParallax.js";
 import { useRosterRotation } from "../hooks/useRosterRotation.js";
-import { ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
+import { roleDisplay } from "../data/constants.js";
 import { FeatureCard } from "../components/Layout.jsx";
 import RankChip from "../components/RankChip.jsx";
 import { IconGem } from "../components/icons.jsx";
@@ -35,12 +35,15 @@ function RosterTeaser({ champions }) {
   const rosterSlots = useRosterRotation(champions, ROSTER_TEASER_SIZE);
   return (
     <div className="roster-grid">
-      {rosterSlots.map((slot, i) => (
-        <div key={i} className={"roster-slot" + (slot.phase === "visible" ? "" : " roster-slot-offstage")}>
-          <RankChip key={slot.champion.id} id={slot.champion.id} name={slot.champion.name} tag={slot.champion.role} tier={slot.champion.tier} note={slot.champion.note}
-            icon={ROLE_ICONS[slot.champion.role]} accent={ROLE_COLORS[slot.champion.role]} clickable _type="c" />
-        </div>
-      ))}
+      {rosterSlots.map((slot, i) => {
+        const role = roleDisplay(slot.champion.role, { dataset: "champions", entityId: slot.champion.id, entityName: slot.champion.name });
+        return (
+          <div key={i} className={"roster-slot" + (slot.phase === "visible" ? "" : " roster-slot-offstage")}>
+            <RankChip key={slot.champion.id} id={slot.champion.id} name={slot.champion.name} tag={slot.champion.role} tier={slot.champion.tier} note={slot.champion.note}
+              icon={role.icon} accent={role.color} clickable _type="c" />
+          </div>
+        );
+      })}
     </div>
   );
 }

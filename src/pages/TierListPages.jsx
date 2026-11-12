@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { ROLE_ICONS, ROLE_COLORS, ITEM_ICONS, ITEM_COLORS, ITEM_CATEGORIES, RUNE_ICONS, RUNE_COLORS, RUNE_PATHS } from "../data/constants.js";
+import { ITEM_CATEGORIES, RUNE_PATHS, roleDisplay, itemCategoryDisplay, runePathDisplay } from "../data/constants.js";
 import { TierBoard, CoachToggle } from "../components/TierBoard.jsx";
 
 export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdate, syncStatus, auth, currentPatch, onUpdatePatch, patchStatus, patchVerification }) {
-  const entries = champions.map((c) => ({
-    id: c.id, name: c.name, tag: c.role, tier: c.tier, note: c.note,
-    icon: ROLE_ICONS[c.role], accent: ROLE_COLORS[c.role], clickable: true, _type: "c",
-  }));
+  // roleDisplay() always returns a renderable icon + color (neutral fallback for a role with no registry entry, reported once)
+  const entries = champions.map((c) => {
+    const role = roleDisplay(c.role, { dataset: "champions", entityId: c.id, entityName: c.name });
+    return {
+      id: c.id, name: c.name, tag: c.role, tier: c.tier, note: c.note,
+      icon: role.icon, accent: role.color, clickable: true, _type: "c",
+    };
+  });
   return (
     <section className="page-section">
       <div className="wrap">
@@ -25,16 +29,23 @@ export function ChampionTierListPage({ champions, editMode, setEditMode, onUpdat
 /** Shared by ItemTierListPage and RuneTierListPage below — both were
  *  previously near-identical copies of the same page shell (header,
  *  category filter pills, Coach Toggle, TierBoard), differing only in
- *  which field counts as the "category" and which icon/color maps apply.
+ *  which field counts as the "category" and which display registry applies
+ *  (`display`: itemCategoryDisplay / runePathDisplay from src/data/constants.js).
  *  Consolidated here so a future change to that shell only needs to
  *  happen once. */
-function FilterableTierListPage({ title, subtitle, entries: rawEntries, categories, iconMap, colorMap, getTag, editMode, setEditMode, onUpdate, syncStatus, auth, currentPatch, onUpdatePatch, patchStatus, patchVerification, _type }) {
+function FilterableTierListPage({ title, subtitle, entries: rawEntries, categories: registeredCategories, display, dataset, getTag, editMode, setEditMode, onUpdate, syncStatus, auth, currentPatch, onUpdatePatch, patchStatus, patchVerification, _type }) {
   const [filter, setFilter] = useState("All");
+  // A category present in the data but missing from the registry still gets a filter pill (after the registered ones), so
+  // no entry is ever unreachable by filtering; the registry miss itself is reported by display() and by the mapping tests.
+  const categories = [...registeredCategories, ...new Set(rawEntries.map(getTag).filter((c) => typeof c === "string" && c && !registeredCategories.includes(c)))];
   const filtered = filter === "All" ? rawEntries : rawEntries.filter((e) => getTag(e) === filter);
-  const entries = filtered.map((e) => ({
-    id: e.id, name: e.name, tag: getTag(e), tier: e.tier, note: e.note, info: e.info,
-    icon: iconMap[getTag(e)], accent: colorMap[getTag(e)], clickable: false, _type,
-  }));
+  const entries = filtered.map((e) => {
+    const shown = display(getTag(e), { dataset, entityId: e.id, entityName: e.name });
+    return {
+      id: e.id, name: e.name, tag: getTag(e), tier: e.tier, note: e.note, info: e.info,
+      icon: shown.icon, accent: shown.color, clickable: false, _type,
+    };
+  });
   return (
     <section className="page-section">
       <div className="wrap">
@@ -63,8 +74,8 @@ export function ItemTierListPage({ items, editMode, setEditMode, onUpdate, syncS
       subtitle="Support, Defense, Boots, Enchant, Magic, and Physical items."
       entries={items}
       categories={ITEM_CATEGORIES}
-      iconMap={ITEM_ICONS}
-      colorMap={ITEM_COLORS}
+      display={itemCategoryDisplay}
+      dataset="items"
       getTag={(i) => i.category}
       editMode={editMode}
       setEditMode={setEditMode}
@@ -87,8 +98,8 @@ export function RuneTierListPage({ runes, editMode, setEditMode, onUpdate, syncS
       subtitle="Keystones and every minor rune path in Wild Rift."
       entries={runes}
       categories={RUNE_PATHS}
-      iconMap={RUNE_ICONS}
-      colorMap={RUNE_COLORS}
+      display={runePathDisplay}
+      dataset="runes"
       getTag={(r) => r.path}
       editMode={editMode}
       setEditMode={setEditMode}

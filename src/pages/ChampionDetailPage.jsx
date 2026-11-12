@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { navigate } from "../hooks/useHashRoute.js";
-import { TIER_COLORS, ROLE_ICONS, ROLE_COLORS } from "../data/constants.js";
+import { roleDisplay, tierDisplay } from "../data/constants.js";
 import { candidatePaths } from "../utils/images.js";
 import SmartImage from "../components/SmartImage.jsx";
 import BuildBoard from "../components/BuildBoard.jsx";
@@ -18,8 +18,9 @@ export default function ChampionDetailPage({
 }) {
   const [tab, setTab] = useState("build");
   const [selectedBuild, setSelectedBuild] = useState(0);
-  const Icon = ROLE_ICONS[champion.role] || Sparkles;
-  const accent = ROLE_COLORS[champion.role];
+  const displayContext = { dataset: "champions", entityId: champion.id, entityName: champion.name };
+  const { icon: Icon, color: accent } = roleDisplay(champion.role, displayContext);
+  const tierColor = tierDisplay(champion.tier, displayContext).color;
   const badgeDark = champion.tier === "Unranked" ? "#aab0d4" : "#04050c";
   const portraitPaths = candidatePaths(`c:${champion.id}`);
   // NOTE: must check .length, not just truthiness -- resolveEffectiveChampion()
@@ -32,7 +33,11 @@ export default function ChampionDetailPage({
     ? champion.builds
     : [{ name: "Default", items: champion.items, runes: champion.runes }];
 
-const currentBuild = builds[selectedBuild];
+  // selectedBuild is page state that survives navigating straight from one champion to another (e.g. via a Matchups pill:
+  // same component, new `champion` prop), so it can point past the new champion's builds -- clamp it to the first build
+  // (for the board, the highlighted button and the editor alike) instead of reading `.items` of undefined.
+  const buildIndex = selectedBuild < builds.length ? selectedBuild : 0;
+  const currentBuild = builds[buildIndex];
   return (
     <section className="page-section">
       <div className="wrap">
@@ -49,7 +54,7 @@ const currentBuild = builds[selectedBuild];
             <span className="chip-tag" style={{ position: "static", display: "inline-flex" }}>{champion.role}</span>
             <h1 className="detail-name">{champion.name}</h1>
           </div>
-          <div className="detail-tier" style={{ background: TIER_COLORS[champion.tier], color: badgeDark }}>
+          <div className="detail-tier" style={{ background: tierColor, color: badgeDark }}>
             {champion.tier === "Unranked" ? "—" : champion.tier}
           </div>
         </div>
@@ -79,7 +84,7 @@ const currentBuild = builds[selectedBuild];
               {builds.map((build, index) => (
                 <button
                   key={index}
-                  className={selectedBuild === index ? "active" : ""}
+                  className={buildIndex === index ? "active" : ""}
                   onClick={() => setSelectedBuild(index)}
                 >
                   {build.name}
@@ -90,7 +95,7 @@ const currentBuild = builds[selectedBuild];
             {editMode ? (
               <BuildEditor
                 builds={builds}
-                selectedBuild={selectedBuild}
+                selectedBuild={buildIndex}
                 onSelectBuild={setSelectedBuild}
                 onChangeBuilds={onUpdateChampionBuilds}
               />
