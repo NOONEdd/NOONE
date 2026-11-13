@@ -41,7 +41,7 @@ import { normalizeChangeEntry, normalizeSystemChangeEntry, mergeDuplicateEntitie
 import { normName } from "./patchNotesIds.js";
 import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel, normalizeScope, isAbilityScope, SUBSECTION_SCOPE_OPTIONS, normalizeVisualOverride, effectiveVisual, defaultVisualForScope, VISUAL } from "../../src/lib/patchNotesPresentation.js";
 import { classifyChangeScope } from "./patchChangeScope.js";
-import { sectionKeyOf, sourceNameOf, matchResultOf } from "../../src/lib/patchNotesClassification.js";
+import { sectionKeyOf, sourceNameOf, matchResultOf, effectiveClassification, isAutoInAcademy, ACADEMY_STATUS, DECISION_ORIGIN, ENTITY_TYPES } from "../../src/lib/patchNotesClassification.js";
 
 export const REVIEW_STATE = Object.freeze({ PENDING: "pending", KEPT: "kept", EDITED: "edited", REMOVED: "removed", REJECTED: "rejected" });
 export const SECTION_STATE = Object.freeze({ VISIBLE: "visible", REMOVED: "removed", REJECTED: "rejected" });
@@ -315,9 +315,11 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString() } 
   return { dataset, applied, errors };
 }
 
+// A section review entry may carry only non-visibility fields (e.g. a classification decision, an impact rating): no `state`
+// means the section was never removed/rejected, i.e. visible.
+const sectionStateOf = (entry) => (entry && entry.state) || SECTION_STATE.VISIBLE;
 export function isSectionVisible(dataset, change) {
-  const s = (dataset.sectionReview || {})[sectionKeyOf(change)];
-  return !s || s.state === SECTION_STATE.VISIBLE;
+  return sectionStateOf((dataset.sectionReview || {})[sectionKeyOf(change)]) === SECTION_STATE.VISIBLE;
 }
 /** Not removed/rejected (change or section) -- what the admin draft report shows. */
 export function isChangeInDraft(change, dataset) {
@@ -329,20 +331,26 @@ export function isChangePublishable(change, dataset) {
   if (!isChangeInDraft(change, dataset)) return false;
   const st = change.review ? change.review.state : REVIEW_STATE.PENDING;
   if (st === REVIEW_STATE.KEPT || st === REVIEW_STATE.EDITED) return true;
-  return change.kind === "entity" && change.entity.status === "EXISTING";
+  // pending changes publish by default ONLY when the automatic match is a canonical Academy record; a manual / remembered
+  // "In Academy" classification never publishes anything on its own (src/lib/patchNotesClassification.js)
+  return isAutoInAcademy(change);
 }
 
 export function reviewSummary(dataset) {
   const counts = { pending: 0, kept: 0, edited: 0, removed: 0, rejected: 0 };
-  const status = { EXISTING: 0, NEW_CANDIDATE: 0, UNMATCHED: 0, SYSTEM: 0 };
+  const status = { EXISTING: 0, NEW_CANDIDATE: 0, UNMATCHED: 0, SYSTEM: 0 }; // the AUTOMATIC match (unchanged shape, read by older code)
+  const academy = { IN_ACADEMY: 0, NEW_CANDIDATE: 0, UNMATCHED: 0, SYSTEM: 0, byDecision: 0 }; // the EFFECTIVE classification
   let needsReview = 0; let sourceChanged = 0;
   for (const c of dataset.changes || []) {
     counts[c.review.state]++;
     status[c.kind === "system" ? "SYSTEM" : c.entity.status]++;
-    if (c.review.state === REVIEW_STATE.PENDING && !(c.kind === "entity" && c.entity.status === "EXISTING")) needsReview++;
+    const eff = effectiveClassification(c, dataset);
+    academy[eff.status]++;
+    if (eff.origin !== DECISION_ORIGIN.AUTO) academy.byDecision++;
+    if (c.review.state === REVIEW_STATE.PENDING && !isAutoInAcademy(c)) needsReview++; // still needs a publication decision
     if (c.review.sourceChangedSinceReview) sourceChanged++;
   }
-  return { counts, status, needsReview, sourceChanged, orphaned: (dataset.orphanedChanges || []).length, sectionsRemoved: Object.values(dataset.sectionReview || {}).filter((s) => s.state !== SECTION_STATE.VISIBLE).length };
+  return { counts, status, academy, needsReview, sourceChanged, orphaned: (dataset.orphanedChanges || []).length, sectionsRemoved: Object.values(dataset.sectionReview || {}).filter((s) => sectionStateOf(s) !== SECTION_STATE.VISIBLE).length };
 }
 
 // ---------------------------------------------------------------------
@@ -452,15 +460,16 @@ export function deriveLegacyReport(dataset, { itemRoster = [], mode = "draft" } 
   const lite = liteFor(dataset);
   const itemById = new Map(itemRoster.map((i) => [i.id, i]));
   const include = (c) => (mode === "publish" ? isChangePublishable(c, dataset) : isChangeInDraft(c, dataset));
+  // one group per review SECTION (= one entity, or one System block), in document order
   const groups = new Map();
   for (const c of dataset.changes || []) {
     if (!include(c)) continue;
-    const key = c.kind === "entity" && c.entity.type !== "unknown" ? `entity:${c.entity.key}` : c.kind === "entity" ? `system:unknown:${normName(c.entity.name)}` : sectionKeyOf(c);
+    const key = sectionKeyOf(c);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(c);
   }
   const championEntries = []; const itemEntries = []; const runeEntries = []; const systemChanges = [];
-  for (const [key, list] of groups) {
+  for (const [, list] of groups) {
     const first = list[0];
     const sectionOverride = (dataset.sectionReview || {})[sectionKeyOf(first)];
     const display = list.map((c) => c.review.displayText).filter(Boolean);
@@ -469,28 +478,36 @@ export function deriveLegacyReport(dataset, { itemRoster = [], mode = "draft" } 
       whatChanged: cap(display.join("; "), 3000), sourceRaw: cap(list.map((c) => c.originalSourceText).join(" | "), 6000),
       sourceSection: sourceSections.join(" ; "), sourceSections, changes: list.map(lite), detectionMethod: "deterministic",
     };
-    if (first.kind === "entity" && first.entity.type !== "unknown") {
-      const e = first.entity;
+    // placement by the EFFECTIVE classification's type (a System block a reviewer classified as an item is listed with items);
+    // the canonical id comes ONLY from the Academy link -- never assumed from the status
+    const eff = effectiveClassification(first, dataset);
+    if (ENTITY_TYPES.includes(eff.type)) {
+      const id = eff.link ? eff.link.id : null;
       const facts = legacyFacts(list);
-      const academyFlag = e.type === "item" && e.id ? compareItemInfoToPatch(itemById.get(e.id), facts) : null;
+      const academyFlag = eff.type === "item" && id ? compareItemInfoToPatch(itemById.get(id), facts) : null;
       const lifecycle = list.find((c) => c.lifecycle);
       const hasFact = list.some((c) => c.normalizedData.kind === "stat" && c.normalizedData.changeType !== "textual_change");
-      const comparisonState = classifyComparisonState({ entityType: e.type, hasCleanValuePair: facts.length > 0, ambiguous: false, academyFlag });
+      const comparisonState = classifyComparisonState({ entityType: eff.type, hasCleanValuePair: facts.length > 0, ambiguous: false, academyFlag });
       const fields = { ...common, ...legacyValues(list), comparisonState, relevance: classifyEntityRelevance({ hasFact, hasAddedOrRemoved: Boolean(lifecycle) }), confidence: comparisonState === COMPARISON_STATE.CONFIRMED ? "High" : "Low", championsAffected: [] };
-      const entry = normalizeChangeEntry(fields, { withChampionsAffected: e.type !== "champion" });
+      const entry = normalizeChangeEntry(fields, { withChampionsAffected: eff.type !== "champion" });
       if (academyFlag) entry.academyDataFlag = academyFlag;
       if (lifecycle) entry.lifecycleAction = lifecycle.lifecycle.action;
-      entry.entityStatus = e.status; entry.supportScope = e.supportScope; entry.changeIds = list.map((c) => c.changeId); entry.sectionKey = sectionKeyOf(first);
+      // entityStatus / supportScope keep their old meaning: the AUTOMATIC match (read by older code)
+      entry.entityStatus = first.kind === "entity" ? first.entity.status : null; entry.supportScope = first.kind === "entity" ? first.entity.supportScope : "UNKNOWN";
+      entry.changeIds = list.map((c) => c.changeId); entry.sectionKey = sectionKeyOf(first); entry.sectionKeys = [entry.sectionKey];
+      // the effective classification, its origin and the Academy link -- review metadata, never part of the public view
+      entry.academyStatus = eff.status; entry.academyStatusOrigin = eff.origin; entry.academyStatusAuto = eff.auto; entry.academyLink = eff.link ? { id: eff.link.id, origin: eff.link.origin } : null;
       if (sectionOverride && sectionOverride.displayTitle) entry.displayTitle = sectionOverride.displayTitle;
-      if (e.type === "champion") championEntries.push({ championId: e.id, championName: e.name, ...entry });
-      else if (e.type === "item") itemEntries.push({ itemId: e.id, itemName: e.name, ...entry });
-      else runeEntries.push({ runeId: e.id, runeName: e.name, ...entry });
+      if (eff.type === "champion") championEntries.push({ championId: id, championName: eff.name, ...entry });
+      else if (eff.type === "item") itemEntries.push({ itemId: id, itemName: eff.name, ...entry });
+      else runeEntries.push({ runeId: id, runeName: eff.name, ...entry });
     } else {
       const area = first.kind === "entity" ? first.entity.name : first.system.area || first.system.category;
       const facts = legacyFacts(list);
       const entry = normalizeSystemChangeEntry({ ...common, area: (sectionOverride && sectionOverride.displayTitle) || area, comparisonState: classifyComparisonState({ entityType: "system", hasCleanValuePair: facts.length > 0, ambiguous: false, academyFlag: null }), relevance: classifySystemRelevance(), confidence: facts.length ? "High" : "Low" });
       entry.systemCategory = first.kind === "system" ? first.system.category : "unmatched";
-      entry.changeIds = list.map((c) => c.changeId); entry.sectionKey = sectionKeyOf(first);
+      entry.changeIds = list.map((c) => c.changeId); entry.sectionKey = sectionKeyOf(first); entry.sectionKeys = [entry.sectionKey];
+      entry.academyStatus = eff.status; entry.academyStatusOrigin = eff.origin; entry.academyStatusAuto = eff.auto; entry.academyLink = null;
       systemChanges.push(entry);
     }
   }

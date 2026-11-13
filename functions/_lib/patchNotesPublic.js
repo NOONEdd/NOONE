@@ -23,7 +23,9 @@ const publicSubsections = (subsections) => (subsections || []).map((s) => ({
 }));
 // `confidence` = extraction confidence (how sure the parser is of the fact/ownership): internal, never part of the public view, so it
 // can never be mistaken for how big a change is. The reviewed change impact (changeImpact) is the only impact the public page gets.
-const publicEntry = ({ changes, changeIds, sectionKey, subsections, classificationExtracted, classificationOverridden, confidence, ...entry }) => ({ ...entry, subsections: publicSubsections(subsections) });
+// The Academy classification metadata (effective status, who decided it, the canonical link) is review bookkeeping: the public page
+// shows WHERE an entry is listed (its section and name), never the review metadata behind it.
+const publicEntry = ({ changes, changeIds, sectionKey, sectionKeys, subsections, classificationExtracted, classificationOverridden, confidence, academyStatus, academyStatusOrigin, academyStatusAuto, academyLink, ...entry }) => ({ ...entry, subsections: publicSubsections(subsections) });
 
 /** @param {object} report  a stored report revision (published)  @param {Array} itemRoster  effective Academy items (for the info-vs-patch flag) */
 export function toPublicView(report, itemRoster = []) {

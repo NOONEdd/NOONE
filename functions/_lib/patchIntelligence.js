@@ -198,6 +198,9 @@ export function mergeDuplicateEntities(entries, idField, nameField) {
       ...(existing.changes || entry.changes ? { changes: [...(existing.changes || []), ...(entry.changes || [])] } : {}),
       ...(existing.sourceSections || entry.sourceSections ? { sourceSections: [...new Set([...(existing.sourceSections || []), ...(entry.sourceSections || [])])] } : {}),
       ...(existing.sourceSection || entry.sourceSection ? { sourceSection: [...new Set([existing.sourceSection, entry.sourceSection].filter(Boolean))].join(" ; ") } : {}),
+      // review identity is unioned too: a merged entry still knows every change and every review section it stands for
+      ...(existing.changeIds || entry.changeIds ? { changeIds: [...new Set([...(existing.changeIds || []), ...(entry.changeIds || [])])] } : {}),
+      ...(existing.sectionKeys || entry.sectionKeys ? { sectionKeys: [...new Set([...(existing.sectionKeys || []), ...(entry.sectionKeys || [])])] } : {}),
       ...(existing.championsAffected
         ? { championsAffected: [...new Set([...existing.championsAffected, ...(entry.championsAffected || [])])] }
         : {}),

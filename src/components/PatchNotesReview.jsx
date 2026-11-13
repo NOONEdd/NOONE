@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, RotateCcw, Check, Trash2, Ban, AlertTriangle } from "lucide-react";
 import { CLASSIFICATION_OPTIONS, CHANGE_IMPACT_OPTIONS, SUBSECTION_SCOPE_OPTIONS, VISUAL_OVERRIDE_OPTIONS, normalizeVisualOverride, NO_CHANGES_TEXT, classificationLabel, normalizeClassification, normalizeChangeImpact, classificationOrUnknown, scopeLabel, normalizeScope } from "../lib/patchNotesPresentation.js";
+import { sectionKeyOf, ownerNameOf, effectiveClassification, isAutoInAcademy, ACADEMY_STATUS_LABEL } from "../lib/patchNotesClassification.js";
 
 // Patch Notes review panel (admin).
 //
@@ -14,23 +15,24 @@ import { CLASSIFICATION_OPTIONS, CHANGE_IMPACT_OPTIONS, SUBSECTION_SCOPE_OPTIONS
 // Remove != Reject: "Remove" hides this change from
 // the current Patch Notes; "Reject" says the parser was right but it is outside the Academy/support scope.
 
-const STATUS_LABEL = { EXISTING: "In Academy", NEW_CANDIDATE: "New candidate", UNMATCHED: "Unmatched", SYSTEM: "System" };
-const STATUS_COLOR = { EXISTING: "var(--cyan)", NEW_CANDIDATE: "var(--gold)", UNMATCHED: "var(--magenta)", SYSTEM: "var(--text-dim)" };
+// Classification (which bucket an entity is in -- In Academy / New candidate / Unmatched / System) is resolved by ONE shared function
+// (src/lib/patchNotesClassification.js) that the server's derived view and public page also use; this panel keeps no copy of it.
+const STATUS_LABEL = ACADEMY_STATUS_LABEL;
+const STATUS_COLOR = { IN_ACADEMY: "var(--cyan)", NEW_CANDIDATE: "var(--gold)", UNMATCHED: "var(--magenta)", SYSTEM: "var(--text-dim)" };
 const STATE_LABEL = { pending: "Pending", kept: "Kept", edited: "Edited", removed: "Removed", rejected: "Rejected" };
 const FILTERS = [
-  ["needs", "Needs review"], ["all", "All"], ["EXISTING", "In Academy"], ["NEW_CANDIDATE", "New candidates"],
+  ["needs", "Needs review"], ["all", "All"], ["IN_ACADEMY", "In Academy"], ["NEW_CANDIDATE", "New candidates"],
   ["UNMATCHED", "Unmatched"], ["SYSTEM", "System"], ["hidden", "Removed / rejected"],
 ];
 
-const statusOf = (c) => (c.kind === "system" ? "SYSTEM" : c.entity.status);
-const sectionKey = (c) => (c.kind === "system" ? `system:${c.system.category}:${String(c.system.area || "").toLowerCase().replace(/[^a-z0-9]+/g, "")}` : `entity:${c.entity.key}`);
-const sectionTitle = (c) => (c.kind === "system" ? c.system.area || c.system.category : c.entity.name);
+const sectionKey = sectionKeyOf;
+const sectionTitle = ownerNameOf;
 
 function Chip({ children, color }) {
   return <span style={{ border: `1px solid ${color || "var(--line)"}`, color: color || "var(--text-dim)", borderRadius: 999, padding: "1px 8px", fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap" }}>{children}</span>;
 }
 
-function ChangeCard({ change, onOps, busy }) {
+function ChangeCard({ change, eff, onOps, busy }) {
   const override = normalizeClassification(change.review.comparisonStateOverride);
   const effective = override || classificationOrUnknown(change.comparisonState);
   const r = change.review;
@@ -46,7 +48,7 @@ function ChangeCard({ change, onOps, busy }) {
   return (
     <div className="pn-change" style={hidden ? { opacity: 0.6 } : undefined}>
       <div className="pn-change-head">
-        <Chip color={STATUS_COLOR[statusOf(change)]}>{STATUS_LABEL[statusOf(change)]}</Chip>
+        <Chip color={STATUS_COLOR[eff.status]}>{STATUS_LABEL[eff.status]}</Chip>
         <Chip>{STATE_LABEL[r.state]}</Chip>
         <Chip color={override ? "var(--gold)" : undefined}>{classificationLabel(effective)}{override ? " (your override)" : ""}</Chip>
         {change.ownership.source === "unmatched" && <Chip color="var(--magenta)">owner not provable</Chip>}
@@ -131,7 +133,7 @@ function SubsectionHead({ subKey, riotHeading, displayHeading, scope, scopeExtra
   );
 }
 
-function Section({ title, sectionState, changes, onOps, busy, defaultOpen, preview, subsectionReview }) {
+function Section({ title, sectionState, changes, eff, onOps, busy, defaultOpen, preview, subsectionReview }) {
   const [open, setOpen] = useState(Boolean(defaultOpen));
   const [editing, setEditing] = useState(false);
   const first = changes[0];
@@ -151,7 +153,7 @@ function Section({ title, sectionState, changes, onOps, busy, defaultOpen, previ
     <div className="pn-section" style={state !== "visible" ? { opacity: 0.65 } : undefined}>
       <div className="pn-section-head">
         <button className="pn-toggle" onClick={() => setOpen((v) => !v)}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />} <b>{sectionState.displayTitle || title}</b></button>
-        <Chip color={STATUS_COLOR[statusOf(first)]}>{STATUS_LABEL[statusOf(first)]}</Chip>
+        <Chip color={STATUS_COLOR[eff.status]}>{STATUS_LABEL[eff.status]}</Chip>
         <span className="pn-count">{changes.length} change{changes.length === 1 ? "" : "s"}{counts.pending ? ` · ${counts.pending} pending` : ""}</span>
         {state !== "visible" && <Chip color="var(--gold)">Section {state}</Chip>}
         <span className="pn-section-actions">
@@ -191,7 +193,7 @@ function Section({ title, sectionState, changes, onOps, busy, defaultOpen, previ
       {open && groups.map((g) => (
         <div className="pn-sub" key={g.key || "none"}>
           {g.key && <SubsectionHead subKey={g.key} riotHeading={g.heading} displayHeading={(subsectionReview[g.key] || {}).displayHeading} scope={g.scope} scopeExtracted={g.scopeExtracted} scopeOverridden={g.scopeOverridden} visualOverride={g.visualOverride} championSection={g.championSection} onOps={onOps} busy={busy} />}
-          {g.changes.map((c) => <ChangeCard key={c.changeId} change={c} onOps={onOps} busy={busy} />)}
+          {g.changes.map((c) => <ChangeCard key={c.changeId} change={c} eff={eff} onOps={onOps} busy={busy} />)}
         </div>
       ))}
     </div>
@@ -235,26 +237,32 @@ export default function PatchNotesReview({ report, onOps, busy, initialFilter = 
       map.get(k).push(c);
     }
     const q = query.trim().toLowerCase();
-    const keep = (c) => {
-      const st = statusOf(c);
-      const hidden = c.review.state === "removed" || c.review.state === "rejected";
-      if (filter === "hidden") return hidden;
-      if (filter === "needs") return c.review.state === "pending" && st !== "EXISTING";
-      if (filter === "all") return true;
-      return st === filter && !hidden;
-    };
     return order.map((k) => {
       const all = map.get(k);
+      const eff = effectiveClassification(all[0], ds); // one classification per section
+      const keep = (c) => {
+        const hidden = c.review.state === "removed" || c.review.state === "rejected";
+        if (filter === "hidden") return hidden;
+        // "needs review" = still needs a PUBLICATION decision: pending and not published by default (only an automatic Academy match is)
+        if (filter === "needs") return c.review.state === "pending" && !isAutoInAcademy(c);
+        if (filter === "all") return true;
+        return eff.status === filter && !hidden;
+      };
       const shown = all.filter(keep).filter((c) => !q || `${sectionTitle(c)} ${c.review.displayText} ${c.originalSourceText}`.toLowerCase().includes(q));
-      return { key: k, title: sectionTitle(all[0]), changes: shown, total: all.length };
+      return { key: k, title: sectionTitle(all[0]), changes: shown, total: all.length, eff };
     }).filter((s) => s.changes.length > 0);
-  }, [ds.changes, filter, query]);
+  }, [ds, ds.changes, ds.sectionReview, filter, query]);
 
   const counts = useMemo(() => {
-    const status = { EXISTING: 0, NEW_CANDIDATE: 0, UNMATCHED: 0, SYSTEM: 0 }; let pending = 0;
-    for (const c of ds.changes) { status[statusOf(c)]++; if (c.review.state === "pending" && statusOf(c) !== "EXISTING") pending++; }
-    return { status, pending };
-  }, [ds.changes]);
+    const status = { IN_ACADEMY: 0, NEW_CANDIDATE: 0, UNMATCHED: 0, SYSTEM: 0 }; let pending = 0; let byDecision = 0;
+    for (const c of ds.changes) {
+      const eff = effectiveClassification(c, ds);
+      status[eff.status]++;
+      if (eff.origin !== "auto") byDecision++;
+      if (c.review.state === "pending" && !isAutoInAcademy(c)) pending++;
+    }
+    return { status, pending, byDecision };
+  }, [ds, ds.changes, ds.sectionReview]);
 
   return (
     <div className="pn-root">
@@ -263,7 +271,7 @@ export default function PatchNotesReview({ report, onOps, busy, initialFilter = 
         separately and survive re-scans. New candidates, unmatched blocks and system changes stay out of the public page until you Keep them.
       </p>
       <p className="patch-entry-line pn-accounting">
-        {ds.changes.length} changes from {v.totalMeaningfulBlocks} source blocks · {counts.status.EXISTING} in Academy · {counts.status.NEW_CANDIDATE} new candidates · {counts.status.UNMATCHED} unmatched · {counts.status.SYSTEM} system ·
+        {ds.changes.length} changes from {v.totalMeaningfulBlocks} source blocks · {counts.status.IN_ACADEMY} in Academy{counts.byDecision ? ` (${counts.byDecision} by your decision)` : ""} · {counts.status.NEW_CANDIDATE} new candidates · {counts.status.UNMATCHED} unmatched · {counts.status.SYSTEM} system ·
         {" "}<b style={{ color: v.droppedBlocks === 0 ? "var(--cyan)" : "var(--magenta)" }}>{v.droppedBlocks} unaccounted blocks</b> · {v.duplicateMerges} duplicate merges · {v.lifecycleChanges} lifecycle · {v.ignoredBlocks} ignored (heading-only/boilerplate)
         {counts.pending > 0 ? ` · ${counts.pending} awaiting your review` : ""}
       </p>
@@ -273,12 +281,12 @@ export default function PatchNotesReview({ report, onOps, busy, initialFilter = 
         <input type="text" className="pn-input pn-search" placeholder="Search entity or text…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search changes" />
       </div>
       {sections.length === 0 && <p className="patch-entry-line">Nothing in this view.</p>}
-      {sections.map((s, i) => <Section key={s.key + filter} title={s.title} sectionState={sectionReview[s.key] || {}} changes={s.changes} onOps={onOps} busy={busy} defaultOpen={sections.length <= 3 && i === 0} preview={preview} subsectionReview={subsectionReview} />)}
+      {sections.map((s, i) => <Section key={s.key + filter} title={s.title} sectionState={sectionReview[s.key] || {}} changes={s.changes} eff={s.eff} onOps={onOps} busy={busy} defaultOpen={sections.length <= 3 && i === 0} preview={preview} subsectionReview={subsectionReview} />)}
       {(ds.orphanedChanges || []).length > 0 && (
         <>
           <h4 className="patch-section-label">No longer produced by the latest extraction ({ds.orphanedChanges.length})</h4>
           <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", fontSize: 13 }}>You had reviewed these; the parser no longer yields them. They are kept so your work is never silently destroyed.</p>
-          {ds.orphanedChanges.map((c) => <ChangeCard key={c.changeId} change={c} onOps={onOps} busy />)}
+          {ds.orphanedChanges.map((c) => <ChangeCard key={c.changeId} change={c} eff={effectiveClassification(c, ds)} onOps={onOps} busy />)}
         </>
       )}
     </div>
