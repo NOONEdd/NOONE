@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useHashRoute } from "./hooks/useHashRoute.js";
 import { useCoachOverrides } from "./hooks/useCoachOverrides.js";
 import { CHAMPIONS, isAcademyCovered } from "./data/champions.js";
-import { ITEMS } from "./data/items.js";
+import { ITEMS, ALL_ITEMS } from "./data/items.js";
 import { RUNES } from "./data/runes.js";
 import { MATCHUPS } from "./data/matchups.js";
 import { STATIC_PATCH_VERSION } from "./data/patch.js";
@@ -23,7 +23,7 @@ let lastMappingReport = "";
 function useMappingIntegrityCheck(overrides) {
   useEffect(() => {
     if (import.meta.env && import.meta.env.DEV) {
-      const report = validateAcademyMappings({ registries: DISPLAY_REGISTRIES, champions: CHAMPIONS, items: ITEMS, runes: RUNES, overrides, isCovered: isAcademyCovered });
+      const report = validateAcademyMappings({ registries: DISPLAY_REGISTRIES, champions: CHAMPIONS, items: ALL_ITEMS, runes: RUNES, overrides, isCovered: isAcademyCovered });
       const text = report.counts.fatal + report.counts.recoverable + report.counts.warning > 0 ? formatMappingReport(report) : "";
       if (text && text !== lastMappingReport) console.warn(text);
       lastMappingReport = text;
@@ -75,6 +75,8 @@ export default function App() {
   // redesign spec's "MATCHUP ROSTER = CANONICAL ROSTER" invariant.
   const academyChampions = useMemo(() => champions.filter(isAcademyCovered), [champions]);
   const items = useMemo(() => ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id])), [overrides.items]);
+  // every canonical item incl. the support quest items -- for Patch Notes / Admin images and links, NEVER the Item Tier List
+  const allItems = useMemo(() => ALL_ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id])), [overrides.items]);
   const runes = useMemo(() => RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id])), [overrides.runes]);
   const effectivePatch = useMemo(() => resolveEffectivePatch(overrides.patch, STATIC_PATCH_VERSION), [overrides.patch]);
   // Same reasoning as effectivePatch above: one shared resolver
@@ -125,13 +127,13 @@ export default function App() {
   } else if (route.page === "ai-coach") {
     content = <AICoachPage currentPatch={effectivePatch} patchStatus={patchStatus} />;
   } else if (route.page === "patch-notes" || route.page === "patch-intelligence") { // "patch-intelligence" = the old URL, kept as an alias so existing links/bookmarks still work
-    content = <PatchNotesPage currentPatch={effectivePatch} patchStatus={patchStatus} champions={champions} items={items} runes={runes} />;
+    content = <PatchNotesPage currentPatch={effectivePatch} patchStatus={patchStatus} champions={champions} items={allItems} runes={runes} />;
   } else if (route.page === "admin") {
     // Deliberately NOT in NAV_LINKS / any visible nav element -- reached
     // only by navigating here directly (e.g. a bookmark). See
     // src/pages/AdminPage.jsx's top comment and README's "Safe Browsing
     // cleanup" section for why this replaced the old ?coach reveal.
-    content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} champions={champions} items={items} runes={runes} overrides={overrides} updateOverride={updateOverride} />;
+    content = <AdminPage auth={auth} currentPatch={effectivePatch} onUpdatePatch={updatePatch} patchStatus={patchStatus} patchVerification={patchVerification} champions={champions} items={allItems} runes={runes} overrides={overrides} updateOverride={updateOverride} />;
   } else {
     content = <HomePage champions={academyChampions} />;
   }

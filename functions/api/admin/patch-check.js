@@ -61,7 +61,7 @@ import { logPatchIntelEvent } from "../../_lib/logger.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch } from "../../../src/lib/effectiveData.js";
 import { CHAMPIONS, isAcademyCovered } from "../../../src/data/champions.js";
 import { MATCHUPS } from "../../../src/data/matchups.js";
-import { ITEMS } from "../../../src/data/items.js";
+import { ALL_ITEMS } from "../../../src/data/items.js";
 import { RUNES } from "../../../src/data/runes.js";
 import { STATIC_PATCH_VERSION } from "../../../src/data/patch.js";
 
@@ -134,7 +134,8 @@ async function analyzePatch({ kv, slug, overrides, logContext = {}, mergeOnto = 
   // curated content for, so a champion Academy doesn't cover isn't part
   // of what this pipeline reports on either.
   const championRoster = CHAMPIONS.filter(isAcademyCovered).map((c) => resolveEffectiveChampion(c, overrides.champions[c.id], MATCHUPS[c.id]));
-  const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
+  // ALL_ITEMS: shop items + the support quest items (src/data/items.js) -- every canonical item a Riot heading can name exactly
+  const itemRoster = ALL_ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 
   // Remembered classification rules: read with certainty or not at all -- an unreadable registry is passed on as "unavailable"

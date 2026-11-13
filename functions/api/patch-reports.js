@@ -10,7 +10,7 @@
 
 import { listPublicReports } from "../_lib/patchReportsStore.js";
 import { toPublicView } from "../_lib/patchNotesPublic.js";
-import { ITEMS } from "../../src/data/items.js";
+import { ALL_ITEMS } from "../../src/data/items.js";
 import { resolveEffectiveItem } from "../../src/lib/effectiveData.js";
 
 // The public Patch Notes view is DERIVED at read time from the reviewed dataset (only changes whose review state allows
@@ -25,7 +25,7 @@ function json(data, status = 200) {
 export async function onRequestGet(context) {
   const kv = context.env.COACH_KV;
   if (!kv) return json({ reports: [] });
-  const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
+  const itemRoster = ALL_ITEMS.map((i) => resolveEffectiveItem(i, undefined));
   const reports = (await listPublicReports(kv)).map((r) => toPublicView(r, itemRoster));
   reports.sort((a, b) => new Date(b.generatedAt) - new Date(a.generatedAt));
   return json({ reports });

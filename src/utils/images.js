@@ -17,7 +17,14 @@
 // can list ALIASES — alternate filename stems that get tried too, in order,
 // before giving up and showing the fallback icon.
 
+import { QUEST_ITEMS } from "../data/items.js";
+
 const FOLDER_BY_TYPE = { c: "champions", i: "items", r: "runes", s: "spells" };
+
+// DISPLAY-ONLY image fallback (src/data/items.js `imageFallbackId`): an upgraded quest form with no art of its own yet shows its
+// base item's art. Its OWN file names are always tried first, so adding e.g. bulwark-of-the-mountain.webp later wins automatically.
+// This never changes an id, a key or what anything matches -- identity stays separate.
+const IMAGE_FALLBACKS = Object.freeze(Object.fromEntries(QUEST_ITEMS.filter((i) => i.imageFallbackId).map((i) => [`i:${i.id}`, `i:${i.imageFallbackId}`])));
 
 /** Turns a display name into the same id format used throughout the data
  *  files — e.g. "Serylda's Grudge" -> "serylda-grudge" (apostrophes are
@@ -209,7 +216,8 @@ export function candidatePaths(key) {
   const [type, id] = key.split(":");
   const folder = FOLDER_BY_TYPE[type];
   if (!folder || !id) return [];
-  const baseStems = [id, ...(ALIASES[key] || [])];
+  const fallbackKey = IMAGE_FALLBACKS[key];
+  const baseStems = [id, ...(ALIASES[key] || []), ...(fallbackKey ? [fallbackKey.split(":")[1], ...(ALIASES[fallbackKey] || [])] : [])];
   const allStems = [];
   const seen = new Set();
   for (const stem of baseStems) {

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Plus, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { candidatePaths, findCanonicalId } from "../utils/images.js";
-import { ITEMS } from "../data/items.js";
+import { BUILDABLE_ITEMS } from "../data/items.js";
 import { RUNES } from "../data/runes.js";
 import { ChipIcon } from "./BuildBoard.jsx";
 import ItemRunePicker from "./ItemRunePicker.jsx";
 import { normalizeBuildEntries } from "../lib/buildTypeClassifier.js";
 
-const CATALOG_BY_TYPE = { i: ITEMS, r: RUNES };
+// what a build may contain: shop items + base support quest items (an upgraded quest form is never bought)
+const CATALOG_BY_TYPE = { i: BUILDABLE_ITEMS, r: RUNES };
 
 /** Resolves a row's current (possibly hand-typed) name to an image the
  *  exact same way BuildBoard does for the real, read-only build display --

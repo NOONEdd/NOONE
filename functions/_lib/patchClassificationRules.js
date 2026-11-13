@@ -18,7 +18,7 @@
 
 import { normName } from "../../src/lib/patchNotesClassification.js";
 import { CHAMPIONS } from "../../src/data/champions.js";
-import { ITEMS } from "../../src/data/items.js";
+import { ALL_ITEMS } from "../../src/data/items.js";
 import { RUNES } from "../../src/data/runes.js";
 
 export const RULES_KEY = "patch-intel:classification-rules";
@@ -30,7 +30,7 @@ export const ruleKeyFor = (type, name) => `${type}:${normName(name)}`;
 
 /** Canonical ids a classification may link to: the full catalog of each type (an uncoached champion is still a real record). */
 export function academyCatalog() {
-  return { champion: new Set(CHAMPIONS.map((c) => c.id)), item: new Set(ITEMS.map((i) => i.id)), rune: new Set(RUNES.map((r) => r.id)) };
+  return { champion: new Set(CHAMPIONS.map((c) => c.id)), item: new Set(ALL_ITEMS.map((i) => i.id)), rune: new Set(RUNES.map((r) => r.id)) };
 }
 
 /** @returns {Promise<{status: string, doc: object|null, error?: string}>} doc is a usable document only for OK / NOT_FOUND. */

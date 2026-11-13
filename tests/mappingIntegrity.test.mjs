@@ -26,7 +26,7 @@ const m = await bundleModule(`
   export * as R from ${src('src/lib/displayRegistry.js')};
   export * as V from ${src('src/lib/mappingValidation.js')};
   export { CHAMPIONS, isAcademyCovered } from ${src('src/data/champions.js')};
-  export { ITEMS } from ${src('src/data/items.js')};
+  export { ITEMS, ALL_ITEMS } from ${src('src/data/items.js')};
   export { RUNES } from ${src('src/data/runes.js')};
   export { MATCHUPS } from ${src('src/data/matchups.js')};
   export { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune } from ${src('src/lib/effectiveData.js')};
@@ -39,7 +39,7 @@ const m = await bundleModule(`
   export { default as EntityImage } from ${src('src/components/EntityImage.jsx')};
   export * as Lucide from 'lucide-react';
 `);
-const { React, renderToStaticMarkup, C, R, V, CHAMPIONS, ITEMS, RUNES, MATCHUPS, isAcademyCovered } = m;
+const { React, renderToStaticMarkup, C, R, V, CHAMPIONS, ITEMS, ALL_ITEMS, RUNES, MATCHUPS, isAcademyCovered } = m;
 const h = React.createElement;
 const html = (el) => renderToStaticMarkup(el);
 const text = (s) => s.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
@@ -51,7 +51,8 @@ R.setMappingDiagnosticSink((message, details) => diagnostics.push({ message, det
 const resetDiag = () => { diagnostics.length = 0; R.resetMappingDiagnostics(); };
 
 const { DISPLAY_REGISTRIES } = C;
-const report = V.validateAcademyMappings({ registries: DISPLAY_REGISTRIES, champions: CHAMPIONS, items: ITEMS, runes: RUNES, isCovered: isAcademyCovered });
+// every canonical item record, incl. the support quest items (src/data/items.js ALL_ITEMS) -- they are rendered (Patch Notes, builds) too
+const report = V.validateAcademyMappings({ registries: DISPLAY_REGISTRIES, champions: CHAMPIONS, items: ALL_ITEMS, runes: RUNES, isCovered: isAcademyCovered });
 
 // ======================================================================================================================
 console.log('\n=== 1. The shipped registries are valid (every icon a React component, every color usable, keys unambiguous) ===');
@@ -121,7 +122,7 @@ check('no champion still uses the obsolete role "Fighter" (Camille\'s old value)
 check('role vocabularies are consistent: all 38 coached champions use a support archetype, every roster-only champion a lane tag',
   CHAMPIONS.every((c) => DISPLAY_REGISTRIES.championRole.config[c.role].group === (isAcademyCovered(c) ? 'support' : 'lane')));
 
-for (const cat of [...new Set(ITEMS.map((i) => i.category))]) {
+for (const cat of [...new Set(ALL_ITEMS.map((i) => i.category))]) {
   const e = DISPLAY_REGISTRIES.itemCategory.config[cat];
   check(`item category "${cat}": valid icon, valid color, and a filter pill (ITEM_CATEGORIES)`, Boolean(e) && R.isIconComponent(e.icon) && R.isColorValue(e.color) && C.ITEM_CATEGORIES.includes(cat));
 }
@@ -129,7 +130,7 @@ for (const p of [...new Set(RUNES.map((r) => r.path))]) {
   const e = DISPLAY_REGISTRIES.runePath.config[p];
   check(`rune path "${p}": valid icon, valid color, and a filter pill (RUNE_PATHS)`, Boolean(e) && R.isIconComponent(e.icon) && R.isColorValue(e.color) && C.RUNE_PATHS.includes(p));
 }
-for (const t of [...new Set([...CHAMPIONS, ...ITEMS, ...RUNES].map((x) => x.tier))]) {
+for (const t of [...new Set([...CHAMPIONS, ...ALL_ITEMS, ...RUNES].map((x) => x.tier))]) {
   check(`tier "${t}": valid color, a row in TIER_ORDER, and an option in TIER_SELECT`, R.isColorValue(C.TIER_COLORS[t]) && C.TIER_ORDER.includes(t) && C.TIER_SELECT.includes(t));
 }
 check('TIER_ORDER and TIER_SELECT hold exactly the same tiers (every selectable tier has a row, every row is selectable)', [...C.TIER_ORDER].sort().join() === [...C.TIER_SELECT].sort().join());

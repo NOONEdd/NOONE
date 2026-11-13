@@ -45,7 +45,7 @@ import { applyReviewOps, applyCoachFieldEdits, deriveLegacyReport, mergeFreshOnt
 import { publicPreview } from "../../_lib/patchNotesPublic.js";
 import { readRules, activeRules, isUsable, mutateRules, upsertRule, forgetRule, academyCatalog } from "../../_lib/patchClassificationRules.js";
 import { rememberEligibility, sourceNameOf } from "../../../src/lib/patchNotesClassification.js";
-import { ITEMS } from "../../../src/data/items.js";
+import { ALL_ITEMS } from "../../../src/data/items.js";
 import { resolveEffectiveItem } from "../../../src/lib/effectiveData.js";
 
 // Server-side approval gate for publish/restore. A revision can only become
@@ -64,7 +64,7 @@ function json(data, status = 200) {
  *  data) -- computed at READ time by the same function the public endpoint uses and attached to the response only; never stored. */
 function withPublicPreview(report) {
   if (!report) return report;
-  const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
+  const itemRoster = ALL_ITEMS.map((i) => resolveEffectiveItem(i, undefined));
   return { ...report, publicPreview: publicPreview(report, itemRoster) };
 }
 
@@ -209,7 +209,7 @@ export async function onRequestPost(context) {
       const read = rulesDoc ? { status: "OK", doc: rulesDoc } : await readRules(kv);
       if (isUsable(read)) applyClassificationRules(dataset, { rules: activeRules(read.doc), available: true, catalog });
     }
-    const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
+    const itemRoster = ALL_ITEMS.map((i) => resolveEffectiveItem(i, undefined));
     const legacy = mergeFreshOntoExisting(deriveLegacyReport(dataset, { itemRoster, mode: "draft" }), target);
     const updated = await updateReportRevision(kv, id, revision, {
       patchNotes: dataset, patchNotesSummary: { ...reviewSummary(dataset), validation: dataset.validation },

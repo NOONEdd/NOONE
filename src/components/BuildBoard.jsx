@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Pencil, Swords } from "lucide-react";
 import { candidatePaths, slugify, findCanonicalId } from "../utils/images.js";
 import { splitSpellNames } from "../data/spells.js";
-import { ITEMS } from "../data/items.js";
+import { ALL_ITEMS } from "../data/items.js";
 import { RUNES } from "../data/runes.js";
 import SmartImage from "./SmartImage.jsx";
 import BuildPanel from "./BuildPanel.jsx";
 
-const CANONICAL_BY_TYPE = { i: ITEMS, r: RUNES };
+// name -> id for the build chip IMAGE: every canonical item (incl. support quest items, e.g. "Relic Shield")
+const CANONICAL_BY_TYPE = { i: ALL_ITEMS, r: RUNES };
 
 export function ChipIcon({ paths, size = 22 }) {
   const [failed, setFailed] = useState(false);

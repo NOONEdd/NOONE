@@ -43,7 +43,8 @@
 // visitors' conversations could ever mix.
 
 import { CHAMPIONS } from "../../src/data/champions.js";
-import { ITEMS } from "../../src/data/items.js";
+// ALL_ITEMS = shop items + support quest items: the AI Coach can ground "Relic Shield" / "Bulwark of the Mountain" questions too
+import { ALL_ITEMS } from "../../src/data/items.js";
 import { RUNES } from "../../src/data/runes.js";
 import { STATIC_PATCH_VERSION } from "../../src/data/patch.js";
 import { resolveEffectivePatch, resolvePatchDataStatus } from "../../src/lib/effectiveData.js";
@@ -108,12 +109,12 @@ export async function onRequestPost(context) {
   // don't repeat an entity name. See functions/_lib/detectChampion.js /
   // detectItemsRunes.js for exactly how the fallback works.
   const { championId, enemyId } = detectChampionsInConversation(messages, CHAMPIONS, CONVERSATION_LOOKBACK_MESSAGES);
-  const { itemIds, runeIds } = detectItemsAndRunesInConversation(messages, ITEMS, RUNES, CONVERSATION_LOOKBACK_MESSAGES);
+  const { itemIds, runeIds } = detectItemsAndRunesInConversation(messages, ALL_ITEMS, RUNES, CONVERSATION_LOOKBACK_MESSAGES);
 
   const championContext = championId ? extractChampionContext(championId, CHAMPIONS, overrides) : null;
   const enemyContext = enemyId ? extractEnemyContext(enemyId, CHAMPIONS, championContext) : null;
   const decisionTreeEntries = championId ? extractDecisionTrees(championId, overrides) : [];
-  const itemContext = extractItemContext(itemIds, ITEMS, overrides);
+  const itemContext = extractItemContext(itemIds, ALL_ITEMS, overrides);
   const runeContext = extractRuneContext(runeIds, RUNES, overrides);
 
   // Priority 2: an entity being found does NOT mean Academy's data about

@@ -97,3 +97,29 @@ export const ITEMS = [
   { id: "Shurelya's-Battlesong", name: "Shurelya's Battlesong", category: "Enchant", tier: "Unranked", info: "55 ability power,20 ability haste, 4% movement speed bonus, base mana regen 50%. ACTIVE: Grants you and nearby allied champions a burst of movement speed for 3 seconds. (60s cooldown)"},
   { id: "trinity-force", name: "Trinity Force", category: "Physical", tier: "Unranked", info: "+333 Health+36 Attack Damage+30% Attack Speed+15 Ability HasteUNIQUE - SPELLBLADE: After using an ability, your next basic attack within 10 seconds deals 200% base AD bonus physical damage on-hit. (1.5 second cooldown which begins after using the empowered attack),UNIQUE - Valor: Basic attacks (on-hit) grant +(20 Melee / 10 Ranged) flat movement speed for 2 seconds. Bonuses do not stack."},
 ];
+// ---------------------------------------------------------------------------------------------------------------------------
+// SUPPORT QUEST ITEMS -- canonical Academy item records, kept OUT of `ITEMS` on purpose.
+//
+// Every builder, coach note and Patch Notes report already treats these as Academy items, but they are not ordinary shop items:
+// they don't belong on the Item Tier List, in the Home page's "Items Tracked" count, and the upgraded forms can't be bought (so
+// they don't belong in the Coach Mode build picker either). Keeping them in their own list makes inclusion OPT-IN: nothing that
+// lists `ITEMS` can pick them up by accident; a consumer that should know them uses ALL_ITEMS or BUILDABLE_ITEMS below.
+//
+// The upgraded forms are SEPARATE ENTITIES, not aliases: their own id, name and info, matched only by their own exact name.
+//   upgradeOf        relationship for context / presentation only -- never used for matching, never merges identities
+//                    (a Bulwark of the Mountain change is not a Relic Shield change).
+//   imageFallbackId  display only (src/utils/images.js): show the base item's art until the upgrade has its own image file.
+// `info` states only what an upgrade relationship is; add the real stats here (these records are not on the tier list, so
+// Coach Mode's on-page info editor does not reach them).
+export const QUEST_ITEMS = [
+  { id: "relic-shield", name: "Relic Shield", category: "Support", tier: "Unranked", questItem: true, info: "Support quest starter item. Completing its quest upgrades it into Bulwark of the Mountain." },
+  { id: "spectral-sickle", name: "Spectral Sickle", category: "Support", tier: "Unranked", questItem: true, info: "Support quest starter item. Completing its quest upgrades it into Black Mist Scythe." },
+  { id: "bulwark-of-the-mountain", name: "Bulwark of the Mountain", category: "Support", tier: "Unranked", questItem: true, upgradeOf: "relic-shield", imageFallbackId: "relic-shield", info: "Upgraded form of Relic Shield, granted when the Relic Shield quest is completed. A separate item: its patch changes are not Relic Shield changes." },
+  { id: "black-mist-scythe", name: "Black Mist Scythe", category: "Support", tier: "Unranked", questItem: true, upgradeOf: "spectral-sickle", imageFallbackId: "spectral-sickle", info: "Upgraded form of Spectral Sickle, granted when the Spectral Sickle quest is completed. A separate item: its patch changes are not Spectral Sickle changes." },
+];
+
+/** Every canonical Academy item record: name matching (Patch Notes, AI Coach), Academy links, images. NOT the Item Tier List. */
+export const ALL_ITEMS = [...ITEMS, ...QUEST_ITEMS];
+
+/** What a build may contain (Coach Mode build picker): shop items + the base quest items; never an upgraded form. */
+export const BUILDABLE_ITEMS = [...ITEMS, ...QUEST_ITEMS.filter((i) => !i.upgradeOf)];
