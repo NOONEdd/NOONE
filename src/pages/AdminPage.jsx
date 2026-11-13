@@ -458,7 +458,7 @@ function ReportCard({ report, onAction, onReanalyze, busy, initiallyExpanded, ro
                 <p className="patch-meta-analysis">{buildPatchSummary(data, { legacyText: data.supportMetaAnalysis }).text}</p>
               ))}
 
-              {report.patchNotes && <PatchNotesReview report={report} busy={busy} onOps={(ops) => onAction(report.id, "review", { ops, revision: report.revision })} />}
+              {report.patchNotes && <PatchNotesReview report={report} busy={busy} catalog={roster} onOps={(ops) => onAction(report.id, "review", { ops, revision: report.revision })} />}
               {!report.patchNotes && data.championChanges.length > 0 && (
                 <>
                   <h4 className="patch-section-label">Champions</h4>

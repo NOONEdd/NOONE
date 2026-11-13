@@ -18,6 +18,12 @@ import { ITEMS } from '../src/data/items.js';
 import { RUNES } from '../src/data/runes.js';
 import { ALL_PATHS_PAGE } from './fixtures/patch-notes-identity-pages.mjs';
 import * as H from './helpers/patchNotesHelpers.mjs';
+import { onRequestPost as checkPost } from '../functions/api/admin/patch-check.js';
+import { onRequestPost as reportsPost, onRequestGet as reportsGet } from '../functions/api/admin/patch-reports.js';
+import { onRequestGet as publicGet } from '../functions/api/patch-reports.js';
+import { createSessionToken } from '../functions/_lib/adminAuth.js';
+import { SOURCE_TEXT_VERSION } from '../functions/_lib/patchText.js';
+import * as KVS from '../functions/_lib/kvSafety.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, done } = H.makeChecker();
@@ -171,6 +177,131 @@ console.log('\n=== Stage 3: Support-impact (Coach) fields survive review actions
   check('legacy stored entry with no section keys: still matched by its Academy id', after.itemChanges.find((e) => e.itemId === 'ardent-censer').supportImpact === 'legacy text');
   const nothing = mergeFreshOntoExisting(draft(build(ALL_PATHS_PAGE)), stored(build(ALL_PATHS_PAGE)));
   check('no Coach field is ever invented: a fresh entry with no stored counterpart keeps its blank defaults', nothing.itemChanges.every((e) => e.supportImpact === '' && e.coachNotes === ''));
+}
+
+// ======================================================================================================================
+console.log('\n=== Stage 4.1: "Move to In Academy" -- the per-patch decision (review operation) ===');
+const CATALOG = { champion: new Set(CHAMPIONS.map((c) => c.id)), item: new Set(ITEMS.map((i) => i.id)), rune: new Set(RUNES.map((r) => r.id)) };
+const RUNE_PAGE = `# Wild Rift Patch Notes 9.4\n\n## RUNE ADJUSTMENTS\n\n### Mystic Echo\n\n- Damage: 10 → 12\n`;
+const op = (sectionKey, extra = {}) => ({ op: 'setSectionClassification', sectionKey, status: 'IN_ACADEMY', ...extra });
+{
+  const ds = build(ALL_PATHS_PAGE);
+  const before = clone(ds);
+  const bul = find(ds, /^Bulwark/)[0]; const blade = find(ds, /^Mystery Blade/)[0]; const ez = find(ds, /^Ezreal/)[0];
+  const sys = find(ds, /^Bulwark/).find((c) => c.kind === 'system'); const ard = find(ds, /^Ardent/)[0];
+  const r = applyReviewOps(ds, [op(sectionKeyOf(bul)), op(sectionKeyOf(blade)), op(sectionKeyOf(ez), { academyId: 'ezreal' }), op(sectionKeyOf(sys), { type: 'item' })], { now: T, catalog: CATALOG });
+  check('Unmatched item, New candidate item, Unmatched champion (linked) and a System block (as an item): all 4 applied', r.applied.length === 4 && r.errors.length === 0, r.errors);
+  check('each section now reads In Academy, origin manual', [bul, blade, ez, sys].every((c) => effectiveClassification(c, ds).status === 'IN_ACADEMY' && effectiveClassification(c, ds).origin === 'manual'));
+  check('the stored decision records the match-independent source key and the time', ds.sectionReview[sectionKeyOf(bul)].classification.sourceKey === 'item:bulwarkofthemountain' && ds.sectionReview[sectionKeyOf(bul)].classification.at === T);
+  check('the original Riot source, normalized data, provenance, IDs and every review state are untouched', JSON.stringify(ds.changes.map((c) => [c.changeId, c.originalSourceText, c.normalizedData, c.provenance, c.entity, c.system, c.review])) === JSON.stringify(before.changes.map((c) => [c.changeId, c.originalSourceText, c.normalizedData, c.provenance, c.entity, c.system, c.review])));
+  check('NOT published by the move (all still pending; nothing new on the public view)', JSON.stringify(pub(ds)) === JSON.stringify(pub(before)));
+  check('Ezreal linked to the real champion record "ezreal" (portrait + ability icons resolve): championId in the derived entry', draft(ds).championChanges.find((e) => e.championName === 'Ezreal').championId === 'ezreal');
+  check('the System block now has type "item" recorded on the decision (its own extraction has none)', ds.sectionReview[sectionKeyOf(sys)].classification.type === 'item' && !('type' in ds.sectionReview[sectionKeyOf(bul)].classification));
+
+  const keepAll = applyReviewOps(ds, find(ds, /^Bulwark/).map((c) => ({ op: 'keep', changeId: c.changeId })), { now: T });
+  const p = pub(ds).itemChanges.find((e) => e.itemName === 'Bulwark of the Mountain');
+  check('after an explicit Keep: published under Items with its Riot description intact', keepAll.applied.length === 2 && p && /Shield: 120 → 140/.test(p.whatChanged) && p.changes.length === 2);
+
+  const errs = (ops) => applyReviewOps(clone(ds), ops, { now: T, catalog: CATALOG }).errors.map((e) => e.error);
+  check('refused: an entity already In Academy automatically (nothing to move)', /already In Academy automatically/.test(errs([op(sectionKeyOf(ard))])[0] || ''));
+  check('refused: changing the type of an entity Riot filed under a typed section', /type comes from Riot/.test(errs([op(sectionKeyOf(bul), { type: 'champion' })])[0] || ''));
+  check('refused: a System block without a type', /type \(champion, item or rune\) is required/.test(errs([op(sectionKeyOf(sys), { type: undefined })])[0] || '') || /type/.test(errs([{ op: 'setSectionClassification', sectionKey: sectionKeyOf(sys), status: 'IN_ACADEMY' }])[0] || ''));
+  check('refused: a link to an id that is not in the catalog (or not of that type)', /not a item/.test(errs([op(sectionKeyOf(bul), { academyId: 'ezreal' })])[0] || '') && /not a champion/.test(errs([op(sectionKeyOf(ez), { academyId: 'nope' })])[0] || ''));
+  check('refused: a link when no catalog is provided', applyReviewOps(clone(ds), [op(sectionKeyOf(bul), { academyId: 'ardent-censer' })], { now: T }).errors.length === 1);
+  check('refused: unknown section, unknown status', /unknown sectionKey/.test(errs([op('entity:item:nope')])[0]) && /status must be/.test(errs([{ op: 'setSectionClassification', sectionKey: sectionKeyOf(bul), status: 'MAYBE' }])[0]));
+  const forged = clone(build(ALL_PATHS_PAGE));
+  applyReviewOps(forged, [op(sectionKeyOf(find(forged, /^Bulwark/)[0]), { origin: 'rule', ruleKey: 'item:x' })], { now: T, catalog: CATALOG });
+  check('a client cannot claim the "remembered rule" origin: recorded as manual', forged.sectionReview[sectionKeyOf(find(forged, /^Bulwark/)[0])].classification.origin === 'manual' && !('ruleKey' in forged.sectionReview[sectionKeyOf(find(forged, /^Bulwark/)[0])].classification));
+
+  const twice = build(ALL_PATHS_PAGE);
+  applyReviewOps(twice, [op(sectionKeyOf(find(twice, /^Bulwark/)[0])), op(sectionKeyOf(find(twice, /^Bulwark/)[0]))], { now: T, catalog: CATALOG });
+  check('the same move twice: one decision, one entry -- no duplicate entries', draft(twice).itemChanges.filter((e) => e.itemName === 'Bulwark of the Mountain').length === 1 && Object.keys(twice.sectionReview).length === 1);
+
+  const rune = build(RUNE_PAGE, '9.4');
+  const rr = applyReviewOps(rune, [op(sectionKeyOf(rune.changes[0]))], { now: T, catalog: CATALOG });
+  check('a rune: an unmatched rune moves to In Academy and is listed with runes', rr.applied.length === 1 && draft(rune).runeChanges[0].runeName === 'Mystic Echo' && draft(rune).runeChanges[0].academyStatus === 'IN_ACADEMY');
+}
+{
+  // REVERSAL restores the automatic result exactly
+  const fresh = build(ALL_PATHS_PAGE);
+  const ds = build(ALL_PATHS_PAGE);
+  const bul = find(ds, /^Bulwark/)[0];
+  applyReviewOps(ds, [op(sectionKeyOf(bul))], { now: T, catalog: CATALOG });
+  applyReviewOps(ds, [{ op: 'setSectionClassification', sectionKey: sectionKeyOf(bul), status: null }], { now: T });
+  check('revert (status null): the automatic classification is back -- derived view identical to never having moved it', JSON.stringify(draft(ds)) === JSON.stringify(draft(fresh)) && effectiveClassification(bul, ds).status === 'UNMATCHED');
+  check('...and the decision is gone (an otherwise-empty section entry is removed, not left behind)', !ds.sectionReview[sectionKeyOf(bul)]);
+  applyReviewOps(ds, [{ op: 'impactSection', sectionKey: sectionKeyOf(bul), changeImpact: 'HIGH' }, op(sectionKeyOf(bul)), { op: 'setSectionClassification', sectionKey: sectionKeyOf(bul), status: '' }], { now: T, catalog: CATALOG });
+  check('...a revert keeps the section\'s other review settings (impact HIGH)', ds.sectionReview[sectionKeyOf(bul)].changeImpact === 'HIGH' && !ds.sectionReview[sectionKeyOf(bul)].classification);
+  applyReviewOps(ds, [{ op: 'setSectionClassification', sectionKey: sectionKeyOf(bul), status: 'AUTO' }], { now: T });
+  check('"AUTO" is stored (meaning: ignore a remembered rule in this patch) and reads as the automatic result', ds.sectionReview[sectionKeyOf(bul)].classification.status === 'AUTO' && effectiveClassification(bul, ds).status === 'UNMATCHED');
+  // the decision survives a rescan (sectionReview is carried by stable section key)
+  const rescanned = mergeReviewState(build(ALL_PATHS_PAGE), (() => { const d = build(ALL_PATHS_PAGE); applyReviewOps(d, [op(sectionKeyOf(find(d, /^Bulwark/)[0]))], { now: T, catalog: CATALOG }); return d; })());
+  check('the decision survives a rescan of the same patch', effectiveClassification(find(rescanned, /^Bulwark/)[0], rescanned).status === 'IN_ACADEMY');
+}
+
+// ======================================================================================================================
+console.log('\n=== Stage 4.2: end to end through the real admin + public handlers (fake KV): detect -> move -> reload -> publish -> rescan -> revert ===');
+function makeMockKV() {
+  const store = new Map();
+  return { store, async get(k) { if (this.__failGet && this.__failGet(k)) throw new Error('simulated KV GET failure'); return store.has(k) ? store.get(k) : null; }, async put(k, v) { if (this.__failPut && this.__failPut(k)) throw new Error('simulated KV PUT failure'); store.set(k, String(v)); }, async delete(k) { store.delete(k); }, async list({ prefix = '' } = {}) { return { keys: [...store.keys()].filter((k) => k.startsWith(prefix)).sort().map((name) => ({ name })), list_complete: true, cursor: null }; } };
+}
+const SLUG = 'wild-rift-patch-notes-9-5';
+const E2E_PAGE = `# Wild Rift Patch Notes 9.5\n\n## CHAMPION ADJUSTMENTS\n\n### Ezreal\n\n- Base Health: 600 → 620\n\n## ITEM ADJUSTMENTS\n\n### Bulwark of the Mountain\n\n- Shield: 120 → 140\n- Health: 300 → 350\n\n### Ardent Censer\n\n- Attack Speed: 20% → 25%\n`;
+async function e2eSetup(page = E2E_PAGE, slug = SLUG) {
+  const kv = makeMockKV();
+  await KVS.mutateOverrides(kv, { operation: 'seed', source: 'test', mutate: () => ({ champions: {}, items: {}, runes: {}, decisionTrees: {}, patch: '9.4', verifiedPatch: '9.4', patchStatus: null }) });
+  await kv.put('riot-latest-patch-meta', JSON.stringify({ slug }));
+  await kv.put(`riot-fallback-full-content:${slug}:${SOURCE_TEXT_VERSION}`, JSON.stringify({ content: page, truncated: false }));
+  const env = { COACH_KV: kv, ADMIN_SESSION_SECRET: 'test-secret' };
+  const cookie = `academy_admin_session=${await createSessionToken(env)}`;
+  const post = async (url, body, handler) => { const res = await handler({ request: new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify(body) }), env }); return { status: res.status, body: await res.json() }; };
+  const reports = (body) => post('https://x/api/admin/patch-reports', { id: slug, ...body }, reportsPost);
+  const check_ = (body) => post('https://x/api/admin/patch-check', body, checkPost);
+  const getRev = async (revision) => (await (await reportsGet({ request: new Request(`https://x/api/admin/patch-reports?id=${slug}&revision=${revision}`, { headers: { Cookie: cookie } }), env })).json()).report;
+  const publicView = async () => (await (await publicGet({ request: new Request('https://x/api/patch-reports'), env })).json()).reports.find((r) => r.id === slug);
+  return { kv, env, cookie, reports, check: check_, getRev, publicView };
+}
+const sk = (report, re) => sectionKeyOf(report.patchNotes.changes.find((c) => re.test(c.entity ? c.entity.name : c.system.area)));
+const idsOf = (report, re) => report.patchNotes.changes.filter((c) => re.test(c.entity ? c.entity.name : c.system.area)).map((c) => c.changeId);
+{
+  const A = await e2eSetup();
+  const d = await A.check({ trigger: 'manual' });
+  check('1. Check for New Patch: detected, revision 1 pending review, Bulwark UNMATCHED', d.body.ok && d.body.status === 'pending_review' && d.body.report.patchNotes.changes.some((c) => c.entity && c.entity.name === 'Bulwark of the Mountain' && c.entity.status === 'UNMATCHED'));
+  const r1 = await A.getRev(1);
+  const mv = await A.reports({ action: 'review', revision: 1, ops: [{ op: 'setSectionClassification', sectionKey: sk(r1, /^Bulwark/), status: 'IN_ACADEMY' }, { op: 'setSectionClassification', sectionKey: sk(r1, /^Ezreal/), status: 'IN_ACADEMY', academyId: 'ezreal' }] });
+  check('2. Move to In Academy (Bulwark unlinked, Ezreal linked to the real champion): accepted', mv.status === 200 && mv.body.applied.length === 2, mv.body);
+  const reloaded = await A.getRev(1);
+  check('3. reload: the decisions are persisted in the revision, with origin manual', reloaded.patchNotes.sectionReview[sk(reloaded, /^Bulwark/)].classification.status === 'IN_ACADEMY' && reloaded.patchNotes.sectionReview[sk(reloaded, /^Ezreal/)].classification.academyId === 'ezreal');
+  check('...the stored admin entries show it (academyStatus IN_ACADEMY, Ezreal championId "ezreal"); the summary counts 3 changes (2 Bulwark + 1 Ezreal) as classified by decision', reloaded.itemChanges.find((e) => e.itemName === 'Bulwark of the Mountain').academyStatus === 'IN_ACADEMY' && reloaded.championChanges.find((e) => e.championName === 'Ezreal').championId === 'ezreal' && reloaded.patchNotesSummary.academy.byDecision === 3, { item: reloaded.itemChanges.find((e) => e.itemName === 'Bulwark of the Mountain')?.academyStatus, ez: reloaded.championChanges.find((e) => e.championName === 'Ezreal')?.championId, academy: reloaded.patchNotesSummary.academy });
+  check('...Riot\'s original text is unchanged in storage', reloaded.patchNotes.changes.find((c) => c.entity && c.entity.name === 'Bulwark of the Mountain').originalSourceText === '- Shield: 120 → 140');
+  await A.reports({ action: 'approve', revision: 1 }); const pub1 = await A.reports({ action: 'publish', revision: 1 });
+  const v1 = await A.publicView();
+  check('4. published WITHOUT a Keep: Bulwark and Ezreal are NOT on the public page (classification never publishes); Ardent Censer is', pub1.status === 200 && !v1.itemChanges.some((e) => e.itemName === 'Bulwark of the Mountain') && !v1.championChanges.some((e) => e.championName === 'Ezreal') && v1.itemChanges.some((e) => e.itemId === 'ardent-censer'));
+  const keyBefore = A.kv.store.get(`patch-intel:report:${SLUG}:1`);
+  const live = await A.reports({ action: 'review', revision: 1, ops: [{ op: 'setSectionClassification', sectionKey: sk(r1, /^Bulwark/), status: null }] });
+  check('5. classification on the LIVE (published) revision is refused (409 CLASSIFICATION_ON_PUBLISHED) and nothing is written', live.status === 409 && live.body.code === 'CLASSIFICATION_ON_PUBLISHED' && A.kv.store.get(`patch-intel:report:${SLUG}:1`) === keyBefore);
+  const keepOnLive = await A.reports({ action: 'review', revision: 1, ops: [{ op: 'impactSection', sectionKey: sk(r1, /^Ardent/), changeImpact: 'LOW' }] });
+  check('...other review operations on the live revision behave exactly as before (accepted)', keepOnLive.status === 200);
+  const again = await A.check({ trigger: 'manual' });
+  check('6. Check for New Patch again: "no new patch", nothing rewritten, the decisions are still there', again.body.ok && again.body.newPatch === false && (await A.getRev(1)).patchNotes.sectionReview[sk(r1, /^Bulwark/)].classification.status === 'IN_ACADEMY');
+  const rs = await A.check({ action: 'rescan', patchId: SLUG });
+  const r2 = await A.getRev(2);
+  check('7. Re-scan: revision 2 (draft) carries both decisions; the published revision 1 is untouched', rs.body.ok && rs.body.revision === 2 && effectiveClassification(r2.patchNotes.changes.find((c) => c.entity && c.entity.name === 'Bulwark of the Mountain'), r2.patchNotes).status === 'IN_ACADEMY' && r2.patchNotes.sectionReview[sk(r2, /^Ezreal/)].classification.academyId === 'ezreal' && (await A.getRev(1)).status === 'published');
+  check('...no duplicate entities after detection + rescan (one Bulwark, one Ezreal)', r2.itemChanges.filter((e) => e.itemName === 'Bulwark of the Mountain').length === 1 && r2.championChanges.filter((e) => e.championName === 'Ezreal').length === 1 && r2.patchNotes.changes.length === r1.patchNotes.changes.length);
+  const kp = await A.reports({ action: 'review', revision: 2, ops: [...idsOf(r2, /^Bulwark/), ...idsOf(r2, /^Ezreal/)].map((changeId) => ({ op: 'keep', changeId })) });
+  await A.reports({ action: 'approve', revision: 2 }); await A.reports({ action: 'publish', revision: 2 });
+  const v2 = await A.publicView();
+  const pb = v2.itemChanges.find((e) => e.itemName === 'Bulwark of the Mountain'); const pe = v2.championChanges.find((e) => e.championName === 'Ezreal');
+  check('8. after Keep + publish: Bulwark under Items, Ezreal under Champions with championId "ezreal"', kp.status === 200 && Boolean(pb) && pe && pe.championId === 'ezreal');
+  check('9. the patch description is preserved on the public page (both Bulwark lines, as Riot wrote them)', pb && JSON.stringify(pb.subsections.flatMap((x) => x.changes.map((c) => c.text))) === JSON.stringify(['Shield: 120 → 140', 'Health: 300 → 350']));
+  check('...and the public entry carries no review metadata', pb && !('academyStatus' in pb) && !('academyLink' in pb) && !('sectionKeys' in pb));
+  await A.check({ action: 'rescan', patchId: SLUG });
+  const r3 = await A.getRev(3);
+  const rv = await A.reports({ action: 'review', revision: 3, ops: [{ op: 'setSectionClassification', sectionKey: sk(r3, /^Bulwark/), status: null }] });
+  const r3b = await A.getRev(3);
+  check('10. reversal on a draft: Bulwark is back to its automatic classification (Unmatched); Ezreal is unaffected', rv.status === 200 && effectiveClassification(r3b.patchNotes.changes.find((c) => c.entity && c.entity.name === 'Bulwark of the Mountain'), r3b.patchNotes).status === 'UNMATCHED' && effectiveClassification(r3b.patchNotes.changes.find((c) => c.entity && c.entity.name === 'Ezreal'), r3b.patchNotes).status === 'IN_ACADEMY');
+  check('...its Keep decision is a separate (publication) decision and stays as it was', r3b.patchNotes.changes.filter((c) => c.entity && c.entity.name === 'Bulwark of the Mountain').every((c) => c.review.state === 'kept'));
+  check('...and the live public page (revision 2) did not change', JSON.stringify(await A.publicView()) === JSON.stringify(v2));
 }
 
 done();

@@ -44,7 +44,15 @@ import { mutateOverrides } from "../../_lib/kvSafety.js";
 import { applyReviewOps, applyCoachFieldEdits, deriveLegacyReport, mergeFreshOntoExisting, reviewSummary } from "../../_lib/patchNotesReview.js";
 import { publicPreview } from "../../_lib/patchNotesPublic.js";
 import { ITEMS } from "../../../src/data/items.js";
+import { CHAMPIONS } from "../../../src/data/champions.js";
+import { RUNES } from "../../../src/data/runes.js";
 import { resolveEffectiveItem } from "../../../src/lib/effectiveData.js";
+
+/** Canonical ids a "Move to In Academy" link may name: the full catalog of each type (incl. champions Academy does not coach --
+ *  an uncoached champion such as Ezreal is still a real record with a portrait and ability icons). */
+function academyCatalog() {
+  return { champion: new Set(CHAMPIONS.map((c) => c.id)), item: new Set(ITEMS.map((i) => i.id)), rune: new Set(RUNES.map((r) => r.id)) };
+}
 
 // Server-side approval gate for publish/restore. A revision can only become
 // public if a human already approved it -- or it has already been public
@@ -158,7 +166,12 @@ export async function onRequestPost(context) {
       return json({ error: "This revision predates Patch Notes review (it has no extracted change dataset). Re-scan the patch to generate one.", code: "NO_PATCH_NOTES_DATASET" }, 409);
     }
     const ops = Array.isArray(body?.ops) ? body.ops.slice(0, 500) : [];
-    const { dataset, applied, errors } = applyReviewOps(target.patchNotes, ops);
+    // Classification decisions never change the revision visitors currently see: on the PUBLISHED revision they are refused
+    // outright (nothing is written) -- they belong on a draft revision (Re-scan creates one), which goes live only when published.
+    if (target.status === "published" && ops.some((o) => o && o.op === "setSectionClassification")) {
+      return json({ error: "This revision is live on the public Patch Notes page, so its Academy classification can't be changed here. Re-scan the patch to create a draft revision, change the classification there, then publish it. Nothing was changed.", code: "CLASSIFICATION_ON_PUBLISHED" }, 409);
+    }
+    const { dataset, applied, errors } = applyReviewOps(target.patchNotes, ops, { catalog: academyCatalog() });
     if (!applied.length) return json({ error: "No valid review operation was applied.", errors }, 400);
     const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
     const legacy = mergeFreshOntoExisting(deriveLegacyReport(dataset, { itemRoster, mode: "draft" }), target);

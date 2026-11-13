@@ -41,7 +41,7 @@ import { normalizeChangeEntry, normalizeSystemChangeEntry, mergeDuplicateEntitie
 import { normName } from "./patchNotesIds.js";
 import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel, normalizeScope, isAbilityScope, SUBSECTION_SCOPE_OPTIONS, normalizeVisualOverride, effectiveVisual, defaultVisualForScope, VISUAL } from "../../src/lib/patchNotesPresentation.js";
 import { classifyChangeScope } from "./patchChangeScope.js";
-import { sectionKeyOf, sourceNameOf, matchResultOf, effectiveClassification, isAutoInAcademy, ACADEMY_STATUS, DECISION_ORIGIN, ENTITY_TYPES } from "../../src/lib/patchNotesClassification.js";
+import { sectionKeyOf, sourceNameOf, sourceKeyOf, matchResultOf, effectiveClassification, autoAcademyStatus, isAutoInAcademy, ACADEMY_STATUS, DECISION_ORIGIN, ENTITY_TYPES } from "../../src/lib/patchNotesClassification.js";
 
 export const REVIEW_STATE = Object.freeze({ PENDING: "pending", KEPT: "kept", EDITED: "edited", REMOVED: "removed", REJECTED: "rejected" });
 export const SECTION_STATE = Object.freeze({ VISIBLE: "visible", REMOVED: "removed", REJECTED: "rejected" });
@@ -215,13 +215,24 @@ const cleanStr = (v, max) => (typeof v === "string" ? v.replace(/\u0000/g, "").s
  *   { op:"setSubsectionScope", subsectionKey, scope }       ABILITY|PASSIVE|BASE_STATS|CHAMPION_MECHANIC, null/"" = back to what the extraction found
  *   { op:"setSubsectionVisual", subsectionKey, visual }     SHOW|HIDE, null/""/AUTO = Auto (the scope's default decides whether the section shows its icon)
  *   { op:"setSummary", text } / { op:"clearSummary" }       the public patch summary override (cleared => generated from the visible data)
+ *   { op:"setSectionClassification", sectionKey, status, type?, academyId? }
+ *        status "IN_ACADEMY" = move the section's entity into Academy (classification only: no change's review state is touched, so
+ *        nothing is published by it); "AUTO" = use the automatic result in this patch even if a remembered rule exists; null/"" = no
+ *        decision (back to the automatic result / the remembered rule). `type` (champion|item|rune) only for a System block or an
+ *        owner with no derivable type -- otherwise the type is Riot's own section's. `academyId` (optional) links a canonical record of
+ *        that type and must exist in `catalog`. See src/lib/patchNotesClassification.js.
  * Returns { dataset, applied, errors }. Only review fields are ever written; any
  * originalSourceText / normalizedData / provenance key in an op is ignored by construction.
+ * options.catalog: { champion: Set(id), item: Set(id), rune: Set(id) } -- canonical ids an `academyId` may name.
+ * options.allowRuleOrigin: only the server (after writing the remembered rule itself) may record origin "rule"; a client-sent
+ *   origin / ruleKey is otherwise ignored.
  */
-export function applyReviewOps(dataset, ops, { now = new Date().toISOString() } = {}) {
+export function applyReviewOps(dataset, ops, { now = new Date().toISOString(), catalog = null, allowRuleOrigin = false } = {}) {
   initReview(dataset);
   const byId = new Map((dataset.changes || []).concat(dataset.orphanedChanges || []).map((c) => [c.changeId, c]));
   const sections = new Set((dataset.changes || []).map(sectionKeyOf));
+  const firstOfSection = new Map();
+  for (const c of dataset.changes || []) if (!firstOfSection.has(sectionKeyOf(c))) firstOfSection.set(sectionKeyOf(c), c);
   const subsections = new Set((dataset.changes || []).filter((c) => subsectionOf(c)).map(subsectionKeyOf));
   const applied = []; const errors = [];
   for (const op of Array.isArray(ops) ? ops : []) {
@@ -257,6 +268,38 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString() } 
       if (t === null) { errors.push({ op, error: "summary text must be a string" }); continue; }
       if (t.trim()) dataset.summaryReview = { text: t.trim(), reviewedAt: now };
       else delete dataset.summaryReview;
+      applied.push(op.op);
+      continue;
+    }
+    if (op.op === "setSectionClassification") {
+      const first = firstOfSection.get(op.sectionKey);
+      if (!first) { errors.push({ op, error: "unknown sectionKey" }); continue; }
+      const clear = op.status === null || op.status === undefined || op.status === "";
+      const status = clear ? null : String(op.status).trim().toUpperCase();
+      if (!clear && status !== ACADEMY_STATUS.IN_ACADEMY && status !== "AUTO") { errors.push({ op, error: "status must be IN_ACADEMY, AUTO or null (no decision)" }); continue; }
+      const entry = { ...(dataset.sectionReview[op.sectionKey] || {}) };
+      if (clear) {
+        delete entry.classification;
+      } else {
+        const origin = allowRuleOrigin && op.origin === DECISION_ORIGIN.RULE ? DECISION_ORIGIN.RULE : DECISION_ORIGIN.MANUAL;
+        const decision = { status, sourceKey: sourceKeyOf(first), origin, at: now };
+        if (origin === DECISION_ORIGIN.RULE && typeof op.ruleKey === "string") decision.ruleKey = op.ruleKey;
+        if (status === ACADEMY_STATUS.IN_ACADEMY) {
+          const ownType = first.kind === "entity" && ENTITY_TYPES.includes(first.entity.type) ? first.entity.type : null;
+          const type = op.type === undefined || op.type === null || op.type === "" ? null : String(op.type).trim().toLowerCase();
+          if (ownType && type && type !== ownType) { errors.push({ op, error: `type comes from Riot's own section here (${ownType}); it can only be chosen for a System block or an owner with no type` }); continue; }
+          if (!ownType && !ENTITY_TYPES.includes(type)) { errors.push({ op, error: "type (champion, item or rune) is required to move a System block or an untyped owner into Academy" }); continue; }
+          const effectiveType = ownType || type;
+          const academyId = op.academyId === undefined || op.academyId === null || op.academyId === "" ? null : String(op.academyId);
+          if (academyId && !(catalog && catalog[effectiveType] && catalog[effectiveType].has(academyId))) { errors.push({ op, error: `academyId "${academyId}" is not a ${effectiveType} in the Academy catalog` }); continue; }
+          if (autoAcademyStatus(first) === ACADEMY_STATUS.IN_ACADEMY && !academyId) { errors.push({ op, error: "this entity is already In Academy automatically (matched to its Academy record)" }); continue; }
+          if (!ownType) decision.type = effectiveType;
+          decision.academyId = academyId;
+        }
+        entry.classification = decision;
+      }
+      const { reviewedAt, ...rest } = entry;
+      if (Object.keys(rest).length) dataset.sectionReview[op.sectionKey] = { ...rest, reviewedAt: now }; else delete dataset.sectionReview[op.sectionKey];
       applied.push(op.op);
       continue;
     }

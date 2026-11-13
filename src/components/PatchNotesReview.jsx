@@ -27,6 +27,65 @@ const FILTERS = [
 
 const sectionKey = sectionKeyOf;
 const sectionTitle = ownerNameOf;
+const TYPE_OPTIONS = [["champion", "Champion"], ["item", "Item"], ["rune", "Rune"]];
+const ORIGIN_NOTE = { manual: "your decision", rule: "remembered rule" };
+
+/** "Which bucket is this entity in?" -- one control for EVERY section (Unmatched, New candidate, System, any future bucket), driven by
+ *  the shared effective classification. Moving an entity into Academy is CLASSIFICATION ONLY: no change's Keep / Remove state is
+ *  touched, so nothing becomes public unless you Keep it (the second button does both, explicitly). On the live (published) revision
+ *  the server refuses classification changes, so the control is read-only there. */
+function ClassificationControl({ sectionKey: key, first, eff, allChanges, catalog, published, onOps, busy }) {
+  const ownType = first.kind === "entity" && TYPE_OPTIONS.some(([t]) => t === first.entity.type) ? first.entity.type : null;
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState(ownType || "");
+  const [link, setLink] = useState("");
+  const t = ownType || type;
+  const records = (t && catalog && catalog[`${t}s`]) || [];
+  const options = [...records].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const linkedName = eff.link ? ((catalog && catalog[`${eff.type}s`]) || []).find((e) => e.id === eff.link.id)?.name || eff.link.id : null;
+  const pending = allChanges.filter((c) => c.review.state === "pending");
+  const decided = eff.origin !== "auto";
+  const promote = (keepAll) => {
+    onOps([
+      { op: "setSectionClassification", sectionKey: key, status: "IN_ACADEMY", ...(ownType ? {} : { type }), ...(link ? { academyId: link } : {}) },
+      ...(keepAll ? pending.map((c) => ({ op: "keep", changeId: c.changeId })) : []),
+    ]);
+    setOpen(false);
+  };
+  return (
+    <>
+      <div className="pn-actions">
+        <span className="pn-label" style={{ margin: 0 }}>Academy classification:</span>
+        <b>{STATUS_LABEL[eff.status]}</b>
+        <span className="pn-count">{decided ? `${ORIGIN_NOTE[eff.origin]} · detected: ${STATUS_LABEL[eff.auto]}` : "detected automatically"}{eff.link ? ` · Academy record: ${linkedName}` : eff.status === "IN_ACADEMY" ? " · no Academy record linked" : ""}</span>
+        {published ? (
+          <span className="pn-count">This revision is live — re-scan to change its classification in a draft.</span>
+        ) : eff.status !== "IN_ACADEMY" ? (
+          <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setOpen((v) => !v)}><Check size={13} /> Move to In Academy</button>
+        ) : decided ? (
+          <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => onOps([{ op: "setSectionClassification", sectionKey: key, status: null }])}><RotateCcw size={13} /> Revert to detected ({STATUS_LABEL[eff.auto]})</button>
+        ) : null}
+      </div>
+      {open && !published && eff.status !== "IN_ACADEMY" && (
+        <div className="pn-actions">
+          {!ownType && (
+            <select className="pn-input" value={type} disabled={busy} aria-label="Entity type" onChange={(e) => { setType(e.target.value); setLink(""); }}>
+              <option value="">Type…</option>
+              {TYPE_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            </select>
+          )}
+          <select className="pn-input" value={link} disabled={busy || !t} aria-label="Academy record" onChange={(e) => setLink(e.target.value)}>
+            <option value="">No Academy record (not linked)</option>
+            {options.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          <button className="btn btn-primary btn-small" disabled={busy || !t} onClick={() => promote(false)}>Move to In Academy</button>
+          {pending.length > 0 && <button className="btn btn-ghost btn-small" disabled={busy || !t} onClick={() => promote(true)}>Move and Keep its {pending.length} pending change{pending.length === 1 ? "" : "s"}</button>}
+          <span className="pn-count">Classification only — its changes stay off the public page until you Keep them.</span>
+        </div>
+      )}
+    </>
+  );
+}
 
 function Chip({ children, color }) {
   return <span style={{ border: `1px solid ${color || "var(--line)"}`, color: color || "var(--text-dim)", borderRadius: 999, padding: "1px 8px", fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap" }}>{children}</span>;
@@ -133,7 +192,7 @@ function SubsectionHead({ subKey, riotHeading, displayHeading, scope, scopeExtra
   );
 }
 
-function Section({ title, sectionState, changes, eff, onOps, busy, defaultOpen, preview, subsectionReview }) {
+function Section({ title, sectionState, changes, allChanges, eff, catalog, published, onOps, busy, defaultOpen, preview, subsectionReview }) {
   const [open, setOpen] = useState(Boolean(defaultOpen));
   const [editing, setEditing] = useState(false);
   const first = changes[0];
@@ -153,7 +212,7 @@ function Section({ title, sectionState, changes, eff, onOps, busy, defaultOpen, 
     <div className="pn-section" style={state !== "visible" ? { opacity: 0.65 } : undefined}>
       <div className="pn-section-head">
         <button className="pn-toggle" onClick={() => setOpen((v) => !v)}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />} <b>{sectionState.displayTitle || title}</b></button>
-        <Chip color={STATUS_COLOR[eff.status]}>{STATUS_LABEL[eff.status]}</Chip>
+        <span title={`Detected automatically: ${STATUS_LABEL[eff.auto]}`}><Chip color={STATUS_COLOR[eff.status]}>{STATUS_LABEL[eff.status]}{eff.origin === "manual" ? " · manual" : eff.origin === "rule" ? " · remembered" : ""}</Chip></span>
         <span className="pn-count">{changes.length} change{changes.length === 1 ? "" : "s"}{counts.pending ? ` · ${counts.pending} pending` : ""}</span>
         {state !== "visible" && <Chip color="var(--gold)">Section {state}</Chip>}
         <span className="pn-section-actions">
@@ -168,6 +227,7 @@ function Section({ title, sectionState, changes, eff, onOps, busy, defaultOpen, 
           )}
         </span>
       </div>
+      <ClassificationControl sectionKey={key} first={first} eff={eff} allChanges={allChanges || changes} catalog={catalog} published={published} onOps={onOps} busy={busy} />
       {editing && (
         <div className="pn-actions">
           <input type="text" className="pn-input" value={name} maxLength={300} onChange={(e) => setName(e.target.value)} aria-label="Section title" />
@@ -220,7 +280,7 @@ function SummaryEditor({ ds, preview, onOps, busy }) {
   );
 }
 
-export default function PatchNotesReview({ report, onOps, busy, initialFilter = "needs" }) {
+export default function PatchNotesReview({ report, onOps, busy, initialFilter = "needs", catalog = null }) {
   const ds = report.patchNotes;
   const [filter, setFilter] = useState(initialFilter);
   const [query, setQuery] = useState("");
@@ -249,7 +309,7 @@ export default function PatchNotesReview({ report, onOps, busy, initialFilter = 
         return eff.status === filter && !hidden;
       };
       const shown = all.filter(keep).filter((c) => !q || `${sectionTitle(c)} ${c.review.displayText} ${c.originalSourceText}`.toLowerCase().includes(q));
-      return { key: k, title: sectionTitle(all[0]), changes: shown, total: all.length, eff };
+      return { key: k, title: sectionTitle(all[0]), changes: shown, all, total: all.length, eff };
     }).filter((s) => s.changes.length > 0);
   }, [ds, ds.changes, ds.sectionReview, filter, query]);
 
@@ -281,7 +341,12 @@ export default function PatchNotesReview({ report, onOps, busy, initialFilter = 
         <input type="text" className="pn-input pn-search" placeholder="Search entity or text…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search changes" />
       </div>
       {sections.length === 0 && <p className="patch-entry-line">Nothing in this view.</p>}
-      {sections.map((s, i) => <Section key={s.key + filter} title={s.title} sectionState={sectionReview[s.key] || {}} changes={s.changes} eff={s.eff} onOps={onOps} busy={busy} defaultOpen={sections.length <= 3 && i === 0} preview={preview} subsectionReview={subsectionReview} />)}
+      {sections.map((s, i) => <Section key={s.key + filter} title={s.title} sectionState={sectionReview[s.key] || {}} changes={s.changes} allChanges={s.all} eff={s.eff} catalog={catalog} published={report.status === "published"} onOps={onOps} busy={busy} defaultOpen={sections.length <= 3 && i === 0} preview={preview} subsectionReview={subsectionReview} />)}
+      {(ds.orphanedSectionReviews || []).length > 0 && (
+        <p className="patch-entry-line" style={{ color: "var(--gold)", fontSize: 13 }}>
+          <AlertTriangle size={13} style={{ verticalAlign: "-2px" }} /> {ds.orphanedSectionReviews.length} section-level review setting{ds.orphanedSectionReviews.length === 1 ? "" : "s"} (title, badge, impact or classification) no longer match{ds.orphanedSectionReviews.length === 1 ? "es" : ""} a section in this extraction, because the sections they belonged to could not be followed unambiguously. They are kept, not applied — re-apply them on the current sections if still wanted.
+        </p>
+      )}
       {(ds.orphanedChanges || []).length > 0 && (
         <>
           <h4 className="patch-section-label">No longer produced by the latest extraction ({ds.orphanedChanges.length})</h4>
