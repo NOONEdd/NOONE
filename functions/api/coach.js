@@ -54,7 +54,7 @@ import { fetchOverrides } from "../_lib/kv.js";
 import { detectChampionsInConversation } from "../_lib/detectChampion.js";
 import { detectItemsAndRunesInConversation } from "../_lib/detectItemsRunes.js";
 import { extractChampionContext, extractEnemyContext, extractDecisionTrees } from "../_lib/extractChampionContext.js";
-import { extractItemContext, extractRuneContext } from "../_lib/extractItemRuneContext.js";
+import { extractItemContext, extractRuneContext, extractUnverifiedEntities } from "../_lib/extractItemRuneContext.js";
 import { isAcademyDataSufficient, buildAcademyGroundedText, isAbilityDetailQuestion } from "../_lib/academyCoverage.js";
 import { getRiotPatchNotesFallback } from "../_lib/riotFallback.js";
 import { buildSystemPrompt } from "../_lib/buildPrompt.js";
@@ -114,8 +114,11 @@ export async function onRequestPost(context) {
   const championContext = championId ? extractChampionContext(championId, CHAMPIONS, overrides) : null;
   const enemyContext = enemyId ? extractEnemyContext(enemyId, CHAMPIONS, championContext) : null;
   const decisionTreeEntries = championId ? extractDecisionTrees(championId, overrides) : [];
+  // facts only from records whose mechanical data is verified; referenced records that are NOT (src/lib/dataQuality.js) are
+  // described by identity + relationships only, and make Academy insufficient for this question (Riot fallback eligible)
   const itemContext = extractItemContext(itemIds, ALL_ITEMS, overrides);
   const runeContext = extractRuneContext(runeIds, RUNES, overrides);
+  const unverifiedEntities = [...extractUnverifiedEntities(itemIds, ALL_ITEMS, "item"), ...extractUnverifiedEntities(runeIds, RUNES, "rune")];
 
   // Priority 2: an entity being found does NOT mean Academy's data about
   // it is sufficient for THIS question (e.g. "what's Redemption's
@@ -130,7 +133,7 @@ export async function onRequestPost(context) {
 
   const academyGroundedText = buildAcademyGroundedText({ championContext, itemContext, runeContext, decisionTreeEntries });
   const hasAnyGrounding = Boolean(championContext) || itemContext.length > 0 || runeContext.length > 0;
-  const academySufficient = isAcademyDataSufficient(question, hasAnyGrounding, academyGroundedText);
+  const academySufficient = isAcademyDataSufficient(question, hasAnyGrounding, academyGroundedText, { unverifiedEntities });
   const isAbilityQuestion = isAbilityDetailQuestion(question);
 
   let riotFallback = null;
@@ -145,7 +148,7 @@ export async function onRequestPost(context) {
     }
   }
 
-  const systemPrompt = buildSystemPrompt({ championContext, enemyContext, itemContext, runeContext, decisionTreeEntries, effectivePatch, patchDataStatus, riotFallback, isAbilityDetailQuestion: isAbilityQuestion });
+  const systemPrompt = buildSystemPrompt({ championContext, enemyContext, itemContext, runeContext, decisionTreeEntries, effectivePatch, patchDataStatus, riotFallback, isAbilityDetailQuestion: isAbilityQuestion, unverifiedEntities });
 
   // Log grounding results now, independent of whether the AI call below
   // succeeds -- so a request that fails at the provider still tells you
@@ -157,6 +160,7 @@ export async function onRequestPost(context) {
     enemyDetected: enemyId || null,
     itemsDetected: itemIds,
     runesDetected: runeIds,
+    unverifiedEntities: unverifiedEntities.map((e) => e.id),
     decisionTreeEntries: decisionTreeEntries.length,
     effectivePatch,
     academySufficient,

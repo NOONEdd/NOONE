@@ -108,13 +108,18 @@ export function hasSpecificFactGap(question, groundedText) {
  *
  * Order matters: a patch-change question is never answerable from
  * Academy regardless of grounding, checked first; then an ability-detail
- * question, which Academy structurally never covers at all; then "found
- * nothing at all" (the original, simpler check); then the keyword-gap
- * check against what WAS found.
+ * question, which Academy structurally never covers at all; then a
+ * question naming an entity whose mechanical data Academy has NOT verified
+ * (`unverifiedEntities`, see src/lib/dataQuality.js) -- Academy can't vouch
+ * for any fact about it, whatever else was grounded; then "found nothing
+ * at all" (the original, simpler check); then the keyword-gap check against
+ * what WAS found (which never contains an unverified record's text).
+ * `options` is optional: callers that pass nothing behave exactly as before.
  */
-export function isAcademyDataSufficient(question, hasAnyGrounding, groundedText) {
+export function isAcademyDataSufficient(question, hasAnyGrounding, groundedText, { unverifiedEntities = [] } = {}) {
   if (isPatchChangeQuestion(question)) return false;
   if (isAbilityDetailQuestion(question)) return false;
+  if (unverifiedEntities.length > 0) return false;
   if (!hasAnyGrounding) return false;
   if (hasSpecificFactGap(question, groundedText)) return false;
   return true;

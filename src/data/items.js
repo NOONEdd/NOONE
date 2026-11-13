@@ -111,11 +111,14 @@ export const ITEMS = [
 //   imageFallbackId  display only (src/utils/images.js): show the base item's art until the upgrade has its own image file.
 // `info` states only what an upgrade relationship is; add the real stats here (these records are not on the tier list, so
 // Coach Mode's on-page info editor does not reach them).
+//   dataStatus "unverified" (src/lib/dataQuality.js): their identity and relationships are real, their mechanical data is NOT
+//                    verified -- so the AI Coach never presents `info` as facts or uses it as evidence for a stat / number.
+//                    Remove the field from a record once real, sourced stats have been written into it.
 export const QUEST_ITEMS = [
-  { id: "relic-shield", name: "Relic Shield", category: "Support", tier: "Unranked", questItem: true, info: "Support quest starter item. Completing its quest upgrades it into Bulwark of the Mountain." },
-  { id: "spectral-sickle", name: "Spectral Sickle", category: "Support", tier: "Unranked", questItem: true, info: "Support quest starter item. Completing its quest upgrades it into Black Mist Scythe." },
-  { id: "bulwark-of-the-mountain", name: "Bulwark of the Mountain", category: "Support", tier: "Unranked", questItem: true, upgradeOf: "relic-shield", imageFallbackId: "relic-shield", info: "Upgraded form of Relic Shield, granted when the Relic Shield quest is completed. A separate item: its patch changes are not Relic Shield changes." },
-  { id: "black-mist-scythe", name: "Black Mist Scythe", category: "Support", tier: "Unranked", questItem: true, upgradeOf: "spectral-sickle", imageFallbackId: "spectral-sickle", info: "Upgraded form of Spectral Sickle, granted when the Spectral Sickle quest is completed. A separate item: its patch changes are not Spectral Sickle changes." },
+  { id: "relic-shield", name: "Relic Shield", category: "Support", tier: "Unranked", questItem: true, dataStatus: "unverified", info: "Support quest starter item. Completing its quest upgrades it into Bulwark of the Mountain." },
+  { id: "spectral-sickle", name: "Spectral Sickle", category: "Support", tier: "Unranked", questItem: true, dataStatus: "unverified", info: "Support quest starter item. Completing its quest upgrades it into Black Mist Scythe." },
+  { id: "bulwark-of-the-mountain", name: "Bulwark of the Mountain", category: "Support", tier: "Unranked", questItem: true, dataStatus: "unverified", upgradeOf: "relic-shield", imageFallbackId: "relic-shield", info: "Upgraded form of Relic Shield, granted when the Relic Shield quest is completed. A separate item: its patch changes are not Relic Shield changes." },
+  { id: "black-mist-scythe", name: "Black Mist Scythe", category: "Support", tier: "Unranked", questItem: true, dataStatus: "unverified", upgradeOf: "spectral-sickle", imageFallbackId: "spectral-sickle", info: "Upgraded form of Spectral Sickle, granted when the Spectral Sickle quest is completed. A separate item: its patch changes are not Spectral Sickle changes." },
 ];
 
 /** Every canonical Academy item record: name matching (Patch Notes, AI Coach), Academy links, images. NOT the Item Tier List. */

@@ -53,6 +53,16 @@ FACTS vs. REASONING -- keep these separate. You may reason and give strategic ad
  * of whether anything else was grounded (a champion outside Academy's
  * tracked roster, asked about by ability, still needs the reminder).
  *
+ * `unverifiedEntities` ({ type, name, relationships }[], from
+ * extractItemRuneContext.js's extractUnverifiedEntities) are entities the
+ * question names that Academy knows by identity and relationship only --
+ * their mechanical data is not verified (src/lib/dataQuality.js). They get
+ * their own explicitly labelled section with NO descriptive text, and a rule
+ * that forbids stating any number / stat / effect for them unless the Riot
+ * fallback states it -- otherwise the answer must say the data isn't
+ * available (Academy verified data -> authoritative Riot source -> explicit
+ * uncertainty).
+ *
  * Grounding data is entirely optional and independent -- a question can
  * name a champion, items/runes, both, or neither, and only the sections
  * that actually apply get appended. Every section here is already
@@ -69,9 +79,10 @@ export function buildSystemPrompt({
   patchDataStatus = "not_reviewed",
   riotFallback = null,
   isAbilityDetailQuestion = false,
+  unverifiedEntities = [],
 } = {}) {
   const hasAcademyData = championContext || itemContext.length > 0 || runeContext.length > 0;
-  const hasAnyData = hasAcademyData || riotFallback;
+  const hasAnyData = hasAcademyData || riotFallback || unverifiedEntities.length > 0;
   if (!hasAnyData && !isAbilityDetailQuestion) return BASE_INSTRUCTIONS;
 
   const lines = [BASE_INSTRUCTIONS];
@@ -122,6 +133,18 @@ export function buildSystemPrompt({
       lines.push("\nRune data (facts, plus Coach's note where one exists):");
       for (const line of runeContext) lines.push(`- ${line}`);
     }
+  }
+
+  if (unverifiedEntities.length > 0) {
+    lines.push(
+      "",
+      "--- Recognized by Nyx NOONEdd Academy, but WITHOUT verified stats or effects ---",
+      "Academy knows these by name and relationship only. Their stats, numbers and mechanical effects have NOT been verified, so nothing here is evidence for a number, a stat or an effect:"
+    );
+    for (const e of unverifiedEntities) lines.push(`- ${e.name} (${e.type})${e.relationships.length ? `: ${e.relationships.join("; ")}` : ""}`);
+    lines.push(
+      `Rules for the entries above: never state a number, stat, value or mechanical effect for them as fact -- not from Academy (it has none) and not from your own general knowledge, even with hedging language. Only the "Official Riot Wild Rift fallback" section, if one is provided below, may supply such a value, and only where it explicitly states it for that exact entity; say it comes from Riot's patch notes. Otherwise say plainly that verified data for it isn't available yet, suggest checking its in-game tooltip, and mention that a human coach can help through the Academy's Coaching page. You may still use the relationships above and give strategic advice that doesn't depend on its numbers.`
+    );
   }
 
   if (riotFallback) {
