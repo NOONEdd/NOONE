@@ -56,6 +56,7 @@ import { mergeFreshOntoExisting } from "../../_lib/patchNotesReview.js";
 import { saveNewReport, saveReanalysisRevision, updateReportRevision, getLatestReport, getLastKnownSlug, setLastKnownSlug } from "../../_lib/patchReportsStore.js";
 import { sendPatchNotification, sendSourceUnavailableNotification } from "../../_lib/notify.js";
 import { fetchOverrides } from "../../_lib/kv.js";
+import { readRules, activeRules, isUsable, academyCatalog } from "../../_lib/patchClassificationRules.js";
 import { logPatchIntelEvent } from "../../_lib/logger.js";
 import { resolveEffectiveChampion, resolveEffectiveItem, resolveEffectiveRune, resolveEffectivePatch } from "../../../src/lib/effectiveData.js";
 import { CHAMPIONS, isAcademyCovered } from "../../../src/data/champions.js";
@@ -136,6 +137,12 @@ async function analyzePatch({ kv, slug, overrides, logContext = {}, mergeOnto = 
   const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, overrides.items[i.id]));
   const runeRoster = RUNES.map((r) => resolveEffectiveRune(r, overrides.runes[r.id]));
 
+  // Remembered classification rules: read with certainty or not at all -- an unreadable registry is passed on as "unavailable"
+  // (the revision is flagged and earlier rule decisions are left exactly as they were), never as "no rules".
+  const rulesRead = await readRules(kv);
+  const classificationRules = { rules: isUsable(rulesRead) ? activeRules(rulesRead.doc) : null, available: isUsable(rulesRead), catalog: academyCatalog() };
+  logPatchIntelEvent({ stage: "classification_rules", slug, ...logContext, status: rulesRead.status, activeRules: classificationRules.rules ? classificationRules.rules.length : null });
+
   const startedAt = Date.now();
   logPatchIntelEvent({ stage: "analysis_start", slug, ...logContext, engineVersion: PATCH_INTEL_ENGINE_VERSION, startedAt: new Date(startedAt).toISOString() });
 
@@ -148,6 +155,7 @@ async function analyzePatch({ kv, slug, overrides, logContext = {}, mergeOnto = 
       patchContent: contentResult.content, championRoster, itemRoster, runeRoster,
       patchVersion: patchNumber, sourceUrl: contentResult.source,
       previousPatchNotes: (mergeOnto && mergeOnto.patchNotes) || null,
+      classificationRules,
     });
   } catch (err) {
     // Belt-and-braces: deterministic extraction has no I/O and no

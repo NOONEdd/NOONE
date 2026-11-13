@@ -41,18 +41,12 @@
 import { requireAdminSession } from "../../_lib/adminAuth.js";
 import { listAllReports, getReportRevision, getLatestReport, listRevisionsForPatch, updateReportRevision, publishRevision, unpublishReport, deletePatchCompletely } from "../../_lib/patchReportsStore.js";
 import { mutateOverrides } from "../../_lib/kvSafety.js";
-import { applyReviewOps, applyCoachFieldEdits, deriveLegacyReport, mergeFreshOntoExisting, reviewSummary } from "../../_lib/patchNotesReview.js";
+import { applyReviewOps, applyCoachFieldEdits, deriveLegacyReport, mergeFreshOntoExisting, reviewSummary, applyClassificationRules, sectionKeyOf } from "../../_lib/patchNotesReview.js";
 import { publicPreview } from "../../_lib/patchNotesPublic.js";
+import { readRules, activeRules, isUsable, mutateRules, upsertRule, forgetRule, academyCatalog } from "../../_lib/patchClassificationRules.js";
+import { rememberEligibility, sourceNameOf } from "../../../src/lib/patchNotesClassification.js";
 import { ITEMS } from "../../../src/data/items.js";
-import { CHAMPIONS } from "../../../src/data/champions.js";
-import { RUNES } from "../../../src/data/runes.js";
 import { resolveEffectiveItem } from "../../../src/lib/effectiveData.js";
-
-/** Canonical ids a "Move to In Academy" link may name: the full catalog of each type (incl. champions Academy does not coach --
- *  an uncoached champion such as Ezreal is still a real record with a portrait and ability icons). */
-function academyCatalog() {
-  return { champion: new Set(CHAMPIONS.map((c) => c.id)), item: new Set(ITEMS.map((i) => i.id)), rune: new Set(RUNES.map((r) => r.id)) };
-}
 
 // Server-side approval gate for publish/restore. A revision can only become
 // public if a human already approved it -- or it has already been public
@@ -165,22 +159,64 @@ export async function onRequestPost(context) {
     if (!target.patchNotes || !Array.isArray(target.patchNotes.changes)) {
       return json({ error: "This revision predates Patch Notes review (it has no extracted change dataset). Re-scan the patch to generate one.", code: "NO_PATCH_NOTES_DATASET" }, 409);
     }
-    const ops = Array.isArray(body?.ops) ? body.ops.slice(0, 500) : [];
+    // A client can never claim the "remembered rule" origin: those markers are set below, only after the rule itself was written.
+    const ops = (Array.isArray(body?.ops) ? body.ops.slice(0, 500) : []).map((o) => (o && typeof o === "object" ? (({ origin, ruleKey, ...rest }) => rest)(o) : o));
+    const classOps = ops.filter((o) => o && o.op === "setSectionClassification");
     // Classification decisions never change the revision visitors currently see: on the PUBLISHED revision they are refused
     // outright (nothing is written) -- they belong on a draft revision (Re-scan creates one), which goes live only when published.
-    if (target.status === "published" && ops.some((o) => o && o.op === "setSectionClassification")) {
+    if (target.status === "published" && classOps.length) {
       return json({ error: "This revision is live on the public Patch Notes page, so its Academy classification can't be changed here. Re-scan the patch to create a draft revision, change the classification there, then publish it. Nothing was changed.", code: "CLASSIFICATION_ON_PUBLISHED" }, 409);
     }
-    const { dataset, applied, errors } = applyReviewOps(target.patchNotes, ops, { catalog: academyCatalog() });
+    const catalog = academyCatalog();
+    let rulesDoc = null;
+    if (classOps.length) {
+      // 1. every classification op must be valid BEFORE anything is written (rules first, then the revision)
+      const trial = applyReviewOps(JSON.parse(JSON.stringify(target.patchNotes)), classOps, { catalog });
+      if (trial.errors.length) return json({ error: "Classification not applied -- nothing was changed.", errors: trial.errors }, 400);
+      // 2. "Remember for future patches" / "forget": only for normal, identifiable entity rows (server-enforced)
+      const firsts = new Map();
+      for (const c of target.patchNotes.changes) if (!firsts.has(sectionKeyOf(c))) firsts.set(sectionKeyOf(c), c);
+      const edits = [];
+      for (const o of classOps) {
+        const first = firsts.get(o.sectionKey);
+        const current = ((target.patchNotes.sectionReview || {})[o.sectionKey] || {}).classification;
+        if (o.remember === true) {
+          if (String(o.status || "").toUpperCase() !== "IN_ACADEMY") return json({ error: "\"Remember for future patches\" applies only to moving an entity into Academy. Nothing was changed." }, 400);
+          const elig = rememberEligibility(first);
+          if (!elig.ok) return json({ error: `This decision can't be remembered for future patches: ${elig.reason} Nothing was changed.`, code: "NOT_REMEMBERABLE" }, 400);
+          edits.push({ kind: "upsert", rule: { key: elig.key, type: first.entity.type, name: sourceNameOf(first), academyId: o.academyId || null, sourcePatch: target.patch || null, sourceSectionKey: o.sectionKey } });
+          o.origin = "rule"; o.ruleKey = elig.key;
+        } else if (o.forget === true) {
+          const key = current && current.origin === "rule" && current.ruleKey ? current.ruleKey : rememberEligibility(first).key;
+          if (key) edits.push({ kind: "forget", key });
+        }
+      }
+      if (edits.length) {
+        const res = await mutateRules(kv, (doc) => {
+          const now = new Date().toISOString();
+          for (const e of edits) { if (e.kind === "upsert") upsertRule(doc, e.rule, now); else forgetRule(doc, e.key, now); }
+          return doc;
+        });
+        if (!res.ok) return json({ error: `The remembered rules could not be updated safely (${res.code}). Nothing was changed -- try again.`, code: res.code }, 503);
+        rulesDoc = res.doc;
+      }
+    }
+    const { dataset, applied, errors } = applyReviewOps(target.patchNotes, ops, { catalog, allowRuleOrigin: true });
     if (!applied.length) return json({ error: "No valid review operation was applied.", errors }, 400);
+    // 3. keep this DRAFT revision in step with the remembered rules after a classification change (a rule just forgotten stops
+    //    applying here, a rule this patch no longer overrides applies again). Skipped -- changing nothing -- if the rules can't be read.
+    if (classOps.length) {
+      const read = rulesDoc ? { status: "OK", doc: rulesDoc } : await readRules(kv);
+      if (isUsable(read)) applyClassificationRules(dataset, { rules: activeRules(read.doc), available: true, catalog });
+    }
     const itemRoster = ITEMS.map((i) => resolveEffectiveItem(i, undefined));
     const legacy = mergeFreshOntoExisting(deriveLegacyReport(dataset, { itemRoster, mode: "draft" }), target);
     const updated = await updateReportRevision(kv, id, revision, {
       patchNotes: dataset, patchNotesSummary: { ...reviewSummary(dataset), validation: dataset.validation },
       championChanges: legacy.championChanges, itemChanges: legacy.itemChanges, runeChanges: legacy.runeChanges, systemChanges: legacy.systemChanges,
     });
-    if (!updated) return json({ error: "Failed to save the review." }, 500);
-    return json({ ok: true, applied, errors, report: withPublicPreview(updated) });
+    if (!updated) return json({ error: rulesDoc ? "Failed to save the review. The remembered rule WAS saved and applies from the next check or re-scan." : "Failed to save the review." }, 500);
+    return json({ ok: true, applied, errors, report: withPublicPreview(updated), ...(rulesDoc ? { rulesRevision: rulesDoc.revision } : {}) });
   }
 
   if (action === "edit") {

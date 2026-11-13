@@ -41,7 +41,7 @@ import { normalizeChangeEntry, normalizeSystemChangeEntry, mergeDuplicateEntitie
 import { normName } from "./patchNotesIds.js";
 import { CLASSIFICATION, normalizeClassification, classificationOrUnknown, classificationLabel, deriveEntityClassification, normalizeChangeImpact, changeImpactLabel, normalizeScope, isAbilityScope, SUBSECTION_SCOPE_OPTIONS, normalizeVisualOverride, effectiveVisual, defaultVisualForScope, VISUAL } from "../../src/lib/patchNotesPresentation.js";
 import { classifyChangeScope } from "./patchChangeScope.js";
-import { sectionKeyOf, sourceNameOf, sourceKeyOf, matchResultOf, effectiveClassification, autoAcademyStatus, isAutoInAcademy, ACADEMY_STATUS, DECISION_ORIGIN, ENTITY_TYPES } from "../../src/lib/patchNotesClassification.js";
+import { sectionKeyOf, sourceNameOf, sourceKeyOf, matchResultOf, effectiveClassification, autoAcademyStatus, isAutoInAcademy, ruleKeysForSection, ACADEMY_STATUS, DECISION_ORIGIN, ENTITY_TYPES } from "../../src/lib/patchNotesClassification.js";
 
 export const REVIEW_STATE = Object.freeze({ PENDING: "pending", KEPT: "kept", EDITED: "edited", REMOVED: "removed", REJECTED: "rejected" });
 export const SECTION_STATE = Object.freeze({ VISIBLE: "visible", REMOVED: "removed", REJECTED: "rejected" });
@@ -363,6 +363,46 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString(), c
 // A section review entry may carry only non-visibility fields (e.g. a classification decision, an impact rating): no `state`
 // means the section was never removed/rejected, i.e. visible.
 const sectionStateOf = (entry) => (entry && entry.state) || SECTION_STATE.VISIBLE;
+/**
+ * Snapshots the remembered classification rules into this dataset's review layer (functions/_lib/patchClassificationRules.js).
+ *   - a section with its OWN decision in this patch (origin "manual", including an explicit "AUTO") is never touched;
+ *   - a section an active rule matches (exactly one rule) and that is not already In Academy automatically gets
+ *     { status: IN_ACADEMY, origin: "rule", ruleKey, academyId? } -- a link whose record no longer exists is dropped (linkDropped);
+ *   - a rule-origin decision whose rule is gone (forgotten) or no longer needed (now matched automatically) is removed.
+ * `available: false` (the rules could not be read with certainty) changes NOTHING and flags the dataset, so an unreadable registry
+ * can never silently erase earlier rule decisions. Idempotent: re-applying the same rules leaves the dataset unchanged.
+ */
+export function applyClassificationRules(dataset, { rules = null, available = true, catalog = null, now = new Date().toISOString() } = {}) {
+  initReview(dataset);
+  if (!available || !Array.isArray(rules)) { dataset.classificationRules = { status: "unavailable", checkedAt: now }; return dataset; }
+  const byKey = new Map(rules.map((r) => [r.key, r]));
+  const firsts = new Map();
+  for (const c of dataset.changes || []) if (!firsts.has(sectionKeyOf(c))) firsts.set(sectionKeyOf(c), c);
+  let applied = 0; let removed = 0;
+  for (const [key, first] of firsts) {
+    const entry = { ...(dataset.sectionReview[key] || {}) };
+    const d = entry.classification;
+    if (d && d.origin !== DECISION_ORIGIN.RULE) continue; // this patch's own decision always wins
+    const hits = ruleKeysForSection(first).map((k) => byKey.get(k)).filter(Boolean);
+    const rule = hits.length === 1 && autoAcademyStatus(first) !== ACADEMY_STATUS.IN_ACADEMY ? hits[0] : null;
+    if (rule) {
+      const ownType = first.kind === "entity" && ENTITY_TYPES.includes(first.entity.type) ? first.entity.type : null;
+      const linkOk = Boolean(rule.academyId && catalog && catalog[rule.type] && catalog[rule.type].has(rule.academyId));
+      const next = { status: ACADEMY_STATUS.IN_ACADEMY, sourceKey: sourceKeyOf(first), origin: DECISION_ORIGIN.RULE, ruleKey: rule.key, academyId: linkOk ? rule.academyId : null, at: d && d.ruleKey === rule.key ? d.at : now };
+      if (!ownType) next.type = rule.type;
+      if (rule.academyId && !linkOk) next.linkDropped = rule.academyId;
+      entry.classification = next;
+      applied++;
+    } else if (d) {
+      delete entry.classification;
+      removed++;
+    } else continue;
+    if (Object.keys(entry).length) dataset.sectionReview[key] = entry; else delete dataset.sectionReview[key];
+  }
+  dataset.classificationRules = { status: "applied", activeRules: rules.length, appliedSections: applied, removedSections: removed, checkedAt: now };
+  return dataset;
+}
+
 export function isSectionVisible(dataset, change) {
   return sectionStateOf((dataset.sectionReview || {})[sectionKeyOf(change)]) === SECTION_STATE.VISIBLE;
 }

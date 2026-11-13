@@ -12,17 +12,21 @@
 
 import { parsePatchDocument } from "./patchParser.js";
 import { extractPatchNotes } from "./patchNotesExtract.js";
-import { mergeReviewState, initReview, deriveLegacyReport, reviewSummary } from "./patchNotesReview.js";
+import { mergeReviewState, initReview, deriveLegacyReport, reviewSummary, applyClassificationRules } from "./patchNotesReview.js";
 import { PATCH_INTEL_ENGINE_VERSION } from "./patchIntelligence.js";
 import { PATCH_INTEL_BATCH_MAX_CHARS } from "./config.js";
 
 export { PATCH_INTEL_ENGINE_VERSION };
 
 /** @returns {{ ok:true, report, patchNotes, engineVersion, pipelineStats, complete:true }} */
-export async function runPatchIntelAnalysis({ patchContent, championRoster, itemRoster, runeRoster, patchVersion = null, sourceUrl = null, extractedAt = new Date().toISOString(), previousPatchNotes = null }) {
+// `classificationRules` ({ rules, available, catalog }, from functions/_lib/patchClassificationRules.js, read by the caller): the
+// remembered "In Academy" rules are snapshotted into this revision AFTER the previous review is carried over, so this patch's own
+// decisions always win. Omitted (older callers / tests) = rules are not consulted at all.
+export async function runPatchIntelAnalysis({ patchContent, championRoster, itemRoster, runeRoster, patchVersion = null, sourceUrl = null, extractedAt = new Date().toISOString(), previousPatchNotes = null, classificationRules = null }) {
   const parsed = parsePatchDocument(patchContent, { maxUnitChars: PATCH_INTEL_BATCH_MAX_CHARS });
   const extracted = extractPatchNotes({ units: parsed.units, championRoster, itemRoster, runeRoster, patchVersion, sourceUrl, extractedAt });
   const patchNotes = previousPatchNotes ? mergeReviewState(extracted, previousPatchNotes) : initReview(extracted);
+  if (classificationRules) applyClassificationRules(patchNotes, { ...classificationRules, now: extractedAt });
   const legacy = deriveLegacyReport(patchNotes, { itemRoster, mode: "draft" });
 
   const categoryCounts = {};

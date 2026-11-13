@@ -10,6 +10,7 @@ const SEVERITY_COLOR = { Low: "var(--cyan)", Medium: "var(--gold)", High: "var(-
 const CONFIDENCE_COLOR = { Low: "var(--text-dimmer)", Medium: "var(--text-dim)", High: "var(--cyan)" };
 const REPORTS_URL = "/api/admin/patch-reports";
 const CHECK_URL = "/api/admin/patch-check";
+const RULES_URL = "/api/admin/patch-classification-rules";
 const KV_SAFETY_URL = "/api/admin/coach-overrides-backups";
 
 function SeverityChip({ severity }) {
@@ -1066,9 +1067,61 @@ export default function AdminPage({ auth, currentPatch, onUpdatePatch, patchStat
               ))}
             </div>
           )}
+
+          <RememberedRulesPanel refreshToken={refreshToken} roster={{ champions, items, runes }} />
         </div>
       </div>
     </section>
+  );
+}
+
+/** "Remember for future patches" decisions (functions/_lib/patchClassificationRules.js), in ONE place: what is remembered, since which
+ *  patch, linked to which Academy record -- and Forget. Forgetting never rewrites a revision; the rule simply stops applying from
+ *  the next check / re-scan (and from the next classification change on a draft). */
+function RememberedRulesPanel({ refreshToken, roster }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [busyKey, setBusyKey] = useState(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(RULES_URL, { credentials: "same-origin" });
+        const body = await res.json();
+        if (!cancelled) { if (res.ok) { setData(body); setError(null); } else setError(body.error || "Couldn't load the remembered classifications."); }
+      } catch { if (!cancelled) setError("Couldn't load the remembered classifications."); }
+    })();
+    return () => { cancelled = true; };
+  }, [refreshToken, tick]);
+  async function forget(key) {
+    setBusyKey(key);
+    try {
+      const res = await fetch(RULES_URL, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "forget", key }) });
+      const body = await res.json();
+      if (!res.ok) setError(body.error || "Forget failed.");
+      setTick((t) => t + 1);
+    } catch { setError("Forget failed."); } finally { setBusyKey(null); }
+  }
+  const linkName = (r) => { const list = (roster && roster[`${r.type}s`]) || []; const e = r.academyId ? list.find((x) => x.id === r.academyId) : null; return r.academyId ? (e ? e.name : r.academyId) : null; };
+  const rules = (data && data.rules) || [];
+  return (
+    <div className="pn-root" style={{ marginTop: 20 }}>
+      <h4 className="patch-section-label">Remembered classifications</h4>
+      <p className="patch-entry-line" style={{ color: "var(--text-dimmer)", fontSize: 13 }}>
+        Entities you moved into Academy with "Also apply to future patches". When a patch is checked or re-scanned, an entity Riot names exactly like this (same type) starts In Academy — its changes still need your Keep before they are public. Forgetting a rule never changes an existing revision; it stops applying from the next check or re-scan.
+      </p>
+      {error && <p className="coach-password-error">{error}</p>}
+      {data && rules.length === 0 && <p className="storage-note">Nothing remembered yet.</p>}
+      {rules.map((r) => (
+        <div className="pn-actions" key={r.key}>
+          <b>{r.name}</b>
+          <span className="pn-count">{r.type}{linkName(r) ? ` · Academy record: ${linkName(r)}` : " · no Academy record linked"}{r.sourcePatch ? ` · since patch ${r.sourcePatch}` : ""}</span>
+          <button className="btn btn-ghost btn-small" disabled={busyKey === r.key} onClick={() => forget(r.key)}><Trash2 size={13} /> Forget</button>
+        </div>
+      ))}
+      {data && data.forgotten && data.forgotten.length > 0 && <p className="storage-note">{data.forgotten.length} forgotten rule{data.forgotten.length === 1 ? "" : "s"} kept for the record.</p>}
+    </div>
   );
 }
 

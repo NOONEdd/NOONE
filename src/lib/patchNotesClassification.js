@@ -123,3 +123,28 @@ export function effectiveClassification(change, dataset) {
   }
   return { status: auto, origin: DECISION_ORIGIN.AUTO, auto, type: autoType, name, link: autoLink, decision: d };
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// REMEMBERED RULES (functions/_lib/patchClassificationRules.js): which sections a rule may be created from and applied to.
+// ---------------------------------------------------------------------------------------------------------------------------
+
+// System sections with no recognised category: the only System blocks where the extractor itself would accept an entity heading
+// (patchNotesExtract.js: "other" / preamble -> "overview" / "appendix"). Jungle, turrets, ARAM / live-service etc. never qualify.
+const RULE_SYSTEM_CATEGORIES = new Set(["other", "overview", "appendix"]);
+
+/** May a decision on this section be remembered for future patches? Only a normal, identifiable, typed entity row -- a System
+ *  block or an owner that can't be identified reliably is decided for the current patch only. */
+export function rememberEligibility(change) {
+  if (!change || change.kind !== "entity") return { ok: false, reason: "System changes are classified for this patch only." };
+  if (change.ownership && change.ownership.source === "unmatched") return { ok: false, reason: "This block's owner can't be identified reliably (its heading names several entities), so the decision applies to this patch only." };
+  if (!ENTITY_TYPES.includes(change.entity.type)) return { ok: false, reason: "Riot's section gives this entity no type, so the decision applies to this patch only." };
+  return { ok: true, key: sourceKeyOf(change) };
+}
+
+/** Rule keys that may apply to a section: its own source key for an eligible entity row; for a System block in an uncategorised
+ *  section, "<type>:<normalized heading>" for each type (a rule then applies only if exactly ONE of them exists). */
+export function ruleKeysForSection(change) {
+  if (change.kind === "entity") return rememberEligibility(change).ok ? [sourceKeyOf(change)] : [];
+  if (change.system && RULE_SYSTEM_CATEGORIES.has(change.system.category)) return ENTITY_TYPES.map((t) => `${t}:${normName(change.system.area)}`);
+  return [];
+}

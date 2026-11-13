@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, RotateCcw, Check, Trash2, Ban, AlertTriangle } from "lucide-react";
 import { CLASSIFICATION_OPTIONS, CHANGE_IMPACT_OPTIONS, SUBSECTION_SCOPE_OPTIONS, VISUAL_OVERRIDE_OPTIONS, normalizeVisualOverride, NO_CHANGES_TEXT, classificationLabel, normalizeClassification, normalizeChangeImpact, classificationOrUnknown, scopeLabel, normalizeScope } from "../lib/patchNotesPresentation.js";
-import { sectionKeyOf, ownerNameOf, effectiveClassification, isAutoInAcademy, ACADEMY_STATUS_LABEL } from "../lib/patchNotesClassification.js";
+import { sectionKeyOf, ownerNameOf, effectiveClassification, isAutoInAcademy, rememberEligibility, ACADEMY_STATUS_LABEL } from "../lib/patchNotesClassification.js";
 
 // Patch Notes review panel (admin).
 //
@@ -39,15 +39,22 @@ function ClassificationControl({ sectionKey: key, first, eff, allChanges, catalo
   const [open, setOpen] = useState(false);
   const [type, setType] = useState(ownType || "");
   const [link, setLink] = useState("");
+  const eligibility = rememberEligibility(first);
+  const [remember, setRemember] = useState(eligibility.ok);   // default ON where allowed: the decision then also applies to future patches
+  const [forget, setForget] = useState(true);                  // reverting a REMEMBERED decision: also stop applying it in future patches
   const t = ownType || type;
   const records = (t && catalog && catalog[`${t}s`]) || [];
   const options = [...records].sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const linkedName = eff.link ? ((catalog && catalog[`${eff.type}s`]) || []).find((e) => e.id === eff.link.id)?.name || eff.link.id : null;
   const pending = allChanges.filter((c) => c.review.state === "pending");
   const decided = eff.origin !== "auto";
+  const ruleIgnored = Boolean(eff.decision && eff.decision.status === "AUTO");
+  const revert = () => onOps([eff.origin === "rule"
+    ? (forget ? { op: "setSectionClassification", sectionKey: key, status: null, forget: true } : { op: "setSectionClassification", sectionKey: key, status: "AUTO" })
+    : { op: "setSectionClassification", sectionKey: key, status: null }]);
   const promote = (keepAll) => {
     onOps([
-      { op: "setSectionClassification", sectionKey: key, status: "IN_ACADEMY", ...(ownType ? {} : { type }), ...(link ? { academyId: link } : {}) },
+      { op: "setSectionClassification", sectionKey: key, status: "IN_ACADEMY", ...(ownType ? {} : { type }), ...(link ? { academyId: link } : {}), ...(remember && eligibility.ok ? { remember: true } : {}) },
       ...(keepAll ? pending.map((c) => ({ op: "keep", changeId: c.changeId })) : []),
     ]);
     setOpen(false);
@@ -57,13 +64,20 @@ function ClassificationControl({ sectionKey: key, first, eff, allChanges, catalo
       <div className="pn-actions">
         <span className="pn-label" style={{ margin: 0 }}>Academy classification:</span>
         <b>{STATUS_LABEL[eff.status]}</b>
-        <span className="pn-count">{decided ? `${ORIGIN_NOTE[eff.origin]} · detected: ${STATUS_LABEL[eff.auto]}` : "detected automatically"}{eff.link ? ` · Academy record: ${linkedName}` : eff.status === "IN_ACADEMY" ? " · no Academy record linked" : ""}</span>
+        <span className="pn-count">{decided ? `${ORIGIN_NOTE[eff.origin]} · detected: ${STATUS_LABEL[eff.auto]}` : ruleIgnored ? "remembered rule ignored in this patch" : "detected automatically"}{eff.link ? ` · Academy record: ${linkedName}` : eff.status === "IN_ACADEMY" ? " · no Academy record linked" : ""}{eff.decision && eff.decision.linkDropped ? ` · remembered link "${eff.decision.linkDropped}" no longer exists` : ""}</span>
         {published ? (
           <span className="pn-count">This revision is live — re-scan to change its classification in a draft.</span>
+        ) : ruleIgnored ? (
+          <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => onOps([{ op: "setSectionClassification", sectionKey: key, status: null }])}><RotateCcw size={13} /> Use the remembered rule again</button>
         ) : eff.status !== "IN_ACADEMY" ? (
           <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setOpen((v) => !v)}><Check size={13} /> Move to In Academy</button>
         ) : decided ? (
-          <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => onOps([{ op: "setSectionClassification", sectionKey: key, status: null }])}><RotateCcw size={13} /> Revert to detected ({STATUS_LABEL[eff.auto]})</button>
+          <>
+            {eff.origin === "rule" && (
+              <label className="pn-count"><input type="checkbox" checked={forget} disabled={busy} onChange={(e) => setForget(e.target.checked)} /> Also forget the remembered rule for future patches</label>
+            )}
+            <button className="btn btn-ghost btn-small" disabled={busy} onClick={revert}><RotateCcw size={13} /> Revert to detected ({STATUS_LABEL[eff.auto]})</button>
+          </>
         ) : null}
       </div>
       {open && !published && eff.status !== "IN_ACADEMY" && (
@@ -78,9 +92,13 @@ function ClassificationControl({ sectionKey: key, first, eff, allChanges, catalo
             <option value="">No Academy record (not linked)</option>
             {options.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
+          <label className="pn-count" title={eligibility.ok ? undefined : eligibility.reason}>
+            <input type="checkbox" checked={remember && eligibility.ok} disabled={busy || !eligibility.ok} onChange={(e) => setRemember(e.target.checked)} /> Also apply to future patches (remembered rule)
+          </label>
+          {!eligibility.ok && <span className="pn-count">{eligibility.reason}</span>}
           <button className="btn btn-primary btn-small" disabled={busy || !t} onClick={() => promote(false)}>Move to In Academy</button>
           {pending.length > 0 && <button className="btn btn-ghost btn-small" disabled={busy || !t} onClick={() => promote(true)}>Move and Keep its {pending.length} pending change{pending.length === 1 ? "" : "s"}</button>}
-          <span className="pn-count">Classification only — its changes stay off the public page until you Keep them.</span>
+          <span className="pn-count">Classification only — its changes stay off the public page until you Keep them.{remember && eligibility.ok ? " Remembered: future patches that name it exactly the same way start In Academy too (you can forget the rule any time)." : ""}</span>
         </div>
       )}
     </>
@@ -342,6 +360,11 @@ export default function PatchNotesReview({ report, onOps, busy, initialFilter = 
       </div>
       {sections.length === 0 && <p className="patch-entry-line">Nothing in this view.</p>}
       {sections.map((s, i) => <Section key={s.key + filter} title={s.title} sectionState={sectionReview[s.key] || {}} changes={s.changes} allChanges={s.all} eff={s.eff} catalog={catalog} published={report.status === "published"} onOps={onOps} busy={busy} defaultOpen={sections.length <= 3 && i === 0} preview={preview} subsectionReview={subsectionReview} />)}
+      {ds.classificationRules && ds.classificationRules.status === "unavailable" && (
+        <p className="patch-entry-line" style={{ color: "var(--gold)", fontSize: 13 }}>
+          <AlertTriangle size={13} style={{ verticalAlign: "-2px" }} /> The remembered classification rules could not be read when this revision was generated, so they were not applied (earlier remembered decisions were kept as they were). Re-scan to apply them.
+        </p>
+      )}
       {(ds.orphanedSectionReviews || []).length > 0 && (
         <p className="patch-entry-line" style={{ color: "var(--gold)", fontSize: 13 }}>
           <AlertTriangle size={13} style={{ verticalAlign: "-2px" }} /> {ds.orphanedSectionReviews.length} section-level review setting{ds.orphanedSectionReviews.length === 1 ? "" : "s"} (title, badge, impact or classification) no longer match{ds.orphanedSectionReviews.length === 1 ? "es" : ""} a section in this extraction, because the sections they belonged to could not be followed unambiguously. They are kept, not applied — re-apply them on the current sections if still wanted.

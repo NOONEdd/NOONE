@@ -6,7 +6,7 @@
 import { bundleModule, src } from './helpers/renderBundle.mjs';
 import { parsePatchDocument } from '../functions/_lib/patchParser.js';
 import { extractPatchNotes } from '../functions/_lib/patchNotesExtract.js';
-import { initReview, applyReviewOps, sectionKeyOf } from '../functions/_lib/patchNotesReview.js';
+import { initReview, applyReviewOps, sectionKeyOf, applyClassificationRules } from '../functions/_lib/patchNotesReview.js';
 import { CHAMPIONS, isAcademyCovered } from '../src/data/champions.js';
 import { ITEMS } from '../src/data/items.js';
 import { RUNES } from '../src/data/runes.js';
@@ -78,6 +78,21 @@ console.log('\n=== Orphaned section-level review settings are surfaced, not sile
   const ds = build();
   ds.orphanedSectionReviews = [{ sectionKey: 'entity:item:gone', review: { changeImpact: 'HIGH' } }];
   check('a notice explains 1 setting no longer matches a section (kept, not applied)', /1 section-level review setting .* no longer matches a section/.test(text(render(ds))));
+}
+
+console.log('\n=== Remembered rules in the panel ===');
+{
+  const ds = build();
+  applyClassificationRules(ds, { rules: [{ key: 'item:bulwarkofthemountain', type: 'item', name: 'Bulwark of the Mountain', status: 'IN_ACADEMY', academyId: null }], available: true, now: T });
+  const html = render(ds);
+  const bul = sectionOf(html, 'Bulwark of the Mountain');
+  check('a rule decision reads "In Academy · remembered" / "remembered rule · detected: Unmatched"', /In Academy · remembered/.test(bul) && /remembered rule · detected: Unmatched/.test(bul));
+  check('reverting it offers "Also forget the remembered rule for future patches" (checked by default)', /Also forget the remembered rule for future patches/.test(bul) && /type="checkbox" checked=""/.test(html.split('class="pn-section"').find((p) => p.includes('<b>Bulwark of the Mountain</b>'))));
+  applyReviewOps(ds, [{ op: 'setSectionClassification', sectionKey: sectionKeyOf(find(ds, /^Bulwark/)), status: 'AUTO' }], { now: T });
+  const html2 = render(ds);
+  check('an "AUTO" decision reads "remembered rule ignored in this patch" with "Use the remembered rule again"', /remembered rule ignored in this patch.*Use the remembered rule again/.test(sectionOf(html2, 'Bulwark of the Mountain')));
+  const un = build(); applyClassificationRules(un, { available: false, now: T });
+  check('rules unavailable at generation time: a warning explains they were not applied', /remembered classification rules could not be read/.test(text(render(un))));
 }
 
 done();
