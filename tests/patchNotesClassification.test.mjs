@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePatchDocument } from '../functions/_lib/patchParser.js';
 import { extractPatchNotes } from '../functions/_lib/patchNotesExtract.js';
-import { initReview, applyReviewOps, deriveLegacyReport, reviewSummary, sectionKeyOf, isChangePublishable, mergeReviewState } from '../functions/_lib/patchNotesReview.js';
+import { initReview, applyReviewOps, deriveLegacyReport, reviewSummary, sectionKeyOf, isChangePublishable, mergeReviewState, applyCoachFieldEdits, mergeFreshOntoExisting } from '../functions/_lib/patchNotesReview.js';
 import { toPublicView } from '../functions/_lib/patchNotesPublic.js';
 import { effectiveClassification, isAutoInAcademy } from '../src/lib/patchNotesClassification.js';
 import { CHAMPIONS, isAcademyCovered } from '../src/data/champions.js';
@@ -103,6 +103,74 @@ console.log('\n=== Stage 2.2: classification, Academy link, decision origin and 
   const unk = build(`# T\n## GAMEPLAY CHANGES\n### Overgrowth\n- Health: 1 → 2\n`, '9.1', { ...real, itemRoster: [...ITEMS, { id: 'overgrowth-item', name: 'Overgrowth', category: 'Support' }] });
   check('an ambiguous owner with no derivable type, without a decision, is still listed as an unmatched System row (unchanged)', unk.changes[0].ownership.source === 'unmatched' && unk.changes[0].entity.type === 'unknown' && draft(unk).systemChanges.some((e) => e.systemCategory === 'unmatched'));
   check('a section review entry holding ONLY a classification decision (no state) is visible, not "removed"', (() => { const d = build(ALL_PATHS_PAGE); decide(d, find(d, /^Bulwark/)[0], { status: 'IN_ACADEMY' }); return reviewSummary(d).sectionsRemoved === 0 && draft(d).itemChanges.some((e) => e.itemName === 'Bulwark of the Mountain'); })());
+}
+
+// ======================================================================================================================
+console.log('\n=== Stage 3: Support-impact (Coach) fields survive review actions, rescans, classification, rules and identity changes ===');
+{
+  const BULWARK = { id: 'bulwark-of-the-mountain', name: 'Bulwark of the Mountain', category: 'Support', tier: 'Unranked', info: '' };
+  // a stored report: dataset + derived entries, with Coach fields written the way the "edit" action writes them
+  const stored = (ds) => ({ patchNotes: ds, ...mergeFreshOntoExisting(draft(ds), {}) });
+  const coachEdit = (report, field, idField, pick, fields) => {
+    const incoming = report[field].filter(pick).map((e) => ({ ...e, ...fields }));
+    return { ...report, [field]: applyCoachFieldEdits(report[field], incoming, idField) };
+  };
+  // the exact sequence functions/api/admin/patch-reports.js "review" runs: ops on the dataset, re-derive, carry Coach fields
+  const reviewAction = (report, ops) => { const ds = clone(report.patchNotes); applyReviewOps(ds, ops(ds), { now: T }); return { ...report, patchNotes: ds, ...mergeFreshOntoExisting(draft(ds), report) }; };
+  // the exact sequence functions/api/admin/patch-check.js runs on a rescan (fresh extraction -> carry review -> carry Coach fields)
+  const rescan = (report, rosters = real) => { const fresh = mergeReviewState(build(ALL_PATHS_PAGE, '9.1', rosters), clone(report.patchNotes)); const legacy = draft(fresh); return { ...report, patchNotes: fresh, ...mergeFreshOntoExisting({ ...legacy, patchNotes: fresh }, report) }; };
+  const bulEntry = (r) => r.itemChanges.find((e) => e.itemName === 'Bulwark of the Mountain');
+  const ezEntry = (r) => r.championChanges.find((e) => e.championName === 'Ezreal');
+  const COACH = { supportImpact: 'Huge for tank supports', coachNotes: 'Rush it', tierListActionNeeded: true, recommendedTierAction: 'Raise' };
+  const hasCoach = (e) => Boolean(e) && e.supportImpact === COACH.supportImpact && e.coachNotes === COACH.coachNotes && e.tierListActionNeeded === true && e.recommendedTierAction === 'Raise';
+
+  let r = stored(build(ALL_PATHS_PAGE));
+  r = coachEdit(r, 'itemChanges', 'itemId', (e) => e.itemName === 'Bulwark of the Mountain', COACH);
+  r = coachEdit(r, 'championChanges', 'championId', (e) => e.championName === 'Ezreal', COACH);
+  check('an edit reaches entities WITHOUT an Academy id (unmatched Bulwark, uncoached Ezreal) -- matched by review section, not id', hasCoach(bulEntry(r)) && hasCoach(ezEntry(r)) && bulEntry(r).itemId === null && ezEntry(r).championId === null);
+  check('...and never touches fact fields (what Riot said)', bulEntry(r).whatChanged === bulEntry(stored(build(ALL_PATHS_PAGE))).whatChanged);
+
+  r = reviewAction(r, (ds) => [{ op: 'keep', changeId: find(ds, /^Leona/)[0].changeId }, { op: 'impactSection', sectionKey: sectionKeyOf(find(ds, /^Ardent/)[0]), changeImpact: 'LOW' }]);
+  check('1. survives unrelated REVIEW ACTIONS', hasCoach(bulEntry(r)) && hasCoach(ezEntry(r)));
+  r = reviewAction(r, (ds) => [{ op: 'keep', changeId: find(ds, /^Bulwark/)[0].changeId }]);
+  check('...and a review action on the entity itself', hasCoach(bulEntry(r)));
+
+  r = reviewAction(r, (ds) => { decide(ds, find(ds, /^Bulwark/)[0], { status: 'IN_ACADEMY' }); return [{ op: 'keep', changeId: find(ds, /^Leona/)[0].changeId }]; });
+  check('2. survives a CLASSIFICATION change (Bulwark moved to In Academy)', hasCoach(bulEntry(r)) && bulEntry(r).academyStatus === 'IN_ACADEMY');
+  r = reviewAction(r, (ds) => { decide(ds, find(ds, /^Bulwark/).find((c) => c.kind === 'system'), { status: 'IN_ACADEMY', type: 'item' }); return [{ op: 'keep', changeId: find(ds, /^Bulwark/).find((c) => c.kind === 'system').changeId }]; });
+  check('...and a second section (the System block) joining that entry', hasCoach(bulEntry(r)) && bulEntry(r).sectionKeys.length === 2);
+  r = reviewAction(r, (ds) => { decide(ds, find(ds, /^Bulwark/)[0], { status: 'IN_ACADEMY', origin: 'rule', ruleKey: 'item:bulwarkofthemountain' }); return [{ op: 'keep', changeId: find(ds, /^Leona/)[0].changeId }]; });
+  check('3. survives a REMEMBERED-RULE decision being applied', hasCoach(bulEntry(r)) && bulEntry(r).academyStatusOrigin === 'rule');
+  r = reviewAction(r, (ds) => { delete ds.sectionReview[sectionKeyOf(find(ds, /^Bulwark/)[0])].classification; delete ds.sectionReview[sectionKeyOf(find(ds, /^Bulwark/).find((c) => c.kind === 'system'))].classification; return [{ op: 'keep', changeId: find(ds, /^Leona/)[0].changeId }]; });
+  check('...and the classification being reverted to automatic', hasCoach(bulEntry(r)) && bulEntry(r).academyStatus === 'UNMATCHED');
+  check('...and an entry moving to another list: Ezreal\'s Coach fields are still on Ezreal', hasCoach(ezEntry(r)));
+
+  r = rescan(r);
+  check('4. survives a RESCAN (same catalog)', hasCoach(bulEntry(r)) && hasCoach(ezEntry(r)));
+  r = rescan(r, { ...real, itemRoster: [...ITEMS, BULWARK] });
+  check('5. survives an IDENTITY change: Bulwark gains a canonical record, its section key changes, its Coach fields follow', hasCoach(bulEntry(r)) && bulEntry(r).itemId === 'bulwark-of-the-mountain' && bulEntry(r).sectionKey === 'entity:item:bulwark-of-the-mountain');
+
+  // two DIFFERENT stored entries collapsing into one new section: their Coach text is never guessed onto it
+  {
+    const PAGE2 = `# T\n## ITEM ADJUSTMENTS\n### Bulwark of the Mountain\n- Shield: 1 → 2\n## GAMEPLAY CHANGES\n### Bulwark of the Mountain\n- Health: 3 → 4\n`;
+    let a = { patchNotes: build(PAGE2), ...mergeFreshOntoExisting(draft(build(PAGE2)), {}) };
+    a = reviewAction(a, (ds) => { decide(ds, ds.changes.find((c) => c.kind === 'system'), { status: 'IN_ACADEMY', type: 'champion' }); return [{ op: 'keep', changeId: ds.changes[1].changeId }]; });
+    a = coachEdit(a, 'itemChanges', 'itemId', () => true, { supportImpact: 'item text' });
+    a = coachEdit(a, 'championChanges', 'championId', () => true, { supportImpact: 'champion text' });
+    check('setup: two separate entries (an item and a reclassified champion) with different Coach text', a.itemChanges[0].supportImpact === 'item text' && a.championChanges[0].supportImpact === 'champion text');
+    const fresh = mergeReviewState(build(PAGE2, '9.1', { ...real, itemRoster: [...ITEMS, BULWARK] }), clone(a.patchNotes));
+    const merged = mergeFreshOntoExisting({ ...draft(fresh), patchNotes: fresh }, a);
+    const e = merged.itemChanges.find((x) => x.itemId === 'bulwark-of-the-mountain');
+    check('both collapse into one catalog entity: the two conflicting texts are NOT guessed onto it (left blank; still on the old revision)', e && e.supportImpact === '' && fresh.sectionMoves.length === 2);
+  }
+
+  // entries stored before entries carried section keys (legacy): the id fallback still works for tracked entities
+  const legacy = stored(build(ALL_PATHS_PAGE));
+  legacy.itemChanges = legacy.itemChanges.map((e) => { const { sectionKey, sectionKeys, ...rest } = e; return e.itemId === 'ardent-censer' ? { ...rest, supportImpact: 'legacy text' } : e; });
+  const after = mergeFreshOntoExisting(draft(build(ALL_PATHS_PAGE)), legacy);
+  check('legacy stored entry with no section keys: still matched by its Academy id', after.itemChanges.find((e) => e.itemId === 'ardent-censer').supportImpact === 'legacy text');
+  const nothing = mergeFreshOntoExisting(draft(build(ALL_PATHS_PAGE)), stored(build(ALL_PATHS_PAGE)));
+  check('no Coach field is ever invented: a fresh entry with no stored counterpart keeps its blank defaults', nothing.itemChanges.every((e) => e.supportImpact === '' && e.coachNotes === ''));
 }
 
 done();

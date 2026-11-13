@@ -81,7 +81,7 @@ const humanTouched = (c) => Boolean(c.review && (c.review.state !== REVIEW_STATE
 export function mergeReviewState(fresh, previous) {
   initReview(fresh);
   const stats = { preserved: 0, refreshed: 0, sourceChanged: 0, orphaned: 0, newChanges: 0, migrated: 0 };
-  if (!previous || !Array.isArray(previous.changes)) { stats.newChanges = fresh.changes.length; stats.sectionsMigrated = 0; fresh.sectionMigrations = []; fresh.orphanedSectionReviews = []; fresh.mergeStats = stats; return fresh; }
+  if (!previous || !Array.isArray(previous.changes)) { stats.newChanges = fresh.changes.length; stats.sectionsMigrated = 0; fresh.sectionMoves = []; fresh.sectionMigrations = []; fresh.orphanedSectionReviews = []; fresh.mergeStats = stats; return fresh; }
   const prevById = new Map(previous.changes.map((c) => [c.changeId, c]));
   const freshIds = new Set(fresh.changes.map((c) => c.changeId));
   // IDENTITY BRIDGE. A parser improvement can change what feeds a change's ID (e.g. its ability label is now recognised) while the Riot
@@ -162,9 +162,11 @@ export function mergeReviewState(fresh, previous) {
     targets.get(from).add(sectionKeyOf(c));
   }
   const incoming = new Map(); // fresh sectionKey -> previous sectionKeys moving into it
+  fresh.sectionMoves = []; // every previous section that no longer exists and whose changes ALL landed in one fresh section
   for (const [from, tos] of targets) {
     if (freshSections.has(from) || tos.size !== 1) continue;
     const to = [...tos][0];
+    fresh.sectionMoves.push({ from, to });
     if (!incoming.has(to)) incoming.set(to, []);
     incoming.get(to).push(from);
   }
@@ -535,13 +537,51 @@ const COACH_FIELDS = [
 // (the old constant "Adjustment" / "Medium") back over them.
 const coachFieldsFor = (entry) => (entry && entry.classification ? COACH_FIELDS.filter((f) => f !== "type" && f !== "impactSeverity") : COACH_FIELDS);
 
+// ---- which stored entry a derived entry IS, for carrying Coach fields ----
+// Coach fields (Support impact, notes, ...) belong to the ENTITY an entry stands for, not to its Academy id: an entity with no
+// canonical record (unmatched, a new candidate, a manually promoted one) has no id at all, a classification change can move an
+// entry to another list (a System block promoted to an item), and a catalog change moves its section key (Stage 1 migration).
+// So entries are matched on the review SECTIONS they stand for (entry.sectionKeys; one entry can stand for several after a merge),
+// following recorded section migrations, across the champion / item / rune lists; the Academy id is only the fallback for
+// entries stored before entries carried section keys.
+const ENTRY_LISTS = [["championChanges", "championId"], ["itemChanges", "itemId"], ["runeChanges", "runeId"]];
+const sectionKeysOfEntry = (e) => (Array.isArray(e && e.sectionKeys) && e.sectionKeys.length ? e.sectionKeys : e && e.sectionKey ? [e.sectionKey] : []);
+
+/** Index of stored entries: by section key across all lists -- following `moves` (patchNotesReview mergeReviewState's
+ *  sectionMoves: old section -> the one new section all its changes landed in) -- and by id within a list (legacy fallback).
+ *  If two DIFFERENT stored entries end up claiming the same section key, that key is ambiguous and carries nothing: Coach text is
+ *  never guessed onto an entity (it stays readable on the previous revision). */
+function indexEntries(report, moves = []) {
+  const moved = new Map((moves || []).map((m) => [m.from, m.to]));
+  const AMBIGUOUS = Symbol("ambiguous");
+  const bySection = new Map(); const byId = new Map();
+  for (const [field, idField] of ENTRY_LISTS) {
+    for (const e of (report && report[field]) || []) {
+      for (const k of sectionKeysOfEntry(e)) {
+        const key = moved.get(k) || k;
+        if (!bySection.has(key)) bySection.set(key, e);
+        else if (bySection.get(key) !== e) bySection.set(key, AMBIGUOUS);
+      }
+      if (e && e[idField]) byId.set(`${field}\u241F${e[idField]}`, e);
+    }
+  }
+  return { find(entry, field, idField) {
+    const keys = sectionKeysOfEntry(entry);
+    for (const k of keys) { const hit = bySection.get(k); if (hit && hit !== AMBIGUOUS) return hit; }
+    if (keys.some((k) => bySection.get(k) === AMBIGUOUS)) return null;
+    return entry[idField] ? byId.get(`${field}\u241F${entry[idField]}`) || null : null;
+  } };
+}
+
 /** Admin/Coach "edit" of a report that HAS a Patch Notes dataset: the incoming entries may only carry Coach fields.
- *  Each is merged onto the server's CURRENT entry (matched by id) -- fact fields, source text and review state are never
- *  taken from the request, so a stale or hand-built payload can't overwrite what Riot said or what the reviewer decided. */
+ *  Each is merged onto the server's CURRENT entry (matched by the review section(s) it stands for, else by id) -- fact fields,
+ *  source text and review state are never taken from the request, so a stale or hand-built payload can't overwrite what Riot
+ *  said or what the reviewer decided. */
 export function applyCoachFieldEdits(currentArr = [], incomingArr = [], idField) {
-  const incoming = new Map((incomingArr || []).filter((e) => e && e[idField]).map((e) => [e[idField], e]));
+  const field = (ENTRY_LISTS.find(([, f]) => f === idField) || [])[0];
+  const index = indexEntries({ [field]: (incomingArr || []).filter((e) => e && typeof e === "object") });
   return (currentArr || []).map((cur) => {
-    const inc = cur[idField] ? incoming.get(cur[idField]) : null;
+    const inc = index.find(cur, field, idField);
     if (!inc) return cur;
     const merged = { ...cur };
     for (const f of coachFieldsFor(cur)) if (f in inc) merged[f] = inc[f];
@@ -549,25 +589,26 @@ export function applyCoachFieldEdits(currentArr = [], incomingArr = [], idField)
   });
 }
 
-function mergeEntryArray(freshArr, existingArr, idField) {
-  const existingById = new Map((existingArr || []).filter((e) => e[idField]).map((e) => [e[idField], e]));
-  return freshArr.map((fresh) => {
-    const old = fresh[idField] ? existingById.get(fresh[idField]) : null;
+function carryCoachFields(freshArr, field, idField, index) {
+  return (freshArr || []).map((fresh) => {
+    const old = index.find(fresh, field, idField);
     if (!old) return fresh; // newly detected this run -- nothing to carry forward
     const merged = { ...fresh };
-    for (const field of coachFieldsFor(fresh)) if (field in old) merged[field] = old[field];
+    for (const f of coachFieldsFor(fresh)) if (f in old) merged[f] = old[f];
     return merged;
   });
 }
 
-/** A rescan refreshes Riot-derived facts but carries every Coach-written field on each entry (matched by id)
- *  and recommendedTierChanges forward. systemChanges are always taken fresh. */
+/** A rescan / review re-derive refreshes Riot-derived facts but carries every Coach-written field on each entry (matched as
+ *  described above, following `freshReport.patchNotes.sectionMoves` when the fresh report has them) and
+ *  recommendedTierChanges forward. systemChanges are always taken fresh (their Coach fields cannot be edited on a dataset report). */
 export function mergeFreshOntoExisting(freshReport, existingReport) {
+  const index = indexEntries(existingReport, freshReport && freshReport.patchNotes && freshReport.patchNotes.sectionMoves);
   return {
     ...freshReport,
-    championChanges: mergeEntryArray(freshReport.championChanges, existingReport?.championChanges, "championId"),
-    itemChanges: mergeEntryArray(freshReport.itemChanges, existingReport?.itemChanges, "itemId"),
-    runeChanges: mergeEntryArray(freshReport.runeChanges, existingReport?.runeChanges, "runeId"),
+    championChanges: carryCoachFields(freshReport.championChanges, "championChanges", "championId", index),
+    itemChanges: carryCoachFields(freshReport.itemChanges, "itemChanges", "itemId", index),
+    runeChanges: carryCoachFields(freshReport.runeChanges, "runeChanges", "runeId", index),
     recommendedTierChanges: existingReport?.recommendedTierChanges || freshReport.recommendedTierChanges,
   };
 }
