@@ -298,6 +298,7 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString(), c
         }
         entry.classification = decision;
       }
+      withCompatSectionState(entry);
       const { reviewedAt, ...rest } = entry;
       if (Object.keys(rest).length) dataset.sectionReview[op.sectionKey] = { ...rest, reviewedAt: now }; else delete dataset.sectionReview[op.sectionKey];
       applied.push(op.op);
@@ -364,6 +365,24 @@ export function applyReviewOps(dataset, ops, { now = new Date().toISOString(), c
 // means the section was never removed/rejected, i.e. visible.
 const sectionStateOf = (entry) => (entry && entry.state) || SECTION_STATE.VISIBLE;
 /**
+ * ROLLBACK COMPATIBILITY for the two writers of classification decisions (setSectionClassification and applyClassificationRules).
+ * Builds from before classification existed (main @ 025c15e) read a section entry WITHOUT `state` as hidden
+ * (`!s || s.state === "visible"`), whereas this build reads a missing state as visible (sectionStateOf). So an entry that carries a
+ * classification decision is always stored with an explicit `state`: the one it already has (removed / rejected are never touched)
+ * or "visible" -- which is exactly what a missing state already means here, so this build's behaviour does not change.
+ * When the decision is removed and a bare `state: "visible"` is all that is left (besides reviewedAt), that state is dropped again,
+ * so clearing a decision leaves the entry in the shape it had before (no entry and `state: "visible"` mean the same in every build).
+ * Mutates and returns `entry`.
+ */
+function withCompatSectionState(entry) {
+  if (entry.classification) {
+    if (!entry.state) entry.state = SECTION_STATE.VISIBLE;
+  } else if (entry.state === SECTION_STATE.VISIBLE && Object.keys(entry).every((k) => k === "state" || k === "reviewedAt")) {
+    delete entry.state;
+  }
+  return entry;
+}
+/**
  * Snapshots the remembered classification rules into this dataset's review layer (functions/_lib/patchClassificationRules.js).
  *   - a section with its OWN decision in this patch (origin "manual", including an explicit "AUTO") is never touched;
  *   - a section an active rule matches (exactly one rule) and that is not already In Academy automatically gets
@@ -397,6 +416,7 @@ export function applyClassificationRules(dataset, { rules = null, available = tr
       delete entry.classification;
       removed++;
     } else continue;
+    withCompatSectionState(entry);
     if (Object.keys(entry).length) dataset.sectionReview[key] = entry; else delete dataset.sectionReview[key];
   }
   dataset.classificationRules = { status: "applied", activeRules: rules.length, appliedSections: applied, removedSections: removed, checkedAt: now };
